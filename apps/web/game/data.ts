@@ -190,9 +190,9 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   goblin:   { name: "고블린",             hp: 58,   atk: 13, def: 2, spd: 9,  exp: 22,  gold: 16,  tier: "일반", shape: "goblin",  color: 0x8a9a4a },
   wolf:     { name: "다이어울프",          hp: 72,   atk: 16, def: 2, spd: 13, exp: 30,  gold: 20,  tier: "일반", shape: "wolf",    color: 0x777788 },
   skeleton: { name: "스켈레톤",           hp: 66,   atk: 14, def: 4, spd: 8,  exp: 28,  gold: 22,  tier: "일반", shape: "skel",    color: 0xcfc8b0 },
-  orc:      { name: "오크 워로드",         hp: 380,  atk: 22, def: 7, spd: 9,  exp: 150, gold: 220, tier: "정예", shape: "orc",     color: 0x4f7a3e, big: 1.35 },
-  lord:     { name: "숲의 군주 그림바크",   hp: 720,  atk: 26, def: 8, spd: 10, exp: 450, gold: 800, tier: "보스", shape: "lord",    color: 0x3e5a3a, big: 1.7 },
-  ancient:  { name: "고대 정령 아스테리온", hp: 1100, atk: 32, def: 10, spd: 14, exp: 999, gold: 2000, tier: "에픽", shape: "ancient", color: 0x9a6ff0, big: 1.8 },
+  orc:      { name: "오크 워로드",         hp: 780,  atk: 32, def: 9,  spd: 10, exp: 150, gold: 220, tier: "정예", shape: "orc",     color: 0x4f7a3e, big: 1.35 },
+  lord:     { name: "숲의 군주 그림바크",   hp: 3400, atk: 42, def: 10, spd: 11, exp: 450, gold: 800, tier: "보스", shape: "lord",    color: 0x3e5a3a, big: 1.7 },
+  ancient:  { name: "고대 정령 아스테리온", hp: 6000, atk: 50, def: 12, spd: 15, exp: 999, gold: 2000, tier: "에픽", shape: "ancient", color: 0x9a6ff0, big: 1.8 },
 };
 
 export interface GearDef { id: string; name: string; atk?: number; def?: number; price: number; desc?: string; }

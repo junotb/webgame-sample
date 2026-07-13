@@ -1,7 +1,0 @@
-{
-  "name": "publish-sample",
-  "private": true,
-  "workspaces": [
-    "apps/*"
-  ]
-}

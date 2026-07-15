@@ -1,11 +1,11 @@
 import GameCanvas from "@/components/GameCanvas";
-import { notoSans, notoSerif } from "./fonts";
+import { notoSans } from "./fonts";
 
 export default function Home() {
   return (
     <main>
       <GameCanvas
-        displayFont={notoSerif.style.fontFamily}
+        displayFont={notoSans.style.fontFamily}
         bodyFont={notoSans.style.fontFamily}
       />
     </main>

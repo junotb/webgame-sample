@@ -11,6 +11,7 @@ import {
   sceneRoot, setModeBadge, switchScene, toast, txt, ui,
 } from "../core";
 import { G, partyRank } from "../state";
+import { TILE, TileName, tileSprite } from "../tiles";
 import { drawAdventurer, drawMonster } from "../monsters";
 import { buildPartyHUD } from "../hud";
 import { eventScene, EventNode } from "./event";
@@ -39,72 +40,96 @@ interface ExObj {
 }
 
 export function exploreScene(): SceneHandle {
-  setModeBadge("탐험 모드 — 황혼의 숲", C.green);
+  setModeBadge("탐험 모드 — 황혼의 숲 지하미궁", C.green);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
   const E = G.explore;
   const idRank = partyRank("identify");
   const disarmRank = partyRank("trapfinding");
 
-  /* --- parallax --- */
-  const skyG = new PIXI.Graphics();
-  skyG.rect(0, 0, W, H).fill(0x171233);
-  skyG.circle(1120, 100, 38).fill({ color: 0xd8cba0, alpha: 0.85 });
-  skyG.circle(1104, 90, 32).fill(0x171233);
-  for (let i = 0; i < 60; i++)
-    skyG.circle(Math.random() * W, Math.random() * 300, Math.random() * 1.5)
-      .fill({ color: 0xffffff, alpha: 0.2 + Math.random() * 0.5 });
-  root.addChild(skyG);
+  /* --- 던전 타일맵 (dungeon_tileset.png / 샘플 맵 구도) ---
+   *  천장(wall_top) 1줄 → 벽면(wall/moss/torch) 5줄 → 석재 바닥(레인 지대)
+   *  바닥 변형: 균열·유골, 최하단 줄에 물웅덩이·최심부 계단 */
+  const TS = TILE * 2;                         // 화면 타일 크기 64px
+  const COLS = Math.ceil(WORLD_W / TS);
+  const WALLTOP_Y = 32;
+  const WALL_Y0 = WALLTOP_Y + TS;
+  const WALL_ROWS = 5;
+  const FLOOR_Y0 = WALL_Y0 + WALL_ROWS * TS;   // 416 — 레인 지대 시작
+  const FLOOR_ROWS = Math.ceil((H - FLOOR_Y0) / TS);
+  /* 칸마다 고정된 변형을 고르는 결정적 의사난수 */
+  const rnd = (n: number) => {
+    const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return s - Math.floor(s);
+  };
 
-  const far = new PIXI.Container(); root.addChild(far);
-  const farG = new PIXI.Graphics();
-  for (let x = 0; x < WORLD_W * 0.25 + W; x += 180) {
-    const hh = 120 + ((x * 7919) % 97);
-    farG.moveTo(x, 430).lineTo(x + 90, 430 - hh).lineTo(x + 180, 430).closePath();
-  }
-  farG.fill(0x1e1838); far.addChild(farG);
-
-  const mid = new PIXI.Container(); root.addChild(mid);
-  const midG = new PIXI.Graphics();
-  for (let x = 0; x < WORLD_W * 0.55 + W; x += 110) {
-    const th = 150 + ((x * 104729) % 80);
-    midG.rect(x + 48, 460 - th, 14, th).fill(0x231b40);
-    midG.ellipse(x + 55, 460 - th, 52, 64).fill(0x2a2050);
-  }
-  mid.addChild(midG);
+  const voidG = new PIXI.Graphics();
+  voidG.rect(0, 0, W, H).fill(C.night);
+  root.addChild(voidG);
 
   const world = new PIXI.Container(); root.addChild(world);
-  const groundG = new PIXI.Graphics();
-  groundG.rect(0, 430, WORLD_W, H - 430).fill(0x241d3a);
-  /* 3개 레인 오솔길 */
+  const tiles = new PIXI.Container(); world.addChild(tiles);
+  const torchGlows: { g: PIXI.Graphics; phase: number }[] = [];
+
+  /* 최하단 줄 물웅덩이 (레인 바깥 장식) */
+  const POOLS = [{ c0: 14, w: 3 }, { c0: 27, w: 2 }, { c0: 44, w: 3 }];
+  const inPool = (c: number) => POOLS.some((p) => c >= p.c0 && c < p.c0 + p.w);
+
+  for (let cx = 0; cx < COLS; cx++) {
+    const x = cx * TS;
+    const top = tileSprite("wall_top"); top.x = x; top.y = WALLTOP_Y; tiles.addChild(top);
+    for (let r = 0; r < WALL_ROWS; r++) {
+      const isTorch = r === 1 && cx % 5 === 2;
+      const name: TileName = isTorch ? "torch"
+        : rnd(cx * 31 + r * 7) < 0.13 ? "wall_moss" : "wall";
+      const s = tileSprite(name); s.x = x; s.y = WALL_Y0 + r * TS; tiles.addChild(s);
+      if (isTorch) {
+        const glow = new PIXI.Graphics();
+        glow.circle(0, 0, 46).fill(0xe87820);
+        glow.blendMode = "add"; glow.alpha = 0.08;
+        glow.x = x + 31; glow.y = WALL_Y0 + r * TS + 21;
+        tiles.addChild(glow);
+        torchGlows.push({ g: glow, phase: cx * 1.7 });
+      }
+    }
+    for (let r = 0; r < FLOOR_ROWS; r++) {
+      const v = rnd(cx * 13 + r * 101);
+      let name: TileName = v < 0.09 ? "floor_crack" : v > 0.988 ? "bones" : "floor";
+      if (r === FLOOR_ROWS - 1) {
+        if (inPool(cx)) name = "water";
+        else if (cx === COLS - 2) name = "stairs"; // 최심부: 더 깊은 곳으로
+      }
+      const s = tileSprite(name); s.x = x; s.y = FLOOR_Y0 + r * TS; tiles.addChild(s);
+    }
+  }
+
+  /* 3개 레인 통로 + 갈림길 연결로 (타일 위 하이라이트) */
+  const laneG = new PIXI.Graphics();
   LANE_Y.forEach((y, li) => {
-    groundG.rect(0, y - 14, WORLD_W, 40).fill({ color: 0x3a2e58, alpha: 0.36 + li * 0.1 });
-    groundG.moveTo(0, y - 14).lineTo(WORLD_W, y - 14).stroke({ width: 1, color: C.arcane, alpha: 0.1 });
+    laneG.rect(0, y - 14, WORLD_W, 40).fill({ color: 0xd8c9a0, alpha: 0.05 + li * 0.02 });
+    laneG.moveTo(0, y - 14).lineTo(WORLD_W, y - 14).stroke({ width: 1, color: C.border, alpha: 0.08 });
   });
-  /* 갈림길: 레인을 잇는 세로 연결로 */
   for (const j of JUNCTIONS) {
-    groundG
+    laneG
       .roundRect(j.x - j.w / 2, LANE_Y[0] - 14, j.w, LANE_Y[2] - LANE_Y[0] + 40, 14)
-      .fill({ color: 0x46396c, alpha: 0.5 });
-    groundG
+      .fill({ color: 0xd8c9a0, alpha: 0.09 });
+    laneG
       .roundRect(j.x - j.w / 2, LANE_Y[0] - 14, j.w, LANE_Y[2] - LANE_Y[0] + 40, 14)
       .stroke({ width: 1, color: C.border, alpha: 0.28 });
   }
-  world.addChild(groundG);
+  world.addChild(laneG);
   /* 갈림길 표식 */
   for (const j of JUNCTIONS) {
     const mark = txt("↕ 갈림길", 13, C.border, { weight: "700", shadow: true });
     mark.anchor.set(0.5); mark.x = j.x; mark.y = LANE_Y[0] - 34;
     world.addChild(mark);
   }
-  /* 장식 나무 (레인 사이) */
-  for (let x = 220; x < WORLD_W; x += 300) {
+  /* 장식 기둥 (벽 하단, 갈림길 제외) */
+  for (let x = 260; x < WORLD_W; x += 300) {
     if (inJunction(x)) continue;
-    const t = new PIXI.Graphics();
-    t.rect(-9, -170, 18, 170).fill(0x1a1430);
-    t.ellipse(0, -180, 62, 78).fill(0x201a3e);
-    t.ellipse(0, -180, 62, 78).stroke({ width: 1, color: C.arcane, alpha: 0.15 });
-    t.x = x + 40; t.y = LANE_Y[0] - 18;
-    world.addChild(t);
+    const p = tileSprite("pillar_obj", 3);
+    p.anchor.set(0.5, 1);
+    p.x = x; p.y = FLOOR_Y0 + 14;
+    world.addChild(p);
   }
 
   /* --- 오브젝트 (레인 지정) --- */
@@ -114,14 +139,17 @@ export function exploreScene(): SceneHandle {
     o.node.x = o.x; o.node.y = LANE_Y[o.lane] + 12;
     o.node.scale.set(LANE_SCALE[o.lane]);
   }
-  /* 마을 포탈 — 가운데 레인 */
+  /* 마을 포탈 — 가운데 레인 (석재 문틀 + 목재 문 타일) */
   {
-    const g = new PIXI.Graphics();
-    g.roundRect(-40, -140, 80, 140, 10).fill(0x2e2648);
-    g.roundRect(-26, -116, 52, 116, 26).fill(0x14101f);
-    g.roundRect(-40, -140, 80, 140, 10).stroke({ width: 2, color: C.border, alpha: 0.7 });
+    const g = new PIXI.Container();
+    const frame = new PIXI.Graphics();
+    frame.roundRect(-48, -126, 96, 130, 8).fill(0x2e2648);
+    frame.roundRect(-48, -126, 96, 130, 8).stroke({ width: 2, color: C.border, alpha: 0.7 });
+    const door = tileSprite("door_obj", 4);
+    door.anchor.set(0.5, 1); door.y = -6;
     const lb = txt("◀ 리븐홀드", 14, C.border, { weight: "700" });
-    lb.anchor.set(0.5); lb.x = 0; lb.y = -160; g.addChild(lb);
+    lb.anchor.set(0.5); lb.y = -146;
+    g.addChild(frame, door, lb);
     addObj({
       id: "portal", x: 110, lane: 1, node: g, radius: 70, prompt: "마을로 돌아간다",
       act: () => fullFlash(0x000000, 500, () => nav.town()),
@@ -138,13 +166,17 @@ export function exploreScene(): SceneHandle {
       act: () => toast("「갈림길에서는 위아래로 길이 갈라진다 — 안쪽 길에 보물이, 바깥 길에 어둠이」", C.dim),
     });
   }
-  function chestNode(hiddenGlow?: boolean): PIXI.Graphics {
-    const g = new PIXI.Graphics();
-    g.roundRect(-24, -30, 48, 30, 5).fill(0x6a4a2a);
-    g.roundRect(-24, -42, 48, 16, 6).fill(0x8a5a30);
-    g.rect(-3, -34, 6, 10).fill(C.border);
-    if (hiddenGlow) g.roundRect(-28, -46, 56, 50, 8).stroke({ width: 2, color: C.epic, alpha: 0.8 });
-    return g;
+  function chestNode(hiddenGlow?: boolean): PIXI.Container {
+    const c = new PIXI.Container();
+    const s = tileSprite("chest_obj", 2.5);
+    s.anchor.set(0.5, 1);
+    c.addChild(s);
+    if (hiddenGlow) {
+      const g = new PIXI.Graphics();
+      g.roundRect(-32, -54, 64, 60, 8).stroke({ width: 2, color: C.epic, alpha: 0.8 });
+      c.addChild(g);
+    }
+    return c;
   }
   /* 일반 상자 — 위쪽(안) 레인: 첫 갈림길에서 올라가야 획득 */
   if (!E.chestOpened.c1) {
@@ -168,9 +200,9 @@ export function exploreScene(): SceneHandle {
         E.chestOpened.hidden = true; self.node.visible = false;
         if (disarmRank < 1) {
           G.party.forEach((m) => { if (m.hp > 0) m.hp = Math.max(1, m.hp - 22); });
-          toast("함정이다! 파티가 22의 피해… (함정 해체 스킬이 있었다면)", C.blood);
+          toast("함정이다! 파티가 22의 피해… (함정 스킬이 있었다면)", C.blood);
         } else {
-          toast("함정을 해체했다. (함정 해체 스킬)", C.green);
+          toast("함정을 해체했다. (함정 스킬)", C.green);
         }
         G.gold += 240; G.items.mpotion++;
         toast("240 G와 마나 물약을 손에 넣었다!", C.border); hud.redraw();
@@ -286,6 +318,7 @@ export function exploreScene(): SceneHandle {
   let laneY = LANE_Y[E.lane];
   const SPEED = 4.4;
   let upHeld = false, dnHeld = false;
+  let glowT = 0;
 
   function tryLane(dir: -1 | 1): void {
     if (!inJunction(E.x)) {
@@ -351,7 +384,11 @@ export function exploreScene(): SceneHandle {
     }
     /* 카메라 */
     const cam = Math.max(0, Math.min(WORLD_W - W, E.x - W * 0.45));
-    world.x = -cam; mid.x = -cam * 0.55; far.x = -cam * 0.25;
+    world.x = -cam;
+    /* 횃불 플리커 */
+    glowT += t.deltaMS;
+    for (const tg of torchGlows)
+      tg.g.alpha = 0.07 + 0.04 * Math.sin(glowT / 160 + tg.phase);
     /* 근접 오브젝트 (같은 레인만) */
     nearObj = null;
     for (const o of objects) {

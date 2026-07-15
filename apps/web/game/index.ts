@@ -6,7 +6,10 @@
 import {
   attachInput, destroyPixi, fullFlash, initPixi, nav, switchScene,
 } from "./core";
+import { loadPortraits } from "./portraits";
+import { loadTiles } from "./tiles";
 import { titleScene } from "./scenes/title";
+import { createScene } from "./scenes/create";
 import { townScene } from "./scenes/town";
 import { exploreScene } from "./scenes/explore";
 import { battleScene, BattleOpts } from "./scenes/battle";
@@ -17,10 +20,12 @@ export async function boot(
   fonts: { displayFont: string; bodyFont: string },
 ): Promise<() => void> {
   await initPixi(el, fonts);
+  await Promise.all([loadPortraits(), loadTiles()]);
   attachInput();
 
   /* nav 배선 — 씬 간 순환 import 방지 라우터 */
   nav.title = () => switchScene(titleScene);
+  nav.create = () => switchScene(createScene);
   nav.intro = () => switchScene(introEvent);
   nav.town = () => switchScene(townScene);
   nav.explore = () => switchScene(exploreScene);

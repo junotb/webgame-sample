@@ -8,8 +8,8 @@ import {
   setModeBadge, toast, tween, txt, wait,
 } from "../core";
 import {
-  BattleAbility, G, Member, gainExpParty, memberAbilities, memberStats,
-  partyRank, rankMult,
+  BattleAbility, G, Member, gainExpParty, magicBase, memberAbilities,
+  memberStats, partyFortune, partyRank, rankMult,
 } from "../state";
 import { drawAdventurer, drawMonster } from "../monsters";
 
@@ -303,7 +303,7 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
       if (t.m.hp <= 0) { toast("전투불능 상태에는 치유가 닿지 않는다. (물약 필요)", C.dim); state = "player"; return; }
       state = "anim"; showCmds(false);
       actUnit.m.mp -= a.mp;
-      const amt = Math.round(memberStats(actUnit.m).mag * 1.8 * rankMult(a.rank) * a.pow);
+      const amt = Math.round(magicBase(memberStats(actUnit.m), a.skill) * 1.8 * rankMult(a.rank) * a.pow);
       t.m.hp = Math.min(t.m.maxHp, t.m.hp + amt);
       redrawParty();
       log(`${actUnit.m.name}의 치유! ${t.m.name} HP ${amt} 회복.`);
@@ -352,11 +352,12 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
           let totalDealt = 0;
           targets.forEach((e) => {
             if (!e.alive) return;
-            const base = a.kind === "mag" ? s.mag : s.atk;
+            const base = a.kind === "mag" ? magicBase(s, a.skill) : s.atk;
             let dmg = Math.round(base * a.pow * mult * blessMult * (0.9 + Math.random() * 0.2));
             const defv = a.pierce ? Math.floor(e.defv / 2) : e.defv;
             dmg = Math.max(1, dmg - defv);
-            if (a.crit && Math.random() < a.crit) {
+            /* 치명타 — 기술 자체 확률 + 운(Fortune) 보정 */
+            if (Math.random() < (a.crit ?? 0) + s.crit) {
               dmg = Math.round(dmg * 1.7);
               popDmg(e.node.x, e.node.y - 150, "치명타!", C.border);
             }
@@ -477,6 +478,12 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
     let exp = 0, gold = 0;
     enemies.forEach((e) => { exp += e.def.exp; gold += e.def.gold; });
     G.gold += gold;
+    /* 운(Fortune) — 희귀 아이템 획득 판정 */
+    let luckyLine = "";
+    if (Math.random() < partyFortune() * 0.012) {
+      if (Math.random() < 0.5) { G.items.potion++; luckyLine = "행운! 전리품에서 치유 물약을 발견했다."; }
+      else { G.items.mpotion++; luckyLine = "행운! 전리품에서 마나 물약을 발견했다."; }
+    }
     const ups = gainExpParty(exp);
     /* 쓰러진 멤버는 HP 1로 일어난다 */
     const revived = G.party.filter((m) => m.hp <= 0);
@@ -488,6 +495,7 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
     tt.anchor.set(0.5, 0); tt.x = W / 2; tt.y = 212; tt.alpha = 0; root.addChild(tt);
     const lines = [
       `파티 전원 경험치 +${exp}    ${gold} G 획득`,
+      luckyLine,
       ups.length ? `레벨 업!  ${ups.join(" · ")}  (HP/MP 전부 회복)` : "",
       revived.length ? `${revived.map((m) => m.name).join("·")}(이)가 정신을 차렸다. (HP 1)` : "",
     ].filter(Boolean).join("\n\n");

@@ -191,7 +191,7 @@ export function townScene(): SceneHandle {
       const opts = classOptions(m);
       const intro = txt(
         CLASSES[m.classId].tier === 0
-          ? "물리의 길인가, 마법의 길인가 — 1차 전직은 네 갈래일세."
+          ? `${CLASSES[m.classId].name}의 소양을 살릴 1차 전직 — 두 갈래일세.`
           : `${CLASSES[m.classId].name}의 길 끝에 두 개의 문이 있네.`,
         15, C.text);
       intro.x = p.x + 28; intro.y = p.y + 62; content.addChild(intro);

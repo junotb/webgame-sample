@@ -2,7 +2,8 @@
  * hud.ts — 파티 HUD, 모험 수첩, 필드 스킬 메뉴, 멤버 선택 오버레이
  * ===================================================================== */
 import * as PIXI from "pixi.js";
-import { CLASSES, RANK_NAME, SKILLS, SkillId } from "./data";
+import { ATTRS, ATTR_IDS, CLASSES, RANK_NAME, SKILLS, SkillId } from "./data";
+import { portraitTexture } from "./portraits";
 import {
   C, H, W, button, overlayRoot, panel, toast, tween, txt, ui, wait,
 } from "./core";
@@ -110,13 +111,26 @@ export function openStatusMenu(onClose?: () => void): void {
     const m = G.party[selIdx];
     const st = memberStats(m);
     const r = memberRanks(m);
+    /* 초상화 */
+    const tex = portraitTexture(m.portrait);
+    if (tex) {
+      const sp = new PIXI.Sprite(tex);
+      sp.width = 96; sp.height = 96; sp.x = bx + 28; sp.y = by + 110;
+      detail.addChild(sp);
+      const frame = new PIXI.Graphics();
+      frame.rect(bx + 28, by + 110, 96, 96).stroke({ width: 2, color: C.border, alpha: 0.8 });
+      detail.addChild(frame);
+    }
+    const attrLine = ATTR_IDS
+      .map((k) => `${ATTRS[k].name} ${m.attrs[k]}`).join("   ");
     const info = txt(
       `${m.name} — ${CLASSES[m.classId].name}${m.ld ? " (" + SKILLS[m.ld].name + "의 길)" : ""}   Lv.${m.level}   EXP ${m.exp}/${expNeed(m.level)}\n` +
       `HP ${m.hp}/${m.maxHp}    MP ${m.mp}/${m.maxMp}\n` +
-      `공격 ${st.atk}   마력 ${st.mag}   방어 ${st.def}   속도 ${st.spd}   회피 ${Math.round(st.evade * 100)}%\n` +
+      attrLine + "\n" +
+      `공격 ${st.atk}   마법(법사 ${st.magInt}·사제 ${st.magWit})   방어 ${st.def}   속도 ${st.spd}   회피 ${Math.round(st.evade * 100)}%   치명타 ${Math.round(st.crit * 100)}%\n` +
       `무기: ${m.weapon.name} (+${m.weapon.atk})   방어구: ${m.armor.name} (+${m.armor.def})`,
-      15, C.text, { lh: 24 });
-    info.x = bx + 28; info.y = by + 110; detail.addChild(info);
+      14, C.text, { lh: 22 });
+    info.x = bx + 140; info.y = by + 104; detail.addChild(info);
 
     const sTitle = txt("— 스킬 숙련 —", 16, C.border, { weight: "700" });
     sTitle.x = bx + 28; sTitle.y = by + 226; detail.addChild(sTitle);

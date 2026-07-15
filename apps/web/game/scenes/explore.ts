@@ -43,7 +43,7 @@ export function exploreScene(): SceneHandle {
   const root = new PIXI.Container(); sceneRoot.addChild(root);
   const E = G.explore;
   const idRank = partyRank("identify");
-  const disarmRank = partyRank("disarm");
+  const disarmRank = partyRank("trapfinding");
 
   /* --- parallax --- */
   const skyG = new PIXI.Graphics();

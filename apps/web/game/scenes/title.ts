@@ -5,7 +5,6 @@ import * as PIXI from "pixi.js";
 import {
   C, H, SceneHandle, W, button, fullFlash, nav, sceneRoot, setModeBadge, tween, txt,
 } from "../core";
-import { newGame } from "../state";
 
 export function titleScene(): SceneHandle {
   setModeBadge(null);
@@ -66,8 +65,7 @@ export function titleScene(): SceneHandle {
   let started = false;
   function start(): void {
     if (started) return; started = true;
-    newGame();
-    fullFlash(0x000000, 600, () => nav.intro());
+    fullFlash(0x000000, 600, () => nav.create());
   }
 
   return { onKey: (k) => { if (k === "Enter" || k === " ") start(); } };

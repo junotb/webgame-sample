@@ -7,33 +7,35 @@ import {
   ATTRS, ATTR_BASE, ATTR_IDS, ATTR_MAX, ATTR_MIN, Attrs, BASE_CLASSES,
   CLASSES, CREATE_POINTS, CREATE_SKILL_PICKS, ClassId, PartySlot,
   PARTY_SLOTS, SKILLS, SkillId,
-} from "../data";
+} from "../defs";
 import {
-  C, H, SceneHandle, W, button, fullFlash, nav, panel, sceneRoot,
+  C, H, SceneHandle, W, app, button, fullFlash, nav, panel, sceneRoot,
   setModeBadge, toast, txt,
 } from "../core";
-import { CreationConfig, maxHpOf, maxMpOf, newGame } from "../state";
-import { PORTRAIT_COUNT, PORTRAITS, portraitTexture } from "../portraits";
+import { CreationConfig, G, maxHpOf, maxMpOf, newGame } from "../state";
+import { PORTRAIT_COUNT, portraitTexture } from "../portraits";
+
+const NAME_MAX = 6;
 
 interface Draft {
   slot: PartySlot;
+  name: string;
   portrait: number;
   classId: ClassId;
   skills: SkillId[];
   attrs: Attrs;
 }
 
-/** 빈 슬롯에서 시작 — 초상화·기술·능력치 분배는 전부 플레이어의 몫 */
-function makeDraft(slot: PartySlot, idx: number): Draft {
+/** 슬롯 프리셋으로 시작 — 각자 추천 2차 직업에 맞는 기본값, 자유 수정 가능 */
+function makeDraft(slot: PartySlot): Draft {
+  const p = slot.preset;
   return {
     slot,
-    portrait: idx * 12 + 1, // 겹치지 않게 시작 위치만 분산
-    classId: BASE_CLASSES[0],
-    skills: [],
-    attrs: {
-      might: ATTR_BASE, int: ATTR_BASE, wit: ATTR_BASE,
-      vital: ATTR_BASE, agi: ATTR_BASE, fortune: ATTR_BASE,
-    },
+    name: slot.name,
+    portrait: p.portrait,
+    classId: p.classId,
+    skills: [...p.skills],
+    attrs: { ...p.attrs },
   };
 }
 
@@ -54,7 +56,7 @@ function draftReady(d: Draft): boolean {
 }
 
 export function createScene(): SceneHandle {
-  setModeBadge("모험단 결성", C.border);
+  setModeBadge(null); // 화면 타이틀과 중복·겹침 (좌상단 배지 생략)
   const root = new PIXI.Container(); sceneRoot.addChild(root);
 
   /* 배경 */
@@ -67,11 +69,59 @@ export function createScene(): SceneHandle {
 
   const title = txt("모험단 결성", 34, C.border, { serif: true, shadow: true });
   title.x = 44; title.y = 26; root.addChild(title);
-  const sub = txt("네 명의 모험가를 준비하세요 — 초상화 · 직업 · 추가 기술 · 능력치", 14, C.dim);
+  const sub = txt("네 명의 모험가를 준비하세요 — 이름 · 초상화 · 직업 · 추가 기술 · 능력치", 14, C.dim);
   sub.x = 46; sub.y = 74; root.addChild(sub);
 
-  const drafts: Draft[] = PARTY_SLOTS.map(makeDraft);
+  const drafts: Draft[] = PARTY_SLOTS.map((s) => makeDraft(s));
   let sel = 0;
+
+  /* ---- 이름 편집 — 한글 IME 입력을 위해 캔버스 위 DOM 오버레이 사용 ---- */
+  let nameInput: HTMLInputElement | null = null;
+  function closeNameInput(save: boolean): void {
+    const input = nameInput;
+    if (!input) return;
+    nameInput = null;
+    const v = input.value.trim().slice(0, NAME_MAX);
+    input.remove();
+    if (root.destroyed) return;
+    if (save && v) drafts[sel].name = v;
+    refreshAll();
+  }
+  function openNameInput(x: number, y: number, w: number): void {
+    if (nameInput) return;
+    const rect = app.canvas.getBoundingClientRect();
+    const sx = rect.width / W, sy = rect.height / H;
+    const input = document.createElement("input");
+    input.value = drafts[sel].name;
+    input.maxLength = NAME_MAX;
+    Object.assign(input.style, {
+      position: "fixed",
+      left: `${rect.left + x * sx}px`,
+      top: `${rect.top + y * sy}px`,
+      width: `${w * sx}px`,
+      height: `${40 * sy}px`,
+      fontSize: `${20 * sy}px`,
+      fontFamily: "inherit",
+      background: "#1d1830",
+      color: "#e8dcc0",
+      border: "2px solid #c9a227",
+      borderRadius: "6px",
+      padding: "0 10px",
+      outline: "none",
+      zIndex: "20",
+    } satisfies Partial<CSSStyleDeclaration>);
+    /* 씬 단축키(화살표·Enter)로 새어나가지 않게 차단 */
+    input.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") closeNameInput(true);
+      if (e.key === "Escape") closeNameInput(false);
+    });
+    input.addEventListener("blur", () => closeNameInput(true));
+    document.body.appendChild(input);
+    nameInput = input;
+    input.focus();
+    input.select();
+  }
 
   /* 메인 패널 + 동적 컨테이너 */
   const P = { x: 40, y: 100, w: 1010, h: 540 };
@@ -115,7 +165,7 @@ export function createScene(): SceneHandle {
         c.addChild(fr);
       }
       const ready = draftReady(d);
-      const nm = txt(`${d.slot.name} ${ready ? "✓" : ""}`, 14, ready ? C.text : C.dim, { weight: "700" });
+      const nm = txt(`${d.name} ${ready ? "✓" : ""}`, 14, ready ? C.text : C.dim, { weight: "700" });
       nm.anchor.set(0.5, 0); nm.x = 75; nm.y = 84; c.addChild(nm);
       const cl = txt(CLASSES[d.classId].name, 12, active ? C.border : C.dim);
       cl.anchor.set(0.5, 0); cl.x = 75; cl.y = 102; c.addChild(cl);
@@ -133,12 +183,26 @@ export function createScene(): SceneHandle {
     const d = drafts[sel];
     const bx = P.x + 30, by = P.y + 20;
 
-    /* 이름 */
-    const nameT = txt(d.slot.name, 24, C.border, { serif: true });
+    /* 이름 + 편집/초기화 */
+    const nameT = txt(d.name, 24, C.border, { serif: true });
     nameT.x = bx; nameT.y = by; dyn.addChild(nameT);
+    const editX = bx + Math.max(130, nameT.width + 14);
+    const editBtn = button("✎", 36, 30, () => openNameInput(bx - 10, by - 4, 200), { size: 14 });
+    editBtn.x = editX; editBtn.y = by + 2; dyn.addChild(editBtn);
+    const resetBtn = button("기본값", 64, 30, () => {
+      drafts[sel] = makeDraft(d.slot);
+      refreshAll();
+    }, { size: 12, color: C.dim });
+    resetBtn.x = editX + 44; resetBtn.y = by + 2; dyn.addChild(resetBtn);
+
+    /* 추천 성장 경로 (프리셋 기준) */
+    const pathT = txt(
+      "추천 경로: " + d.slot.preset.path.map((c) => CLASSES[c].name).join(" → "),
+      12, C.dim);
+    pathT.x = bx; pathT.y = by + 32; dyn.addChild(pathT);
 
     /* -- 초상화 -- */
-    const pY = by + 52;
+    const pY = by + 58;
     const tex = portraitTexture(d.portrait);
     if (tex) {
       const sp = new PIXI.Sprite(tex);
@@ -156,7 +220,8 @@ export function createScene(): SceneHandle {
     prev.x = bx + 32; prev.y = pY + 156; dyn.addChild(prev);
     const next = button("▶", 44, 34, () => cyc(+1), { size: 15 });
     next.x = bx + 132; next.y = pY + 156; dyn.addChild(next);
-    const cnt = txt(`${PORTRAITS[d.portrait - 1]} (${d.portrait}/${PORTRAIT_COUNT})`, 12, C.dim, { align: "center" });
+    /* ◀ ▶ 사이에는 짧은 카운터만 (긴 파일명은 버튼과 겹친다) */
+    const cnt = txt(`${d.portrait}/${PORTRAIT_COUNT}`, 12, C.dim, { align: "center" });
     cnt.anchor.set(0.5); cnt.x = bx + 104; cnt.y = pY + 173; dyn.addChild(cnt);
 
     /* -- 직업 -- */
@@ -217,12 +282,13 @@ export function createScene(): SceneHandle {
     const aTitle = txt(`능력치  (남은 포인트 ${rem})`, 16, rem > 0 ? C.elite : C.border, { weight: "700" });
     aTitle.x = ax; aTitle.y = by + 46; dyn.addChild(aTitle);
     ATTR_IDS.forEach((k, i) => {
-      const y = by + 84 + i * 56;
+      const y = by + 84 + i * 58;
       const nm = txt(`${ATTRS[k].name}`, 15, C.text, { weight: "700" });
       nm.x = ax; nm.y = y; dyn.addChild(nm);
       const ab = txt(ATTRS[k].abbr, 11, C.dim);
       ab.x = ax + 52; ab.y = y + 4; dyn.addChild(ab);
-      const de = txt(ATTRS[k].desc, 11, C.dim, { wrap: 190 });
+      /* 2줄로 감겨도 다음 행을 침범하지 않게 줄높이 고정 */
+      const de = txt(ATTRS[k].desc, 11, C.dim, { wrap: 190, lh: 15 });
       de.x = ax; de.y = y + 22; de.alpha = 0.8; dyn.addChild(de);
       const val = txt(String(d.attrs[k]), 18, C.border, { weight: "900", align: "center" });
       val.anchor.set(0.5, 0); val.x = ax + 218; val.y = y; dyn.addChild(val);
@@ -242,7 +308,7 @@ export function createScene(): SceneHandle {
     const prev2 = txt(
       `→ 시작 시  HP ${maxHpOf(d.attrs)}   MP ${maxMpOf(d.attrs)}`,
       13, C.text);
-    prev2.x = ax; prev2.y = by + 84 + 6 * 56; dyn.addChild(prev2);
+    prev2.x = ax; prev2.y = by + 84 + 6 * 58; dyn.addChild(prev2);
   }
 
   function refreshAll(): void {
@@ -257,22 +323,27 @@ export function createScene(): SceneHandle {
     started = true;
     const configs: CreationConfig[] = drafts.map((d) => ({
       slotId: d.slot.id,
+      name: d.name,
       portrait: d.portrait,
       classId: d.classId,
       bonusSkills: d.skills,
       attrs: { ...d.attrs },
     }));
     newGame(configs);
-    fullFlash(0x000000, 600, () => nav.intro());
+    /* 인트로 이벤트 없이 곧장 마을 — 중앙 분수 앞에서 시작 (장로 카엘이 곁에) */
+    G.flags.intro = true;
+    fullFlash(0x000000, 600, () => nav.town("fountain"));
   }
 
   return {
     onKey: (k) => {
+      if (nameInput) return; // 이름 입력 중에는 씬 단축키 무시
       if (k === "ArrowLeft") { drafts[sel].portrait = ((drafts[sel].portrait - 2 + PORTRAIT_COUNT) % PORTRAIT_COUNT) + 1; refreshAll(); }
       if (k === "ArrowRight") { drafts[sel].portrait = (drafts[sel].portrait % PORTRAIT_COUNT) + 1; refreshAll(); }
       if (k === "ArrowUp") { sel = (sel + drafts.length - 1) % drafts.length; refreshAll(); }
       if (k === "ArrowDown") { sel = (sel + 1) % drafts.length; refreshAll(); }
       if (k === "Enter") confirm();
     },
+    dispose: () => { closeNameInput(false); },
   };
 }

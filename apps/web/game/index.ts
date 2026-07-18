@@ -7,27 +7,29 @@ import {
   attachInput, destroyPixi, fullFlash, initPixi, nav, switchScene,
 } from "./core";
 import { loadPortraits } from "./portraits";
+import { loadMonsterIcons } from "./monsters";
 import { loadTiles } from "./tiles";
+import { G, newGame } from "./state";
 import { titleScene } from "./scenes/title";
 import { createScene } from "./scenes/create";
 import { townScene } from "./scenes/town";
 import { exploreScene } from "./scenes/explore";
 import { battleScene, BattleOpts } from "./scenes/battle";
-import { endingEvent, epicClearEvent, introEvent } from "./scenes/story";
+import { endingEvent, epicClearEvent } from "./scenes/story";
+import { TownSpawn } from "./townmap";
 
 export async function boot(
   el: HTMLElement,
   fonts: { displayFont: string; bodyFont: string },
 ): Promise<() => void> {
   await initPixi(el, fonts);
-  await Promise.all([loadPortraits(), loadTiles()]);
+  await Promise.all([loadPortraits(), loadTiles(), loadMonsterIcons()]);
   attachInput();
 
   /* nav 배선 — 씬 간 순환 import 방지 라우터 */
   nav.title = () => switchScene(titleScene);
   nav.create = () => switchScene(createScene);
-  nav.intro = () => switchScene(introEvent);
-  nav.town = () => switchScene(townScene);
+  nav.town = (spawn?: TownSpawn) => switchScene(() => townScene(spawn));
   nav.explore = () => switchScene(exploreScene);
   nav.battle = (groupIds: string[], opts: BattleOpts = {}) =>
     fullFlash(0xffffff, 350, () => switchScene(() => battleScene(groupIds, opts)));
@@ -35,6 +37,13 @@ export async function boot(
   nav.epicClear = () => switchScene(epicClearEvent);
 
   switchScene(titleScene);
+
+  /* 개발 편의: 콘솔에서 씬 이동·즉시 시작 (프로덕션 빌드 제외) */
+  if (process.env.NODE_ENV !== "production") {
+    (window as unknown as Record<string, unknown>).__game = {
+      nav, newGame, state: () => G,
+    };
+  }
 
   return () => destroyPixi();
 }

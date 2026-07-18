@@ -1,11 +1,48 @@
 /* =====================================================================
- * monsters.ts — 절차적 Graphics 스프라이트 (몬스터 7종 + 모험가)
+ * monsters.ts — 몬스터 스프라이트 (assets/monsters 이미지 + 절차적 폴백)
+ *  + 모험가(파티) 절차적 스프라이트
  * ===================================================================== */
 import * as PIXI from "pixi.js";
-import { EnemyDef } from "./data";
+import { EnemyDef, MONSTER_ICONS } from "./defs";
 import { C } from "./core";
 
-export function drawMonster(def: EnemyDef, scale = 1): PIXI.Graphics {
+/* ---- 몬스터 아이콘 (32×32 픽셀아트, nearest 스케일) ---- */
+const alias = (img: string) => `monster-${img}`;
+
+/** boot에서 1회 호출 — 카탈로그(MONSTER_ICONS) 전체 프리로드 (~48장, 소형) */
+export async function loadMonsterIcons(): Promise<void> {
+  await PIXI.Assets.load(
+    MONSTER_ICONS.map(({ nameEn }) => ({
+      alias: alias(nameEn),
+      src: `/assets/monsters/${nameEn}.png`,
+      data: { scaleMode: "nearest" as const },
+    })),
+  );
+}
+
+/** 표준 표시 높이(px) — def.big/호출부 scale은 그 위에 곱해진다 */
+const MONSTER_SIZE = 104;
+
+/** 발밑(0,0) 기준 컨테이너. 이미지가 없으면 절차적 그리기로 폴백 */
+export function drawMonster(def: EnemyDef, scale = 1): PIXI.Container {
+  const tex = PIXI.Assets.get<PIXI.Texture>(alias(def.img));
+  if (tex) {
+    const c = new PIXI.Container();
+    const shadow = new PIXI.Graphics();
+    shadow.ellipse(0, 2, MONSTER_SIZE * 0.42, 12).fill({ color: 0x000000, alpha: 0.35 });
+    c.addChild(shadow);
+    const sp = new PIXI.Sprite(tex);
+    sp.anchor.set(0.5, 1);
+    sp.width = MONSTER_SIZE; sp.height = MONSTER_SIZE;
+    c.addChild(sp);
+    c.scale.set(scale);
+    return c;
+  }
+  return drawMonsterShape(def, scale);
+}
+
+/** 절차적 폴백 (이미지 로드 전/누락 시) */
+function drawMonsterShape(def: EnemyDef, scale = 1): PIXI.Graphics {
   const g = new PIXI.Graphics();
   const col = def.color;
   if (def.shape === "slime") {

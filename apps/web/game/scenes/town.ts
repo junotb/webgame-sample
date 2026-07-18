@@ -1,102 +1,328 @@
 /* =====================================================================
- * scenes/town.ts — 마을 모드 (Farland Tactics식 시설 선택)
+ * scenes/town.ts — 마을 모드 (1인칭 그리드 탐험형, New Sorpigal풍)
+ *  남문—중앙 분수 광장—북단 신전의 대로를 걸으며 건물·NPC와 상호작용.
+ *  건물 문 정면 [Z] → 시설 / NPC 정면 [Z] → 주제 대화 / 남문 [Z] → 탐험.
+ *  전직·기술 수련은 계열 건물로 분산:
+ *   무기점(물리 기술·소드맨 트리) / 방어구점(방어 기술·스펠소드 트리)
+ *   영혼 길드(영혼 마법·애콜라이트 트리) / 원소 길드(원소 마법·메이지 트리)
+ *   현상금 길드(의뢰 게시판) / 신전(상태이상 정화) / 도구점·여관(기존 역할)
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  CLASSES, ClassId, GearDef, SHOP_ARMORS, SHOP_ITEMS, SHOP_WEAPONS, SKILLS,
-} from "../data";
+  CLASSES, ClassId, GearDef, NPCS, NpcDef, QUESTS, RANK_NAME, SHOP_ARMORS,
+  SHOP_ITEMS, SHOP_WEAPONS, SKILLS,
+} from "../defs";
 import {
-  C, H, SceneHandle, W, button, fullFlash, nav, overlayRoot, panel,
+  C, H, SceneHandle, W, app, button, fullFlash, nav, overlayRoot, panel,
   sceneRoot, setModeBadge, toast, tween, txt, ui,
 } from "../core";
 import {
-  G, Member, canClassChange, classOptions, doClassChange,
+  G, Member, canClassChange, classOptions, doClassChange, memberRanks,
 } from "../state";
+import { acceptQuest, questList, questStatus, reportQuest } from "../core/quests";
+import { DIR, FACING_NAME, Facing, cellAt, leftOf, passable, rightOf } from "../grid";
+import {
+  SKILL_PRICE, TOWN_DECOS, TOWN_FACILITIES, TOWN_GATES, TOWN_STARTS,
+  TownDecoDef, TownFacilityDef, TownSpawn, townMap,
+} from "../townmap";
+import { FPEntity, FPTheme, SurfacePick, createFPView } from "../fpview";
+import { tileSprite } from "../tiles";
+import { portraitTexture } from "../portraits";
+import { drawAdventurer } from "../monsters";
 import { buildPartyHUD, pickMember } from "../hud";
 
-export function townScene(): SceneHandle {
+export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   setModeBadge("마을 모드 — 리븐홀드", C.border);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
+  const map = townMap;
+  const start = TOWN_STARTS[spawn];
+  let px = start.x, py = start.y;
+  let facing: Facing = start.facing;
 
-  /* --- 배경 --- */
-  const sky = new PIXI.Graphics();
-  sky.rect(0, 0, W, H * 0.62).fill(0x171230);
-  sky.rect(0, H * 0.62, W, H * 0.38).fill(0x0f0c1e);
-  sky.circle(1080, 110, 44).fill({ color: 0xe8dcc0, alpha: 0.9 });
-  sky.circle(1062, 98, 38).fill(0x171230);
-  for (let i = 0; i < 70; i++) {
-    sky.circle(Math.random() * W, Math.random() * H * 0.5, Math.random() * 1.6)
-      .fill({ color: 0xffffff, alpha: 0.25 + Math.random() * 0.5 });
-  }
-  root.addChild(sky);
-  const ground = new PIXI.Graphics();
-  ground.rect(0, H * 0.62, W, H * 0.38).fill(0x241d38);
-  for (let i = 0; i < 26; i++) ground.ellipse(60 + i * 50, H * 0.62 + 8 + (i % 3) * 4, 26, 5);
-  ground.fill({ color: 0x2e2648, alpha: 0.6 });
-  root.addChild(ground);
+  /* ---- 배경 + 1인칭 뷰 (마을 테마) ---- */
+  const voidG = new PIXI.Graphics();
+  voidG.rect(0, 0, W, H).fill(C.night);
+  root.addChild(voidG);
 
-  const title = txt("변경 마을  리븐홀드", 34, C.border, { serif: true, shadow: true });
-  title.x = 60; title.y = 56; root.addChild(title);
-  const sub = txt("부서진 왕국의 마지막 등불. 시설을 선택하세요.", 15, C.dim);
-  sub.x = 62; sub.y = 104; root.addChild(sub);
+  /* 결정적 의사난수 — 표면 변형 선택용 */
+  const hash01 = (x: number, y: number, a: number, b: number): number => {
+    const s = Math.sin(x * a + y * b) * 43758.5453;
+    return s - Math.floor(s);
+  };
+  /** 시설 문 좌우 벽 — 횃불을 걸고 창문은 내지 않는다 */
+  const besideDoor = (x: number, y: number): boolean =>
+    TOWN_FACILITIES.some((f) => f.y === y && Math.abs(f.x - x) === 1);
+  const townTheme: FPTheme = {
+    /* 거리 바닥은 포장 데칼 2종을 섞는다 */
+    floorAt: (x, y): SurfacePick =>
+      ({ base: "floor", decal: hash01(x, y, 91.7, 53.3) < 0.5 ? "pave_decal" : "pave2_decal" }),
+    /* 건물 벽 — 창문·풍화 벽을 드문드문 */
+    wallAt: (x, y): SurfacePick => {
+      if (besideDoor(x, y)) return { base: "wall" };
+      const h = hash01(x, y, 17.3, 71.9);
+      if (h < 0.16) return { base: "wall", decal: "wall_window_decal" };
+      if (h < 0.34) return { base: "wall", decal: "wall_worn2_decal" };
+      return { base: "wall" };
+    },
+    torchAt: (x, y) => besideDoor(x, y) || hash01(x, y, 29.1, 47.7) < 0.05,
+    ceiling: "ceiling",
+    water: "water",
+    stairs: { base: "floor", decal: "stairs_decal" },
+  };
+  const fp = createFPView(townTheme);
+  root.addChild(fp.root);
 
-  /* --- 시설 건물 --- */
-  const facilities = [
-    { id: "weapon", label: "무기점",      x: 120, color: 0x6a4a3a, icon: "sword" },
-    { id: "armorS", label: "방어구점",    x: 330, color: 0x4a5a6a, icon: "shield" },
-    { id: "item",   label: "도구점",      x: 540, color: 0x5a6a4a, icon: "flask" },
-    { id: "inn",    label: "여관",        x: 750, color: 0x6a5a3a, icon: "bed" },
-    { id: "guild",  label: "모험가 길드", x: 960, color: 0x4a3a5a, icon: "flag" },
-  ] as const;
-  facilities.forEach((f) => {
-    const c = new PIXI.Container();
-    const g = new PIXI.Graphics();
-    g.roundRect(0, 60, 180, 150, 6).fill(f.color);
-    g.moveTo(-14, 64).lineTo(90, 0).lineTo(194, 64).closePath().fill(0x14101f);
-    g.roundRect(0, 60, 180, 150, 6).stroke({ width: 2, color: C.border, alpha: 0.35 });
-    g.roundRect(70, 140, 44, 70, 4).fill(0x0d0a16);
-    g.rect(24, 96, 28, 26).rect(130, 96, 28, 26).fill({ color: 0xe8b84a, alpha: 0.8 });
-    c.addChild(g);
-    const ic = new PIXI.Graphics();
-    if (f.icon === "sword") { ic.rect(-3, -26, 6, 40).fill(C.text); ic.rect(-12, 10, 24, 6).fill(C.border); }
-    if (f.icon === "shield") { ic.roundRect(-14, -18, 28, 34, 10).fill(C.text); ic.roundRect(-9, -13, 18, 24, 7).fill(f.color); }
-    if (f.icon === "flask") {
-      ic.moveTo(-4, -20).lineTo(4, -20).lineTo(4, -6).lineTo(14, 16).lineTo(-14, 16).lineTo(-4, -6).closePath().fill({ color: C.text, alpha: 0.9 });
-      ic.moveTo(-9, 6).lineTo(9, 6).lineTo(14, 16).lineTo(-14, 16).closePath().fill(0x8f5fd0);
+  /* ---- 칸 점유 판정 ---- */
+  const facilityAt = (x: number, y: number): TownFacilityDef | undefined =>
+    TOWN_FACILITIES.find((f) => f.x === x && f.y === y);
+  const decoAt = (x: number, y: number): TownDecoDef | undefined =>
+    TOWN_DECOS.find((d) => d.x === x && d.y === y);
+  const npcAt = (x: number, y: number): NpcDef | undefined =>
+    NPCS.find((n) => n.gx === x && n.gy === y);
+  const gateAt = (x: number, y: number): boolean =>
+    TOWN_GATES.some((g) => g.x === x && g.y === y);
+
+  /* =====================================================================
+   * 엔티티 노드 (문·간판, 분수·우물, 성문, NPC)
+   * ===================================================================== */
+  const ents: FPEntity[] = [];
+
+  /* 문(+) — 닫힌 목문 + 시설 간판 라벨 */
+  for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
+    if (cellAt(map, x, y) !== "door") continue;
+    const node = new PIXI.Container();
+    const s = tileSprite("door_closed_obj", 4); s.anchor.set(0.5, 1); node.addChild(s);
+    const fac = facilityAt(x, y);
+    if (fac) {
+      const lb = txt(fac.name, 12, C.border, { weight: "700", shadow: true });
+      lb.anchor.set(0.5, 1); lb.y = -134; node.addChild(lb);
     }
-    if (f.icon === "bed") { ic.roundRect(-16, -2, 32, 14, 4).fill(C.text); ic.circle(-9, -6, 6).fill(C.border); }
-    if (f.icon === "flag") { ic.rect(-2, -24, 4, 44).fill(C.text); ic.moveTo(2, -24).lineTo(26, -16).lineTo(2, -8).closePath().fill(C.boss); }
-    ic.x = 90; ic.y = 36; c.addChild(ic);
-    const lb = txt(f.label, 17, C.text, { weight: "700", shadow: true });
-    lb.anchor.set(0.5, 0); lb.x = 90; lb.y = 216; c.addChild(lb);
-    c.x = f.x; c.y = 300;
-    c.eventMode = "static"; c.cursor = "pointer";
-    c.on("pointerover", () => tween(c, { y: 292 }, 120));
-    c.on("pointerout", () => tween(c, { y: 300 }, 120));
-    c.on("pointertap", () => openFacility(f.id));
-    root.addChild(c);
+    ents.push({ id: `door:${x},${y}`, x, y, node, worldH: 0.92, baseH: 128 });
+  }
+
+  /* 분수 — 광장의 심장 */
+  {
+    const d = TOWN_DECOS.find((t) => t.id === "fountain")!;
+    const node = new PIXI.Container();
+    const g = new PIXI.Graphics();
+    g.ellipse(0, 2, 48, 10).fill({ color: 0x000000, alpha: 0.3 });
+    g.roundRect(-44, -24, 88, 24, 6).fill(0x4a4560);
+    g.roundRect(-44, -24, 88, 24, 6).stroke({ width: 2, color: 0x6a657f, alpha: 0.8 });
+    g.ellipse(0, -24, 40, 12).fill(0x3c6e8e);
+    g.rect(-5, -58, 10, 34).fill(0x6a657f);
+    g.ellipse(0, -58, 18, 6).fill(0x5a5570);
+    g.ellipse(0, -60, 14, 4).fill(0x4f9fd0);
+    g.rect(-1.5, -78, 3, 18).fill({ color: 0x9fd0e8, alpha: 0.8 });
+    g.circle(0, -79, 4).fill({ color: 0xcfe8f4, alpha: 0.9 });
+    node.addChild(g);
+    ents.push({ id: "fountain", x: d.x, y: d.y, node, worldH: 0.55, baseH: 84 });
+  }
+
+  /* 우물 */
+  {
+    const d = TOWN_DECOS.find((t) => t.id === "well")!;
+    const node = new PIXI.Container();
+    const g = new PIXI.Graphics();
+    g.ellipse(0, 2, 28, 7).fill({ color: 0x000000, alpha: 0.3 });
+    g.roundRect(-24, -26, 48, 26, 5).fill(0x5a5570);
+    g.roundRect(-24, -26, 48, 26, 5).stroke({ width: 2, color: 0x6a657f, alpha: 0.8 });
+    g.ellipse(0, -26, 20, 6).fill(0x14101f);
+    g.rect(-21, -58, 4, 32).rect(17, -58, 4, 32).fill(0x4a3a2a);
+    g.moveTo(-27, -56).lineTo(0, -72).lineTo(27, -56).closePath().fill(0x6a4a3a);
+    node.addChild(g);
+    ents.push({ id: "well", x: d.x, y: d.y, node, worldH: 0.5, baseH: 74 });
+  }
+
+  /* 술통·짐짝 — 타일 팩 소품 스프라이트 */
+  for (const d of TOWN_DECOS) {
+    if (d.id !== "barrel" && d.id !== "crate") continue;
+    const node = new PIXI.Container();
+    const s = tileSprite(d.id === "barrel" ? "barrel_obj" : "crate_obj", 2);
+    s.anchor.set(0.5, 1); node.addChild(s);
+    ents.push({
+      id: d.id, x: d.x, y: d.y, node,
+      worldH: d.id === "barrel" ? 0.5 : 0.45, baseH: 64,
+    });
+  }
+
+  /* 성문 — 좌우 석주 한 쌍 */
+  TOWN_GATES.forEach((gpos, i) => {
+    const node = new PIXI.Container();
+    const g = new PIXI.Graphics();
+    const side = i === 0 ? -1 : 1;
+    g.rect(side * 10 - 14, -116, 28, 116).fill(0x3a3150);
+    g.rect(side * 10 - 14, -116, 28, 116).stroke({ width: 2, color: C.border, alpha: 0.3 });
+    g.rect(side * 10 - 18, -128, 36, 14).fill(0x2a2440);
+    node.addChild(g);
+    if (i === 0) {
+      const lb = txt("성문 — 황혼의 숲", 12, C.text, { weight: "700", shadow: true });
+      lb.anchor.set(0.5, 1); lb.y = -134; node.addChild(lb);
+    }
+    ents.push({ id: `gate:${i}`, x: gpos.x, y: gpos.y, node, worldH: 1.0, baseH: 120 });
   });
 
-  const gate = button("성문 밖으로 — 황혼의 숲 (탐험)", 320, 52,
-    () => fullFlash(0x000000, 500, () => nav.explore()),
-    { size: 17, border: C.green });
-  gate.x = W / 2 - 160; gate.y = H - 84; root.addChild(gate);
+  /* NPC — 이름표 + 퀘스트 !/? 마커 */
+  const npcMarks: (() => void)[] = [];
+  const refreshNpcMarks = () => npcMarks.forEach((fn) => fn());
+  NPCS.forEach((n) => {
+    const node = new PIXI.Container();
+    node.addChild(drawAdventurer(n.color, n.accent, 1.2));
+    const nm = txt(n.name, 12, C.border, { weight: "700", shadow: true });
+    nm.anchor.set(0.5, 0); nm.y = 6; node.addChild(nm);
+    const mark = txt("!", 18, C.elite, { weight: "900", shadow: true });
+    mark.anchor.set(0.5, 1); mark.y = -84; node.addChild(mark);
+    const refreshMark = () => {
+      const st = (n.quests ?? []).map((q) => questStatus(q));
+      mark.text = st.includes("done") ? "!" : st.includes("available") ? "?" : "";
+      mark.style.fill = st.includes("done") ? C.elite : C.dim;
+    };
+    refreshMark();
+    npcMarks.push(refreshMark);
+    ents.push({ id: `npc:${n.id}`, x: n.gx, y: n.gy, node, worldH: 0.62, baseH: 92 });
+  });
+
+  /* =====================================================================
+   * 미니맵 (좌상단, 안개 없음 — 마을은 전부 보인다)
+   * ===================================================================== */
+  const MM_CELL = 6;
+  const mm = new PIXI.Container(); mm.x = 16; mm.y = 54; root.addChild(mm);
+  mm.addChild(panel(map.w * MM_CELL + 16, map.h * MM_CELL + 16, { alpha: 0.88 }));
+  const mmG = new PIXI.Graphics(); mmG.x = 8; mmG.y = 8; mm.addChild(mmG);
+  const compassT = txt("", 14, C.border, { weight: "700" });
+  compassT.x = 16; compassT.y = mm.y + map.h * MM_CELL + 22; root.addChild(compassT);
+
+  function redrawMinimap(): void {
+    mmG.clear();
+    for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
+      const k = cellAt(map, x, y);
+      const col = k === "wall" ? 0x35304a
+        : k === "water" ? 0x2c4a6e
+          : k === "door" ? 0x7a5a34
+            : 0x6e6552;
+      mmG.rect(x * MM_CELL, y * MM_CELL, MM_CELL - 1, MM_CELL - 1).fill(col);
+    }
+    for (const f of TOWN_FACILITIES)
+      mmG.rect(f.x * MM_CELL, f.y * MM_CELL, MM_CELL - 1, MM_CELL - 1).fill(C.border);
+    for (const d of TOWN_DECOS)
+      mmG.rect(d.x * MM_CELL + 1, d.y * MM_CELL + 1, MM_CELL - 3, MM_CELL - 3)
+        .fill(d.id === "fountain" ? 0x4f9fd0 : 0x8a7430);
+    for (const gpos of TOWN_GATES)
+      mmG.rect(gpos.x * MM_CELL, gpos.y * MM_CELL, MM_CELL - 1, MM_CELL - 1).fill(0x5ad07a);
+    for (const n of NPCS)
+      mmG.circle(n.gx * MM_CELL + MM_CELL / 2, n.gy * MM_CELL + MM_CELL / 2, 2.4).fill(n.accent);
+    /* 파티 화살표 */
+    const cx = px * MM_CELL + MM_CELL / 2 - 0.5, cy = py * MM_CELL + MM_CELL / 2 - 0.5;
+    const a = [[0, -3.6], [3, 2.8], [-3, 2.8]].map(([ax, ay]) => {
+      const r = (facing * Math.PI) / 2;
+      return [cx + ax * Math.cos(r) - ay * Math.sin(r), cy + ax * Math.sin(r) + ay * Math.cos(r)];
+    });
+    mmG.moveTo(a[0][0], a[0][1]).lineTo(a[1][0], a[1][1]).lineTo(a[2][0], a[2][1]).closePath()
+      .fill(0xffffff);
+    compassT.text = `▲ ${FACING_NAME[facing]}쪽을 보는 중`;
+  }
+
+  /* ---- 로그 / 프롬프트 / 힌트 ---- */
+  const logP = panel(620, 46, { alpha: 0.82 }); logP.x = (W - 620) / 2; logP.y = 12; root.addChild(logP);
+  const logT = txt("", 15, C.text); logT.x = logP.x + 16; logT.y = 25; root.addChild(logT);
+  const log = (s: string) => { logT.text = s; };
+  log(spawn === "fountain"
+    ? "리븐홀드의 광장 — 분수 곁에 장로 카엘이 서 있다."
+    : "남문을 지나 리븐홀드로 돌아왔다.");
+
+  const prompt = txt("", 16, C.text, { weight: "700", shadow: true });
+  prompt.anchor.set(0.5, 1); prompt.x = W / 2; prompt.y = H - 168; root.addChild(prompt);
+  const hint = txt("W/S 전진·후진   A/D 옆걸음   Q/E·←→ 회전   Z/스페이스 조사", 13, C.dim);
+  hint.x = 16; hint.y = H - 28; root.addChild(hint);
 
   const hud = buildPartyHUD(root);
 
-  /* ---------- 시설 ---------- */
-  let shopOpen = false;
-  function openFacility(id: string): void {
-    if (shopOpen || ui.menuOpen) return;
-    if (id === "weapon") openShop("무기점 — 담금질한 강철", SHOP_WEAPONS, "weapon");
-    if (id === "armorS") openShop("방어구점 — 견고한 수호", SHOP_ARMORS, "armor");
-    if (id === "item") openShop("도구점 — 여행자의 벗", SHOP_ITEMS, "item");
-    if (id === "inn") inn();
-    if (id === "guild") openGuild();
+  /* =====================================================================
+   * 이동
+   * ===================================================================== */
+  let overlayOpen = false;
+  const busy = (): boolean => overlayOpen || ui.menuOpen;
+
+  function tryMove(rel: "fwd" | "back" | "sl" | "sr"): void {
+    if (busy()) return;
+    const f: Facing = rel === "fwd" ? facing : rel === "back" ? (((facing + 2) % 4) as Facing)
+      : rel === "sl" ? leftOf(facing) : rightOf(facing);
+    const nx = px + DIR[f].dx, ny = py + DIR[f].dy;
+    if (!passable(map, nx, ny) || npcAt(nx, ny) || decoAt(nx, ny)) { bump(); return; }
+    px = nx; py = ny;
+    stepBob();
+    refresh();
+  }
+  function rotate(dir: -1 | 1): void {
+    if (busy()) return;
+    facing = dir < 0 ? leftOf(facing) : rightOf(facing);
+    refresh();
+  }
+  function bump(): void {
+    tween(fp.root, { x: 6 }, 45, {
+      onDone: () => tween(fp.root, { x: -5 }, 45, { onDone: () => tween(fp.root, { x: 0 }, 60) }),
+    });
+  }
+  function stepBob(): void {
+    fp.root.y = 7;
+    tween(fp.root, { y: 0 }, 130);
   }
 
-  function openShop(shopTitle: string, goods: GearDef[], kind: "weapon" | "armor" | "item"): void {
-    shopOpen = true;
+  /* =====================================================================
+   * 상호작용 — 자기 칸(성문·문) 우선, 다음 정면 칸
+   * ===================================================================== */
+  function interact(): void {
+    if (busy()) return;
+    if (gateAt(px, py)) {
+      fullFlash(0x000000, 500, () => nav.explore());
+      return;
+    }
+    const own = facilityAt(px, py);
+    if (own) { openFacility(own); return; }
+    const fx = px + DIR[facing].dx, fy = py + DIR[facing].dy;
+    if (gateAt(fx, fy)) {
+      fullFlash(0x000000, 500, () => nav.explore());
+      return;
+    }
+    const npc = npcAt(fx, fy);
+    if (npc) { openNpc(npc); return; }
+    const fac = facilityAt(fx, fy);
+    if (fac) { openFacility(fac); return; }
+    const deco = decoAt(fx, fy);
+    if (deco) { log(deco.text); return; }
+    log("아무것도 없다.");
+  }
+
+  /* ---- 화면 갱신 ---- */
+  function refresh(): void {
+    fp.render(map, px, py, facing, ents);
+    redrawMinimap();
+    const fx = px + DIR[facing].dx, fy = py + DIR[facing].dy;
+    if (gateAt(px, py) || gateAt(fx, fy)) prompt.text = "[Z] 성문 밖으로 — 황혼의 숲";
+    else if (facilityAt(px, py)) prompt.text = `[Z] ${facilityAt(px, py)!.name}에 들어간다`;
+    else if (facilityAt(fx, fy)) prompt.text = `[Z] ${facilityAt(fx, fy)!.name}에 들어간다`;
+    else if (npcAt(fx, fy)) prompt.text = `[Z] ${npcAt(fx, fy)!.name}와(과) 대화`;
+    else if (decoAt(fx, fy)) prompt.text = `[Z] ${decoAt(fx, fy)!.name}을(를) 들여다본다`;
+    else prompt.text = "";
+  }
+
+  /* =====================================================================
+   * 시설 라우팅
+   * ===================================================================== */
+  function openFacility(f: TownFacilityDef): void {
+    if (busy()) return;
+    switch (f.id) {
+      case "item": openShop("도구점 — 여행자의 벗", SHOP_ITEMS, "item"); break;
+      case "inn": inn(); break;
+      case "temple": openTemple(); break;
+      case "bountyGuild": openBountyGuild(); break;
+      default: openHall(f); break;
+    }
+  }
+
+  /* ---------- 상점 (도구점 직행 / 무기·방어구점 하위 메뉴) ---------- */
+  function openShop(shopTitle: string, goods: GearDef[], kind: "weapon" | "armor" | "item",
+    onClose?: () => void): void {
+    overlayOpen = true;
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
     const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
     dim.eventMode = "static"; rootS.addChild(dim);
@@ -104,8 +330,8 @@ export function townScene(): SceneHandle {
     const p = panel(660, ph); p.x = (W - 660) / 2; p.y = (H - ph) / 2; rootS.addChild(p);
     const tt = txt(shopTitle, 24, C.border, { serif: true }); tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
     const goldT = txt("", 15, C.text); goldT.x = p.x + 26; goldT.y = p.y + 56; rootS.addChild(goldT);
-    function refresh(): void { goldT.text = `소지금 ${G.gold} G`; hud.redraw(); }
-    refresh();
+    function refreshGold(): void { goldT.text = `소지금 ${G.gold} G`; hud.redraw(); }
+    refreshGold();
     goods.forEach((it, i) => {
       const y = p.y + 92 + i * 64;
       const desc = kind === "weapon" ? `공격 +${it.atk}` : kind === "armor" ? `방어 +${it.def}` : it.desc ?? "";
@@ -117,7 +343,7 @@ export function townScene(): SceneHandle {
           G.gold -= it.price;
           if (it.id === "potion") G.items.potion++;
           else G.items.mpotion++;
-          toast(`${it.name} 구입.`); refresh();
+          toast(`${it.name} 구입.`); refreshGold();
           return;
         }
         // 장비: 장착할 멤버 선택
@@ -125,12 +351,16 @@ export function townScene(): SceneHandle {
           G.gold -= it.price;
           if (kind === "weapon") m.weapon = { name: it.name, atk: it.atk ?? 0 };
           else m.armor = { name: it.name, def: it.def ?? 0 };
-          toast(`${m.name}에게 ${it.name} 장착!`); refresh();
+          toast(`${m.name}에게 ${it.name} 장착!`); refreshGold();
         }, { note: (m) => kind === "weapon" ? `(${m.weapon.name})` : `(${m.armor.name})` });
       }, { size: 15 });
       b.x = p.x + 660 - 160; b.y = y; rootS.addChild(b);
     });
-    const closeBtn = button("나가기", 110, 40, () => { shopOpen = false; rootS.destroy({ children: true }); }, { size: 15 });
+    const closeBtn = button("나가기", 110, 40, () => {
+      overlayOpen = false;
+      rootS.destroy({ children: true });
+      onClose?.();
+    }, { size: 15 });
     closeBtn.x = p.x + 660 - 136; closeBtn.y = p.y + ph - 56; rootS.addChild(closeBtn);
   }
 
@@ -142,9 +372,34 @@ export function townScene(): SceneHandle {
     fullFlash(0x000000, 900, () => toast("파티가 푹 쉬었다. 전원 HP/MP 회복!", C.text));
   }
 
-  /* ---------- 길드: 퀘스트 + 멤버별 전직 ---------- */
-  function openGuild(): void {
-    shopOpen = true;
+  /* ---------- 신전: 상태이상 정화 ---------- */
+  function openTemple(): void {
+    overlayOpen = true;
+    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
+    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
+    dim.eventMode = "static"; rootS.addChild(dim);
+    const p = panel(640, 320); p.x = (W - 640) / 2; p.y = (H - 320) / 2; rootS.addChild(p);
+    const tt = txt("신전 — 여명의 성소", 24, C.border, { serif: true });
+    tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
+    const ds = txt(
+      "촛불이 조용히 흔들린다. 사제가 파티의 몸에 깃든 나쁜 것 —\n독·저주 같은 상태이상을 정화해 준다.",
+      15, C.text, { lh: 24 });
+    ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
+    const cure = button("정화 의식 — 상태이상 회복 (무료)", 340, 48, () => {
+      /* 지속형 상태이상은 아직 없다(전투 상태는 전투 종료 시 소멸).
+       * 독·저주 등 필드 지속 상태 추가 시 이곳에서 정화한다. */
+      toast("사제가 파티를 살폈다 — 정화할 상태이상이 없다.", C.dim);
+    }, { size: 15, border: C.border });
+    cure.x = p.x + 26; cure.y = p.y + 140; rootS.addChild(cure);
+    const closeBtn = button("나가기", 110, 40, () => {
+      overlayOpen = false; rootS.destroy({ children: true });
+    }, { size: 15 });
+    closeBtn.x = p.x + 640 - 136; closeBtn.y = p.y + 320 - 56; rootS.addChild(closeBtn);
+  }
+
+  /* ---------- 현상금 길드: 의뢰 게시판 ---------- */
+  function openBountyGuild(): void {
+    overlayOpen = true;
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
     const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
     dim.eventMode = "static"; rootS.addChild(dim);
@@ -153,46 +408,193 @@ export function townScene(): SceneHandle {
     const closeBtn = button("나가기", 110, 40, close, { size: 15 });
     closeBtn.x = p.x + 860 - 136; closeBtn.y = p.y + 560 - 56; rootS.addChild(closeBtn);
 
+    function board(): void {
+      content.removeChildren().forEach((c) => c.destroy({ children: true }));
+      const tt = txt("현상금 길드 — 의뢰 게시판", 24, C.border, { serif: true });
+      tt.x = p.x + 28; tt.y = p.y + 18; content.addChild(tt);
+      const list = questList();
+      list.forEach((e, i) => {
+        const y = p.y + 62 + i * 54;
+        const q = e.def;
+        const marker = q.kind === "main" ? "★" : q.kind === "side" ? "◆" : "↻";
+        const locked = e.status === "locked";
+        const nameLine = locked
+          ? `${marker} ???`
+          : `${marker} ${q.name}` + (q.kind === "repeat" && (e.progress?.times ?? 0) > 0 ? `  ×${e.progress!.times}` : "");
+        const nt = txt(nameLine, 15, locked ? C.dim : e.status === "done" ? C.border : C.text, { weight: "700" });
+        nt.x = p.x + 28; nt.y = y; content.addChild(nt);
+
+        let subLine: string;
+        if (locked) {
+          const r = q.requires;
+          subLine = r?.level ? `수주 조건: 파티 Lv${r.level}` : "수주 조건: 선행 의뢰 완료";
+        } else if (e.status === "available") {
+          subLine = q.desc;
+        } else if (e.status === "rewarded") {
+          subLine = "완수한 의뢰.";
+        } else {
+          const pr = e.progress!;
+          subLine = q.objectives
+            .map((o) => `${o.desc} ${Math.min(pr.counts[o.id] ?? 0, o.count)}/${o.count}`)
+            .join(" · ");
+          if (e.status === "done") subLine += "  — 보고 가능!";
+        }
+        const dt = txt(subLine, 12, C.dim, { wrap: 620 });
+        dt.x = p.x + 46; dt.y = y + 24; content.addChild(dt);
+
+        /* giver가 있는 의뢰는 해당 NPC에게서 수주·보고 (게시판은 안내만) */
+        const giverName = q.giver ? (NPCS.find((n) => n.id === q.giver)?.name ?? q.giver) : null;
+        if (e.status === "available" && q.kind !== "main") {
+          if (giverName) {
+            const gt = txt(`수주처: ${giverName}`, 13, C.dim);
+            gt.x = p.x + 860 - 230; gt.y = y + 10; content.addChild(gt);
+          } else {
+            const b = button("수주", 100, 38, () => {
+              if (acceptQuest(q.id)) { toast(`의뢰 수주: ${q.name}`, C.border); refreshNpcMarks(); board(); }
+            }, { size: 14 });
+            b.x = p.x + 860 - 156; b.y = y; content.addChild(b);
+          }
+        }
+        if (e.status === "done") {
+          if (giverName) {
+            const gt = txt(`보고처: ${giverName}`, 13, C.border);
+            gt.x = p.x + 860 - 230; gt.y = y + 10; content.addChild(gt);
+          } else {
+            const b = button("보고", 100, 38, () => {
+              const r = reportQuest(q.id);
+              if (!r) return;
+              const parts = [
+                r.gold ? `${r.gold} G` : "",
+                r.exp ? `경험치 ${r.exp}` : "",
+                ...r.items,
+              ].filter(Boolean).join(" · ");
+              toast(`의뢰 완수! 보상: ${parts}`, C.border);
+              if (r.ups.length) toast(`레벨 업! ${r.ups.join(" · ")} (HP/MP 전부 회복)`, C.border);
+              hud.redraw(); refreshNpcMarks();
+              board();
+            }, { size: 14, border: C.border });
+            b.x = p.x + 860 - 156; b.y = y; content.addChild(b);
+          }
+        }
+      });
+      const note = txt("★메인 ◆서브 ↻현상금(반복) — 현상금은 보고 후 다시 수주할 수 있다.", 13, C.dim);
+      note.x = p.x + 28; note.y = p.y + 560 - 52; content.addChild(note);
+    }
+    board();
+    function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }
+  }
+
+  /* ---------- 수련관 (무기점·방어구점·영혼 길드·원소 길드) ----------
+   *  장비 구매(상점 보유 시) / 기술 수련(trains) / 전직 상담(classes) */
+  function openHall(f: TownFacilityDef): void {
+    overlayOpen = true;
+    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
+    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
+    dim.eventMode = "static"; rootS.addChild(dim);
+    const p = panel(860, 560); p.x = (W - 860) / 2; p.y = (H - 560) / 2; rootS.addChild(p);
+    const content = new PIXI.Container(); rootS.addChild(content);
+    const closeBtn = button("나가기", 110, 40, close, { size: 15 });
+    closeBtn.x = p.x + 860 - 136; closeBtn.y = p.y + 560 - 56; rootS.addChild(closeBtn);
+
+    const shopGoods = f.id === "weapon" ? SHOP_WEAPONS : f.id === "armor" ? SHOP_ARMORS : null;
+    const magic = f.id === "spiritGuild" || f.id === "elementsGuild";
+    const trainLabel = magic ? "마법 수련" : "기술 수련";
+    const pathNames = (f.classes ?? []).map((c) => CLASSES[c].name);
+
     function clear(): void { content.removeChildren().forEach((c) => c.destroy({ children: true })); }
     function header(t: string): void {
       const tt = txt(t, 24, C.border, { serif: true }); tt.x = p.x + 28; tt.y = p.y + 18; content.addChild(tt);
     }
 
     function main(): void {
-      clear(); header("모험가 길드");
-      let quest: string;
-      if (!G.explore.defeated.lord)
-        quest = "의뢰: 황혼의 숲 깊은 곳, [숲의 군주 그림바크]를 토벌하라.\n(1차 전직 Lv3 / 2차 전직 Lv6 — 멤버별로 진행)";
-      else if (!G.explore.defeated.ancient)
-        quest = "숲의 군주는 쓰러졌다… 하지만 숲 안쪽에서 고대의 기척이 깨어났다.\n[에픽] 고대 정령 아스테리온이 기다린다.";
-      else
-        quest = "모든 의뢰 완수. 네 사람의 이름은 이 프로토타입의 전설이다.";
-      const q = txt(quest, 16, C.text, { lh: 26, wrap: 800 });
-      q.x = p.x + 28; q.y = p.y + 64; content.addChild(q);
+      clear(); header(f.name);
+      let i = 0;
+      const mk = (label: string, desc: string, fn: () => void) => {
+        const b = button(label, 340, 52, fn, { size: 16 });
+        b.x = p.x + 28; b.y = p.y + 76 + i * 66; content.addChild(b);
+        const d = txt(desc, 13, C.dim, { wrap: 420 });
+        d.x = p.x + 390; d.y = p.y + 76 + i * 66 + 16; content.addChild(d);
+        i++;
+      };
+      if (shopGoods) {
+        mk("장비 구매", f.id === "weapon" ? "담금질한 강철 — 무기 일람." : "견고한 수호 — 방어구 일람.", () => {
+          close();
+          openShop(
+            f.id === "weapon" ? "무기점 — 담금질한 강철" : "방어구점 — 견고한 수호",
+            shopGoods, f.id === "weapon" ? "weapon" : "armor",
+            () => openHall(f));
+        });
+      }
+      if (f.trains?.length) {
+        mk(trainLabel, `${f.trains.map((k) => SKILLS[k].name).join(" · ")} — 미습득 기술을 ${SKILL_PRICE} G에 가르친다.`, trainPage);
+      }
+      if (f.classes?.length) {
+        mk("전직 상담", `이곳의 길: ${pathNames.join(" · ")}`, classPage);
+      }
+    }
 
-      const st = txt("— 전직 상담 (멤버 선택) —", 16, C.border, { weight: "700" });
-      st.x = p.x + 28; st.y = p.y + 150; content.addChild(st);
+    /* ---- 기술 수련: 멤버를 골라 노비스 랭크로 습득 ---- */
+    function trainPage(): void {
+      clear(); header(`${f.name} — ${trainLabel}`);
+      const sub = txt(`미습득 기술을 ${SKILL_PRICE} G에 가르친다. (습득 시 노비스 랭크)`, 13, C.dim);
+      sub.x = p.x + 28; sub.y = p.y + 56; content.addChild(sub);
+      (f.trains ?? []).forEach((k, i) => {
+        const y = p.y + 92 + i * 52;
+        const b = button(`${SKILLS[k].name}  —  ${SKILL_PRICE} G`, 280, 42, () => {
+          if (G.gold < SKILL_PRICE) return toast("골드가 부족하다.", C.dim);
+          pickMember(`${SKILLS[k].name} — 누가 배울까?`, (m) => {
+            G.gold -= SKILL_PRICE;
+            m.bonusSkills.push(k);
+            toast(`${m.name}, [${SKILLS[k].name}] 습득! (노비스)`, C.border);
+            hud.redraw();
+            trainPage();
+          }, {
+            filter: (m) => (memberRanks(m)[k] ?? 0) === 0,
+            note: (m) => {
+              const r = memberRanks(m)[k] ?? 0;
+              return r ? `(이미 ${RANK_NAME[r]})` : "(미습득)";
+            },
+          });
+        }, { size: 14 });
+        b.x = p.x + 28; b.y = y; content.addChild(b);
+        const d = txt(`${SKILLS[k].cat} 계열`, 13, C.dim);
+        d.x = p.x + 330; d.y = y + 12; content.addChild(d);
+      });
+      const back = button("← 돌아가기", 130, 40, main, { size: 14 });
+      back.x = p.x + 28; back.y = p.y + 560 - 56; content.addChild(back);
+    }
+
+    /* ---- 전직 상담: 이 건물이 관할하는 트리만 ---- */
+    function hallOptions(m: Member): ClassId[] {
+      return classOptions(m).filter((c) => (f.classes ?? []).includes(c));
+    }
+    function classPage(): void {
+      clear(); header(`${f.name} — 전직 상담`);
+      const sub = txt(`이곳의 길: ${pathNames.join(" · ")}   (1차 Lv3 / 2차 Lv6, 되돌릴 수 없다)`, 13, C.dim, { wrap: 780 });
+      sub.x = p.x + 28; sub.y = p.y + 56; content.addChild(sub);
       G.party.forEach((m, i) => {
         const cc = canClassChange(m);
+        const opts = hallOptions(m);
         const tier = CLASSES[m.classId].tier;
-        const label = `${m.name} — ${CLASSES[m.classId].name} Lv.${m.level}` +
-          (cc ? (cc === "t1" ? "  ▶ 1차 전직 가능" : "  ▶ 2차 전직 가능")
-            : tier === 2 ? "  (최종 클래스)" : tier === 0 ? "  (Lv3 필요)" : "  (Lv6 필요)");
-        const b = button(label, 560, 48, () => memberPage(m), { size: 15 });
-        if (!cc) b.setDisabled(true);
-        b.x = p.x + 28; b.y = p.y + 186 + i * 58; content.addChild(b);
+        const status = cc && opts.length
+          ? (cc === "t1" ? "▶ 1차 전직 가능" : "▶ 2차 전직 가능")
+          : cc ? "(다른 건물의 길)"
+            : tier === 2 ? "(최종 클래스)" : tier === 0 ? "(Lv3 필요)" : "(Lv6 필요)";
+        const b = button(
+          `${m.name} — ${CLASSES[m.classId].name} Lv.${m.level}  ${status}`,
+          560, 48, () => memberPage(m), { size: 15 });
+        if (!cc || !opts.length) b.setDisabled(true);
+        b.x = p.x + 28; b.y = p.y + 92 + i * 58; content.addChild(b);
       });
-      const note = txt("달인의 경지는 되돌릴 수 없다. 신중히 고르게.", 13, C.dim);
-      note.x = p.x + 28; note.y = p.y + 560 - 52; content.addChild(note);
+      const back = button("← 돌아가기", 130, 40, main, { size: 14 });
+      back.x = p.x + 28; back.y = p.y + 560 - 56; content.addChild(back);
     }
 
     function memberPage(m: Member): void {
       clear(); header(`${m.name}의 갈림길`);
-      const opts = classOptions(m);
+      const opts = hallOptions(m);
       const intro = txt(
-        CLASSES[m.classId].tier === 0
-          ? `${CLASSES[m.classId].name}의 소양을 살릴 1차 전직 — 두 갈래일세.`
-          : `${CLASSES[m.classId].name}의 길 끝에 두 개의 문이 있네.`,
+        `${CLASSES[m.classId].name}의 소양을 살릴 길 — ${f.name}이 안내한다.`,
         15, C.text);
       intro.x = p.x + 28; intro.y = p.y + 62; content.addChild(intro);
       opts.forEach((cid, i) => {
@@ -208,14 +610,14 @@ export function townScene(): SceneHandle {
         const d = txt(c.desc, 13, C.dim, { wrap: 780 });
         d.x = p.x + 620; d.y = p.y + 104 + i * 58 + 14; content.addChild(d);
       });
-      const back = button("← 돌아가기", 130, 40, main, { size: 14 });
+      const back = button("← 돌아가기", 130, 40, classPage, { size: 14 });
       back.x = p.x + 28; back.y = p.y + 560 - 60; content.addChild(back);
     }
 
     function ldPage(m: Member, cid: ClassId): void {
       clear(); header("빛과 어둠의 기로");
       const t = txt(
-        `${CLASSES[cid].name}의 길은 신앙의 선택을 요구하네.\n선택한 계열이 달인/숙련의 경지로 각성한다.`,
+        `${CLASSES[cid].name}의 길은 신앙의 선택을 요구하네.\n선택한 계열이 달인/전문가의 경지로 각성한다.`,
         16, C.text, { lh: 26 });
       t.x = p.x + 28; t.y = p.y + 64; content.addChild(t);
       const bl = button("빛의 길 — 성광과 축복", 340, 52, () => { doClassChange(m, cid, "light"); done(m, cid); }, { size: 16 });
@@ -229,11 +631,143 @@ export function townScene(): SceneHandle {
     function done(m: Member, cid: ClassId): void {
       toast(`${m.name}, [${CLASSES[cid].name}] (으)로 전직!`, C.border);
       hud.redraw();
-      main();
+      classPage();
     }
     main();
-    function close(): void { shopOpen = false; rootS.destroy({ children: true }); }
+    function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }
   }
 
-  return {};
+  /* ---------- NPC 대화 (주제 선택식) ---------- */
+  function openNpc(npc: NpcDef): void {
+    overlayOpen = true;
+    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
+    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
+    dim.eventMode = "static"; rootS.addChild(dim);
+    const PW = 820, PH = 480;
+    const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; rootS.addChild(p);
+
+    /* 좌: 초상화 + 이름 */
+    const tex = portraitTexture(npc.portrait);
+    if (tex) {
+      const sp = new PIXI.Sprite(tex);
+      sp.width = 150; sp.height = 150; sp.x = p.x + 40; sp.y = p.y + 46;
+      rootS.addChild(sp);
+      const fr = new PIXI.Graphics();
+      fr.rect(sp.x - 3, sp.y - 3, 156, 156).stroke({ width: 3, color: C.border, alpha: 0.85 });
+      rootS.addChild(fr);
+    }
+    const nm = txt(npc.name, 19, C.border, { serif: true, align: "center" });
+    nm.anchor.set(0.5, 0); nm.x = p.x + 115; nm.y = p.y + 206; rootS.addChild(nm);
+    const ds = txt(npc.desc, 12, C.dim, { wrap: 200, align: "center", lh: 17 });
+    ds.anchor.set(0.5, 0); ds.x = p.x + 115; ds.y = p.y + 238; rootS.addChild(ds);
+
+    /* 우상: 대사 */
+    const speech = txt("", 15, C.text, { wrap: 500, lh: 24 });
+    speech.x = p.x + 280; speech.y = p.y + 46; rootS.addChild(speech);
+    const say = (s: string) => { speech.text = s; };
+    say(npc.greeting);
+
+    /* 우하: 선택지 (모드에 따라 재구성) */
+    const opts = new PIXI.Container(); rootS.addChild(opts);
+    const clearOpts = () => opts.removeChildren().forEach((c) => c.destroy({ children: true }));
+    const mkOpt = (label: string, i: number, fn: () => void, gold = false) => {
+      const b = button(label, 320, 38, fn, { size: 14, border: gold ? C.border : 0x555068 });
+      b.x = p.x + 280; b.y = p.y + 220 + i * 44; opts.addChild(b);
+    };
+
+    function menuRoot(): void {
+      clearOpts();
+      let i = 0;
+      for (const qid of npc.quests ?? []) {
+        const q = QUESTS.find((x) => x.id === qid)!;
+        const st = questStatus(qid);
+        if (st === "available") {
+          mkOpt(`[의뢰] ${q.name}`, i++, () => {
+            if (!acceptQuest(qid)) return;
+            say(`${q.desc}\n\n— 의뢰 [${q.name}] 수주! (${q.objectives.map((o) => `${o.desc} 0/${o.count}`).join(" · ")})`);
+            toast(`의뢰 수주: ${q.name}`, C.border);
+            refreshNpcMarks(); menuRoot();
+          }, true);
+        } else if (st === "done") {
+          mkOpt(`[보고] ${q.name}`, i++, () => {
+            const r = reportQuest(qid);
+            if (!r) return;
+            const parts = [
+              r.gold ? `${r.gold} G` : "", r.exp ? `경험치 ${r.exp}` : "", ...r.items,
+            ].filter(Boolean).join(" · ");
+            say(`수고했네, [${q.name}] 완수를 확인했어.\n\n보상: ${parts}`);
+            toast(`의뢰 완수! 보상: ${parts}`, C.border);
+            if (r.ups.length) toast(`레벨 업! ${r.ups.join(" · ")} (HP/MP 전부 회복)`, C.border);
+            hud.redraw(); refreshNpcMarks(); menuRoot();
+          }, true);
+        } else if (st === "active") {
+          const pr = G.quests[qid];
+          mkOpt(`[진행 중] ${q.name}`, i++, () => {
+            say(`서두르지 않아도 되네. (${q.objectives.map((o) => `${o.desc} ${Math.min(pr.counts[o.id] ?? 0, o.count)}/${o.count}`).join(" · ")})`);
+          });
+        }
+      }
+      mkOpt("대화하기", i++, menuTopics);
+      mkOpt("떠난다", i++, close);
+    }
+
+    function menuTopics(): void {
+      clearOpts();
+      const unlocked = npc.topics.filter((t) =>
+        (t.requires?.quests ?? []).every((qid) => questStatus(qid) === "rewarded"));
+      unlocked.forEach((t, i) => mkOpt(t.label, i, () => say(t.text)));
+      mkOpt("← 돌아가기", unlocked.length, menuRoot);
+    }
+
+    function close(): void {
+      overlayOpen = false;
+      rootS.destroy({ children: true });
+    }
+    menuRoot();
+  }
+
+  /* ---- 방향 패드 (마우스/터치) ---- */
+  const mkPad = (label: string, x: number, y: number, fn: () => void) => {
+    const b = new PIXI.Container();
+    const g = new PIXI.Graphics();
+    g.roundRect(-26, -26, 52, 52, 10).fill({ color: 0xffffff, alpha: 0.07 });
+    g.roundRect(-26, -26, 52, 52, 10).stroke({ width: 2, color: C.border, alpha: 0.4 });
+    const t = txt(label, 19, C.text, { weight: "700" }); t.anchor.set(0.5);
+    b.addChild(g, t); b.x = x; b.y = y;
+    b.eventMode = "static"; b.cursor = "pointer";
+    b.on("pointertap", fn);
+    root.addChild(b);
+  };
+  const PX0 = W - 200, PY0 = H - 150;
+  mkPad("↺", PX0, PY0, () => rotate(-1));
+  mkPad("▲", PX0 + 60, PY0, () => tryMove("fwd"));
+  mkPad("↻", PX0 + 120, PY0, () => rotate(1));
+  mkPad("◀", PX0, PY0 + 60, () => tryMove("sl"));
+  mkPad("▼", PX0 + 60, PY0 + 60, () => tryMove("back"));
+  mkPad("▶", PX0 + 120, PY0 + 60, () => tryMove("sr"));
+  mkPad("✦", PX0 + 180, PY0 + 30, () => interact());
+
+  /* ---- ticker: 횃불 플리커 ---- */
+  const ticker = (t: PIXI.Ticker) => { fp.tick(t.deltaMS); };
+  app.ticker.add(ticker);
+
+  refresh();
+
+  /* ---- 키 입력 (한글 자판 포함) ---- */
+  const KEYMAP: Record<string, () => void> = {
+    w: () => tryMove("fwd"), s: () => tryMove("back"),
+    a: () => tryMove("sl"), d: () => tryMove("sr"),
+    q: () => rotate(-1), e: () => rotate(1),
+    z: () => interact(), " ": () => interact(),
+    "ㅈ": () => tryMove("fwd"), "ㄴ": () => tryMove("back"),
+    "ㅁ": () => tryMove("sl"), "ㅇ": () => tryMove("sr"),
+    "ㅂ": () => rotate(-1), "ㄷ": () => rotate(1), "ㅋ": () => interact(),
+    ArrowUp: () => tryMove("fwd"), ArrowDown: () => tryMove("back"),
+    ArrowLeft: () => rotate(-1), ArrowRight: () => rotate(1),
+  };
+
+  return {
+    onKey(k) { (KEYMAP[k.length === 1 ? k.toLowerCase() : k])?.(); },
+    dispose() { app.ticker.remove(ticker); },
+  };
 }

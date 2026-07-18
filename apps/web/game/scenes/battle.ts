@@ -1,46 +1,46 @@
 /* =====================================================================
- * scenes/battle.ts — 전투 모드 (4인 파티, 이동 없는 순수 턴제 커맨드 배틀)
+ * scenes/battle.ts — 전투 연출/입력 (로직은 core/battle-engine.ts)
+ * 엔진이 뱉는 BattleEvent를 순서대로 연출하고, 아군 턴에 입력을 받는다.
  * ===================================================================== */
 import * as PIXI from "pixi.js";
-import { CLASSES, ENEMY_DEFS, EnemyDef, RANK_NAME, Tier } from "../data";
+import { CLASSES, RANK_NAME } from "../defs";
 import {
   C, H, SceneHandle, W, button, fullFlash, nav, panel, sceneRoot,
-  setModeBadge, toast, tween, txt, wait,
+  setModeBadge, toast, tween, tweenP, txt, waitP,
 } from "../core";
+import { BattleAbility, G, gainExpParty, memberAbilities, partyFortune, partyRank } from "../state";
 import {
-  BattleAbility, G, Member, gainExpParty, magicBase, memberAbilities,
-  memberStats, partyFortune, partyRank, rankMult,
-} from "../state";
+  AllyAction, BASIC_ATTACK, BattleEngine, BattleEvent, BattleResult, EngineAlly, UnitId,
+} from "../core/battle-engine";
+import { questNotify, updateText } from "../core/quests";
 import { drawAdventurer, drawMonster } from "../monsters";
 
 export interface BattleOpts { symbol?: "orc" | "lord" | "ancient"; }
 
-interface EnemyUnit {
-  kind: "enemy"; id: string; def: EnemyDef; name: string;
-  hp: number; maxHp: number; atk: number; defv: number; spd: number;
-  alive: boolean;
-  node: PIXI.Container & { baseX?: number; baseY?: number };
-  ring: PIXI.Graphics; redraw: () => void;
-}
-interface AllyUnit {
-  kind: "ally"; m: Member; guarding: boolean;
-  node: PIXI.Container & { baseX?: number; baseY?: number };
-  ring: PIXI.Graphics; turnMark: PIXI.Graphics;
-}
-type Unit = EnemyUnit | AllyUnit;
+type BattleNode = PIXI.Container & { baseX?: number; baseY?: number };
 
-const BASIC_ATTACK: BattleAbility = {
-  id: "", skill: "blade", min: 1, name: "공격", mp: 0, pow: 1.0, hits: 1,
-  kind: "phys", desc: "기본 공격", rank: 1,
-};
+/** 씬 진행 단계 — 판별 유니온으로 대기 중인 선택을 함께 담는다 */
+type Phase =
+  | { t: "idle" }
+  | { t: "player" }
+  | { t: "anim" }
+  | { t: "end" }
+  | { t: "target"; ability: BattleAbility }
+  | {
+      t: "allytarget";
+      sel:
+        | { kind: "heal" | "cover"; ability: BattleAbility }
+        | { kind: "item"; item: "potion" | "mpotion" };
+    };
 
 export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHandle {
   setModeBadge("전투 모드", C.blood);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
-  const tierOf: Tier = ENEMY_DEFS[groupIds[0]].tier;
-  const showEnemyHp = partyRank("identify") >= 1;
-  const blessMult = G.blessedNext ? 1.25 : 1.0;
+
+  const engine = new BattleEngine(G.party, groupIds, { bless: G.blessedNext, items: G.items });
   G.blessedNext = false;
+  const tierOf = engine.tier;
+  const showEnemyHp = partyRank("identify") >= 1;
 
   /* 배경 */
   const bg = new PIXI.Graphics();
@@ -57,13 +57,14 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
   const logT = txt("", 16, C.text); logT.x = 36; logT.y = 26; root.addChild(logT);
   const log = (s: string) => { logT.text = s; };
 
-  /* ---- 적 유닛 ---- */
-  const enemies: EnemyUnit[] = groupIds.map((id, i) => {
-    const d = ENEMY_DEFS[id];
-    const node = new PIXI.Container() as EnemyUnit["node"];
-    const m = drawMonster(d, d.big ?? 1);
-    node.addChild(m);
-    const n = groupIds.length;
+  /* ---- 적 유닛 비주얼 ---- */
+  interface EnemyVis { node: BattleNode; ring: PIXI.Graphics; redraw: () => void; }
+  const enemyVis = new Map<UnitId, EnemyVis>();
+  engine.enemies.forEach((u, i) => {
+    const d = u.def;
+    const node = new PIXI.Container() as BattleNode;
+    node.addChild(drawMonster(d, d.big ?? 1));
+    const n = engine.enemies.length;
     const cx = W * 0.66 + (i - (n - 1) / 2) * 170;
     const cy = 430 + (i % 2) * 40;
     node.x = cx; node.y = cy; node.baseX = cx; node.baseY = cy;
@@ -75,33 +76,29 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
     const ring = new PIXI.Graphics();
     ring.ellipse(0, 10, 70 * (d.big ?? 1), 20).stroke({ width: 3, color: C.border, alpha: 0.9 });
     ring.visible = false; node.addChildAt(ring, 0);
-    const u: EnemyUnit = {
-      kind: "enemy", id, def: d, name: d.name, hp: d.hp, maxHp: d.hp,
-      atk: d.atk, defv: d.def, spd: d.spd, alive: true, node, ring,
-      redraw: () => {
-        barBG.clear();
-        barBG.roundRect(-46, 42, 92, 9, 4).fill({ color: 0x000000, alpha: 0.6 });
-        barBG.roundRect(-46, 42, 92 * Math.max(0, u.hp / u.maxHp), 9, 4)
-          .fill(d.tier === "일반" ? C.hp : tierCol);
-        hpT.text = showEnemyHp ? `${u.hp} / ${u.maxHp}` : "";
-      },
+    const redraw = () => {
+      barBG.clear();
+      barBG.roundRect(-46, 42, 92, 9, 4).fill({ color: 0x000000, alpha: 0.6 });
+      barBG.roundRect(-46, 42, 92 * Math.max(0, u.hp / u.maxHp), 9, 4)
+        .fill(d.tier === "일반" ? C.hp : tierCol);
+      hpT.text = showEnemyHp ? `${u.hp} / ${u.maxHp}` : "";
     };
     node.eventMode = "static"; node.cursor = "pointer";
-    node.on("pointertap", () => onEnemyTap(u));
+    node.on("pointertap", () => onEnemyTap(u.id));
     root.addChild(node);
-    return u;
+    enemyVis.set(u.id, { node, ring, redraw });
+    redraw();
   });
 
-  /* 몬스터 식별 보유 시 적 HP 수치 표시 (showEnemyHp) */
-  enemies.forEach((e) => e.redraw());
-
-  /* ---- 파티 유닛 (좌측 4열 대형) ---- */
+  /* ---- 파티 유닛 비주얼 (좌측 4열 대형) ---- */
   const ALLY_POS = [
     { x: 292, y: 356 }, { x: 236, y: 442 }, { x: 300, y: 528 }, { x: 244, y: 614 },
   ];
-  const allies: AllyUnit[] = G.party.map((m, i) => {
-    const node = new PIXI.Container() as AllyUnit["node"];
-    node.addChild(drawAdventurer(m.color, m.accent, 1.7));
+  interface AllyVis { node: BattleNode; ring: PIXI.Graphics; turnMark: PIXI.Graphics; }
+  const allyVis = new Map<UnitId, AllyVis>();
+  engine.allies.forEach((u, i) => {
+    const node = new PIXI.Container() as BattleNode;
+    node.addChild(drawAdventurer(u.m.color, u.m.accent, 1.7));
     node.x = ALLY_POS[i].x; node.y = ALLY_POS[i].y;
     node.baseX = node.x; node.baseY = node.y;
     const ring = new PIXI.Graphics();
@@ -110,29 +107,36 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
     const turnMark = new PIXI.Graphics();
     turnMark.moveTo(-8, -104).lineTo(8, -104).lineTo(0, -90).closePath().fill(C.border);
     turnMark.visible = false; node.addChild(turnMark);
-    const u: AllyUnit = { kind: "ally", m, guarding: false, node, ring, turnMark };
     node.eventMode = "static"; node.cursor = "pointer";
-    node.on("pointertap", () => onAllyTap(u));
+    node.on("pointertap", () => onAllyTap(u.id));
     root.addChild(node);
-    if (m.hp <= 0) node.alpha = 0.35;
-    return u;
+    if (u.m.hp <= 0) node.alpha = 0.35;
+    allyVis.set(u.id, { node, ring, turnMark });
   });
-  const isDown = (u: AllyUnit) => u.m.hp <= 0;
+
+  const nodeOf = (id: UnitId): BattleNode | undefined =>
+    enemyVis.get(id)?.node ?? allyVis.get(id)?.node;
+  const isAllyId = (id: UnitId) => id.startsWith("ally");
+  const nameOf = (id: UnitId): string => {
+    const u = engine.unit(id);
+    if (!u) return "?";
+    return u.kind === "ally" ? u.m.name : u.def.name.slice(0, 6);
+  };
 
   /* ---- 파티 상태 패널 ---- */
   const pp = panel(330, 150, { alpha: 0.94 }); pp.x = 20; pp.y = H - 168; root.addChild(pp);
   const rowsG = new PIXI.Graphics(); root.addChild(rowsG);
-  const rowTs = allies.map((u, i) => {
+  const rowTs = engine.allies.map((_, i) => {
     const t = txt("", 13, C.text, { weight: "700" });
     t.x = 38; t.y = H - 158 + i * 34; root.addChild(t);
     return t;
   });
   function redrawParty(): void {
     rowsG.clear();
-    allies.forEach((u, i) => {
+    engine.allies.forEach((u, i) => {
       const m = u.m;
       const y = H - 158 + i * 34;
-      rowTs[i].text = `${m.name}${u.guarding ? " [방어]" : ""}`;
+      rowTs[i].text = `${m.name}${engine.hasStatus(u.id, "guard") ? " [방어]" : ""}`;
       rowTs[i].style.fill = m.hp > 0 ? C.text : C.dim;
       const bx = 150, bw = 180;
       rowsG.roundRect(bx, y + 3, bw, 8, 4).fill({ color: 0x000000, alpha: 0.6 });
@@ -140,7 +144,8 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
         .fill(m.hp > 0 ? C.hp : 0x553333);
       rowsG.roundRect(bx, y + 14, bw, 6, 3).fill({ color: 0x000000, alpha: 0.6 });
       rowsG.roundRect(bx, y + 14, bw * Math.max(0, m.mp / m.maxMp), 6, 3).fill(C.mp);
-      if (u.node && !u.node.destroyed) u.node.alpha = m.hp > 0 ? 1 : 0.35;
+      const v = allyVis.get(u.id);
+      if (v && !v.node.destroyed) v.node.alpha = m.hp > 0 ? 1 : 0.35;
     });
   }
   redrawParty();
@@ -151,35 +156,28 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
   /* ---- 커맨드 UI ---- */
   const cmdRoot = new PIXI.Container(); root.addChild(cmdRoot);
   let subRoot: PIXI.Container | null = null;
-  let actUnit: AllyUnit | null = null;
-  let state: "idle" | "player" | "target" | "allytarget" | "anim" | "end" = "idle";
+  let actUnit: EngineAlly | null = null;
+  let phase: Phase = { t: "idle" };
 
   const cmdName = txt("", 16, C.border, { weight: "700" });
   cmdName.x = 380; cmdName.y = H - 108; cmdRoot.addChild(cmdName);
   const CMDS: { label: string; fn: () => void }[] = [
     { label: "공격", fn: () => pickTarget(BASIC_ATTACK) },
     { label: "스킬", fn: () => openSkillMenu() },
-    {
-      label: "방어", fn: () => {
-        if (!actUnit) return;
-        actUnit.guarding = true;
-        actUnit.m.mp = Math.min(actUnit.m.maxMp, actUnit.m.mp + 3);
-        log(`${actUnit.m.name}, 방어 태세. (받는 피해 감소, MP 소량 회복)`);
-        redrawParty(); endAllyTurn();
-      },
-    },
+    { label: "방어", fn: () => { void submit({ type: "guard" }); } },
     { label: "아이템", fn: () => openItemMenu() },
-    { label: "도망", fn: () => tryFlee() },
+    { label: "도망", fn: () => { void submit({ type: "flee" }); } },
   ];
   const cmdBtns = CMDS.map((c, i) => {
-    const b = button(c.label, 150, 48, () => { if (state === "player") c.fn(); }, { size: 17 });
+    const b = button(c.label, 150, 48, () => { if (phase.t === "player") c.fn(); }, { size: 17 });
     b.x = 380 + i * 160; b.y = H - 72; cmdRoot.addChild(b);
-    if (c.label === "도망" && tierOf !== "일반") b.setDisabled(true);
+    if (c.label === "도망" && !engine.canFlee) b.setDisabled(true);
     return b;
   });
   void cmdBtns;
   function showCmds(v: boolean): void { cmdRoot.visible = v; }
   function closeSub(): void { if (subRoot) { subRoot.destroy({ children: true }); subRoot = null; } }
+  function backToPlayer(): void { phase = { t: "player" }; showCmds(true); }
 
   function openSkillMenu(): void {
     if (!actUnit) return;
@@ -198,17 +196,17 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
     abs.forEach((a, i) => {
       const y = p.y + 44 + i * 50;
       const b = button(`${a.name} [${RANK_NAME[a.rank]}]`, 220, 40, () => {
-        if (!actUnit) return;
-        if (actUnit.m.mp < a.mp) { toast("MP 부족!", C.dim); return; }
+        if (!actUnit || phase.t !== "player") return;
+        if (actUnit.m.mp < a.mp || (a.manaBurn && actUnit.m.mp <= 0)) { toast("MP 부족!", C.dim); return; }
         closeSub();
-        if (a.kind === "heal") pickAlly(a);
-        else if (a.all) {
-          actUnit.m.mp -= a.mp; redrawParty();
-          execAllyAttack(a, enemies.filter((e) => e.alive));
-        } else pickTarget(a);
+        if (a.cover) pickAllyTarget({ kind: "cover", ability: a });
+        else if (a.kind === "heal") pickAllyTarget({ kind: "heal", ability: a });
+        else if (a.all) void submit({ type: "ability", ability: a });
+        else pickTarget(a);
       }, { size: 14 });
       b.x = p.x + 16; b.y = y; subRoot!.addChild(b);
-      const d = txt(`MP ${a.mp} · ${a.desc}`, 13, C.dim); d.x = p.x + 250; d.y = y + 11; subRoot!.addChild(d);
+      const d = txt(`${a.manaBurn ? "MP 전부" : `MP ${a.mp}`} · ${a.desc}`, 13, C.dim);
+      d.x = p.x + 250; d.y = y + 11; subRoot!.addChild(d);
     });
     const cb = button("닫기", 80, 34, closeSub, { size: 13 });
     cb.x = p.x + 580 - 96; cb.y = p.y + 10; subRoot.addChild(cb);
@@ -221,98 +219,74 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
     const p = panel(460, 170, { alpha: 0.97 }); p.x = 410; p.y = H - 96 - 170; subRoot.addChild(p);
     const tt = txt("아이템 (사용 후 대상 선택)", 15, C.border, { weight: "700" });
     tt.x = p.x + 18; tt.y = p.y + 12; subRoot.addChild(tt);
-    const mk = (label: string, cnt: number, y: number, use: (t: AllyUnit) => void) => {
+    const mk = (label: string, cnt: number, y: number, item: "potion" | "mpotion") => {
       const b = button(`${label} ×${cnt}`, 220, 40, () => {
         closeSub();
-        pendingItem = use; state = "allytarget";
-        allies.forEach((u) => { u.ring.visible = true; });
+        phase = { t: "allytarget", sel: { kind: "item", item } };
+        allyVis.forEach((v) => { v.ring.visible = true; });
         log("아이템 — 대상을 선택하세요. (전투불능 포함)");
       }, { size: 14 });
       if (cnt <= 0) b.setDisabled(true);
       b.x = p.x + 18; b.y = y; subRoot!.addChild(b);
     };
-    mk("치유 물약 (HP 60)", G.items.potion, p.y + 46, (t) => {
-      G.items.potion--;
-      const revived = t.m.hp <= 0;
-      t.m.hp = Math.min(t.m.maxHp, Math.max(0, t.m.hp) + 60);
-      redrawParty();
-      log(revived ? `${t.m.name}(이)가 일어났다! HP 60 회복.` : `${t.m.name} HP 60 회복.`);
-      popDmg(t.node.x, t.node.y - 110, "+60", C.green);
-    });
-    mk("마나 물약 (MP 25)", G.items.mpotion, p.y + 96, (t) => {
-      G.items.mpotion--;
-      t.m.mp = Math.min(t.m.maxMp, t.m.mp + 25);
-      redrawParty();
-      log(`${t.m.name} MP 25 회복.`);
-      popDmg(t.node.x, t.node.y - 110, "+25", C.mp);
-    });
+    mk("치유 물약 (HP 60)", G.items.potion, p.y + 46, "potion");
+    mk("마나 물약 (MP 25)", G.items.mpotion, p.y + 96, "mpotion");
     const cb = button("닫기", 80, 34, closeSub, { size: 13 });
     cb.x = p.x + 460 - 96; cb.y = p.y + 10; subRoot.addChild(cb);
   }
 
-  function tryFlee(): void {
-    if (tierOf !== "일반") return;
-    if (Math.random() < 0.6) {
-      log("파티는 무사히 도망쳤다!"); showCmds(false); state = "anim";
-      wait(700, () => fullFlash(0x000000, 400, () => nav.explore()));
-    } else { log("도망칠 수 없다!"); endAllyTurn(); }
-  }
-
   /* ---- 대상 선택 ---- */
-  let pendingAbility: BattleAbility | null = null;
-  let pendingHeal: BattleAbility | null = null;
-  let pendingItem: ((t: AllyUnit) => void) | null = null;
-
   function pickTarget(a: BattleAbility): void {
-    if (!actUnit) return;
-    const alive = enemies.filter((e) => e.alive);
+    const alive = engine.aliveEnemies();
     if (alive.length === 1) {
-      actUnit.m.mp -= a.mp; redrawParty();
-      execAllyAttack(a, alive);
+      void submit({ type: "ability", ability: a, target: alive[0].id });
       return;
     }
-    pendingAbility = a;
+    phase = { t: "target", ability: a };
     log(`${a.name} — 대상을 선택하세요.`);
-    enemies.forEach((e) => { if (e.alive) e.ring.visible = true; });
-    state = "target";
+    engine.aliveEnemies().forEach((e) => { enemyVis.get(e.id)!.ring.visible = true; });
   }
-  function onEnemyTap(e: EnemyUnit): void {
-    if (state !== "target" || !e.alive || !actUnit) return;
-    enemies.forEach((x) => { x.ring.visible = false; });
-    const a = pendingAbility!; pendingAbility = null;
-    actUnit.m.mp -= a.mp; redrawParty();
-    execAllyAttack(a, [e]);
+  function pickAllyTarget(sel: { kind: "heal" | "cover"; ability: BattleAbility }): void {
+    phase = { t: "allytarget", sel };
+    if (sel.kind === "cover") {
+      engine.allies.forEach((u) => {
+        allyVis.get(u.id)!.ring.visible = u !== actUnit && u.m.hp > 0;
+      });
+      log(`${sel.ability.name} — 대신 막아줄 파티원을 선택하세요.`);
+    } else {
+      allyVis.forEach((v) => { v.ring.visible = true; });
+      log(`${sel.ability.name} — 회복할 아군을 선택하세요.`);
+    }
   }
-  function pickAlly(a: BattleAbility): void {
-    pendingHeal = a; state = "allytarget";
-    allies.forEach((u) => { u.ring.visible = true; });
-    log(`${a.name} — 회복할 아군을 선택하세요.`);
+
+  function onEnemyTap(id: UnitId): void {
+    if (phase.t !== "target") return;
+    const e = engine.unit(id);
+    if (!e || e.kind !== "enemy" || !e.alive) return;
+    const a = phase.ability;
+    enemyVis.forEach((v) => { v.ring.visible = false; });
+    void submit({ type: "ability", ability: a, target: id });
   }
-  function onAllyTap(t: AllyUnit): void {
-    if (state !== "allytarget" || !actUnit) return;
-    allies.forEach((u) => { u.ring.visible = false; });
-    if (pendingItem) {
-      const use = pendingItem; pendingItem = null;
-      state = "anim"; showCmds(false);
-      use(t);
-      wait(600, endAllyTurn0);
+  function onAllyTap(id: UnitId): void {
+    if (phase.t !== "allytarget") return;
+    const sel = phase.sel;
+    const u = engine.unit(id);
+    if (!u || u.kind !== "ally") return;
+    allyVis.forEach((v) => { v.ring.visible = false; });
+    if (sel.kind === "item") {
+      void submit({ type: "item", item: sel.item, target: id });
       return;
     }
-    if (pendingHeal) {
-      const a = pendingHeal; pendingHeal = null;
-      if (t.m.hp <= 0) { toast("전투불능 상태에는 치유가 닿지 않는다. (물약 필요)", C.dim); state = "player"; return; }
-      state = "anim"; showCmds(false);
-      actUnit.m.mp -= a.mp;
-      const amt = Math.round(magicBase(memberStats(actUnit.m), a.skill) * 1.8 * rankMult(a.rank) * a.pow);
-      t.m.hp = Math.min(t.m.maxHp, t.m.hp + amt);
-      redrawParty();
-      log(`${actUnit.m.name}의 치유! ${t.m.name} HP ${amt} 회복.`);
-      popDmg(t.node.x, t.node.y - 110, "+" + amt, C.green);
-      flash(t.node, 0x7fdc7f);
-      wait(600, endAllyTurn0);
+    if (sel.kind === "heal" && u.m.hp <= 0) {
+      toast("전투불능 상태에는 치유가 닿지 않는다. (물약 필요)", C.dim);
+      backToPlayer(); return;
     }
+    if (sel.kind === "cover" && (u === actUnit || u.m.hp <= 0)) {
+      toast("다른 파티원을 선택해야 한다.", C.dim);
+      backToPlayer(); return;
+    }
+    void submit({ type: "ability", ability: sel.ability, target: id });
   }
-  const endAllyTurn0 = () => endAllyTurn();
 
   /* ---- 연출 ---- */
   function popDmg(x: number, y: number, s: string | number, color = 0xffffff): void {
@@ -321,162 +295,154 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
     tween(t, { y: y - 46, alpha: 0 }, 800, { onDone: () => t.destroy() });
   }
   function flash(node: PIXI.Container, color = 0xffffff): void {
-    const gs = node.children.filter((ch) => ch instanceof PIXI.Graphics) as PIXI.Graphics[];
+    /* Graphics(절차적)와 Sprite(이미지) 모두 틴트 — 몬스터 컨테이너 중첩 포함 */
+    const gs: (PIXI.Graphics | PIXI.Sprite)[] = [];
+    const walk = (c: PIXI.Container) => c.children.forEach((ch) => {
+      if (ch instanceof PIXI.Graphics || ch instanceof PIXI.Sprite) gs.push(ch);
+      else if (ch instanceof PIXI.Container) walk(ch);
+    });
+    walk(node);
     gs.forEach((g) => { g.tint = color; });
-    wait(120, () => gs.forEach((g) => { if (!g.destroyed) g.tint = 0xffffff; }));
+    void waitP(120).then(() => gs.forEach((g) => { if (!g.destroyed) g.tint = 0xffffff; }));
   }
-  function shake(node: PIXI.Container & { baseX?: number }): void {
+  function shake(node: BattleNode): void {
     const bx = node.baseX ?? node.x;
-    tween(node, { x: bx + 12 }, 60, {
-      onDone: () => tween(node, { x: bx - 10 }, 60, { onDone: () => tween(node, { x: bx }, 80) }),
-    });
+    void tweenP(node, { x: bx + 12 }, 60)
+      .then(() => tweenP(node, { x: bx - 10 }, 60))
+      .then(() => tweenP(node, { x: bx }, 80));
   }
 
-  function execAllyAttack(a: BattleAbility, targets: EnemyUnit[]): void {
-    if (!actUnit) return;
-    const actor = actUnit;
-    state = "anim"; showCmds(false); closeSub();
-    const s = memberStats(actor.m);
-    const mult = a.id ? rankMult(a.rank) : 1;
-    tween(actor.node, { x: (actor.node.baseX ?? actor.node.x) + 70 }, 160, {
-      onDone: () => {
-        let hitIdx = 0;
-        const doHit = () => {
-          if (hitIdx >= a.hits) {
-            tween(actor.node, { x: actor.node.baseX ?? actor.node.x }, 200, {
-              onDone: () => wait(250, afterAllyAction),
-            });
-            return;
+  /** 엔진 이벤트를 순서대로 연출 */
+  async function playEvents(events: BattleEvent[]): Promise<void> {
+    for (const ev of events) {
+      switch (ev.t) {
+        case "round":
+          orderT.text = "턴 순서: " + ev.order.map(nameOf).join(" → ");
+          break;
+        case "turn": {
+          allyVis.forEach((v) => { v.turnMark.visible = false; });
+          const v = allyVis.get(ev.unit);
+          if (v) v.turnMark.visible = true;
+          redrawParty();
+          break;
+        }
+        case "log":
+          log(ev.text);
+          break;
+        case "lunge": {
+          const n = nodeOf(ev.unit); if (!n) break;
+          const ally = isAllyId(ev.unit);
+          await tweenP(n, { x: (n.baseX ?? n.x) + (ally ? 70 : -60) }, ally ? 160 : 170);
+          break;
+        }
+        case "return": {
+          const n = nodeOf(ev.unit); if (!n) break;
+          await tweenP(n, { x: n.baseX ?? n.x }, 200);
+          break;
+        }
+        case "hit": {
+          const n = nodeOf(ev.target); if (!n) break;
+          if (ev.crit) popDmg(n.x, n.y - 150, "치명타!", C.border);
+          const col = ev.mag ? 0xb99cff : isAllyId(ev.target) ? 0xff9090 : 0xffffff;
+          popDmg(n.x + (Math.random() * 30 - 15), n.y - 110, ev.amount, col);
+          flash(n, 0xff6666); shake(n);
+          if (isAllyId(ev.target)) redrawParty();
+          else enemyVis.get(ev.target)?.redraw();
+          await waitP(200);
+          break;
+        }
+        case "evade": {
+          const n = nodeOf(ev.target);
+          if (n) popDmg(n.x, n.y - 110, "회피!", C.green);
+          break;
+        }
+        case "healed": {
+          const n = nodeOf(ev.target);
+          if (n) {
+            popDmg(n.x, n.y - 110, "+" + ev.amount, ev.resource === "mp" ? C.mp : C.green);
+            if (ev.resource === "hp") flash(n, 0x7fdc7f);
           }
-          hitIdx++;
-          let totalDealt = 0;
-          targets.forEach((e) => {
-            if (!e.alive) return;
-            const base = a.kind === "mag" ? magicBase(s, a.skill) : s.atk;
-            let dmg = Math.round(base * a.pow * mult * blessMult * (0.9 + Math.random() * 0.2));
-            const defv = a.pierce ? Math.floor(e.defv / 2) : e.defv;
-            dmg = Math.max(1, dmg - defv);
-            /* 치명타 — 기술 자체 확률 + 운(Fortune) 보정 */
-            if (Math.random() < (a.crit ?? 0) + s.crit) {
-              dmg = Math.round(dmg * 1.7);
-              popDmg(e.node.x, e.node.y - 150, "치명타!", C.border);
-            }
-            e.hp -= dmg; totalDealt += dmg;
-            popDmg(e.node.x + (Math.random() * 30 - 15), e.node.y - 110, dmg, a.kind === "mag" ? 0xb99cff : 0xffffff);
-            flash(e.node, 0xff6666); shake(e.node);
-            if (e.hp <= 0) { e.hp = 0; e.alive = false; kill(e); }
-            e.redraw();
-          });
-          if (a.drain && totalDealt > 0) {
-            const back = Math.round(totalDealt * a.drain);
-            actor.m.hp = Math.min(actor.m.maxHp, actor.m.hp + back);
-            redrawParty();
-            popDmg(actor.node.x, actor.node.y - 120, "+" + back, C.epic);
-          }
-          wait(220, doHit);
-        };
-        log(`${actor.m.name}의 ${a.name}!${a.id ? ` [${RANK_NAME[a.rank]}]` : ""}`);
-        doHit();
-      },
-    });
-  }
-  function kill(e: EnemyUnit): void {
-    tween(e.node, { alpha: 0, y: (e.node.baseY ?? e.node.y) + 20 }, 450);
-    log(`${e.name}을(를) 쓰러뜨렸다!`);
-  }
-  function afterAllyAction(): void {
-    if (checkEnd()) return;
-    endAllyTurn();
-  }
-
-  /* ---- 턴 시스템 ---- */
-  let queue: Unit[] = [];
-  let qi = 0;
-  function buildRound(): void {
-    const all: { u: Unit; spd: number }[] = [
-      ...allies.filter((u) => !isDown(u)).map((u) => ({ u: u as Unit, spd: memberStats(u.m).spd })),
-      ...enemies.filter((e) => e.alive).map((e) => ({ u: e as Unit, spd: e.spd })),
-    ];
-    all.sort((a, b) => b.spd - a.spd || (a.u.kind === "ally" ? -1 : 1));
-    queue = all.map((x) => x.u); qi = 0;
-    orderT.text = "턴 순서: " + queue
-      .map((u) => (u.kind === "ally" ? u.m.name : u.name.slice(0, 6)))
-      .join(" → ");
-    nextTurn();
-  }
-  function nextTurn(): void {
-    if (checkEnd()) return;
-    if (qi >= queue.length) { buildRound(); return; }
-    const actor = queue[qi++];
-    allies.forEach((u) => { u.turnMark.visible = false; });
-    if (actor.kind === "ally") {
-      if (isDown(actor)) { nextTurn(); return; }
-      actor.guarding = false;
-      actUnit = actor;
-      actor.turnMark.visible = true;
-      redrawParty();
-      state = "player"; showCmds(true);
-      cmdName.text = `▶ ${actor.m.name}의 턴 — ${CLASSES[actor.m.classId].name}`;
-      log(`${actor.m.name}의 턴. 행동을 선택하세요.`);
-    } else {
-      if (!actor.alive) { nextTurn(); return; }
-      state = "anim"; showCmds(false);
-      enemyAct(actor);
+          redrawParty();
+          await waitP(250);
+          break;
+        }
+        case "drain": {
+          const n = nodeOf(ev.unit);
+          if (n) popDmg(n.x, n.y - 120, "+" + ev.amount, C.epic);
+          redrawParty();
+          break;
+        }
+        case "status": {
+          const n = nodeOf(ev.target); if (!n) break;
+          if (ev.status === "taunt") popDmg(n.x, n.y - 130, "도발!", C.border);
+          else if (ev.status === "silence") popDmg(n.x, n.y - 130, "마법 봉인!", C.epic);
+          else if (ev.status === "defdown") popDmg(n.x, n.y - 130, `방어 -${ev.power}!`, C.elite);
+          else if (ev.status === "cover") flash(n, 0xffe08a);
+          break;
+        }
+        case "cover": {
+          const n = nodeOf(ev.guard);
+          if (n) popDmg(n.x, n.y - 130, "가로막기!", C.border);
+          break;
+        }
+        case "death": {
+          if (isAllyId(ev.unit)) { redrawParty(); break; }
+          const n = nodeOf(ev.unit);
+          if (n) tween(n, { alpha: 0, y: (n.baseY ?? n.y) + 20 }, 450);
+          /* 퀘스트 처치 카운트 — 도주하더라도 잡은 만큼 인정 */
+          const u = engine.unit(ev.unit);
+          if (u && u.kind === "enemy")
+            questNotify({ t: "kill", defId: u.defId }).forEach((up) => toast(updateText(up), C.border));
+          break;
+        }
+        case "guard":
+          redrawParty();
+          break;
+        case "flee":
+          if (ev.ok) await waitP(500);
+          break;
+        case "end":
+          break; // finish()가 처리
+      }
     }
   }
-  function endAllyTurn(): void {
-    state = "anim"; showCmds(false);
-    if (actUnit) actUnit.turnMark.visible = false;
-    wait(350, nextTurn);
+
+  /* ---- 진행 루프 ---- */
+  async function advance(): Promise<void> {
+    phase = { t: "anim" }; showCmds(false);
+    const ts = engine.next();
+    await playEvents(ts.events);
+    if (ts.kind === "over") { finish(ts.result); return; }
+    const u = engine.unit(ts.unit);
+    if (!u || u.kind !== "ally") return;
+    actUnit = u;
+    phase = { t: "player" }; showCmds(true);
+    cmdName.text = `▶ ${u.m.name}의 턴 — ${CLASSES[u.m.classId].name}`;
+  }
+  async function submit(action: AllyAction): Promise<void> {
+    if (phase.t === "anim" || phase.t === "end") return;
+    phase = { t: "anim" }; showCmds(false); closeSub();
+    const res = engine.act(action);
+    await playEvents(res.events);
+    if (res.kind === "over") { finish(res.result); return; }
+    allyVis.forEach((v) => { v.turnMark.visible = false; });
+    redrawParty();
+    await waitP(300);
+    void advance();
   }
 
-  function enemyAct(e: EnemyUnit): void {
-    const targetsAll = allies.filter((u) => !isDown(u));
-    if (!targetsAll.length) { checkEnd(); return; }
-    const aoe = (e.def.tier === "보스" || e.def.tier === "에픽") && Math.random() < 0.35;
-    log(aoe ? `${e.name}의 광역 공격!` : `${e.name}의 공격!`);
-    tween(e.node, { x: (e.node.baseX ?? e.node.x) - 60 }, 170, {
-      onDone: () => {
-        const victims = aoe ? targetsAll : [targetsAll[(Math.random() * targetsAll.length) | 0]];
-        victims.forEach((t) => {
-          const s = memberStats(t.m);
-          let dmg = Math.round(e.atk * (aoe ? 0.65 : 1) * (0.9 + Math.random() * 0.25));
-          dmg = Math.max(1, dmg - s.def);
-          if (t.guarding) dmg = Math.max(1, Math.round(dmg * 0.45));
-          dmg = Math.max(1, Math.round(dmg * (1 - s.guardCut)));
-          if (Math.random() < s.evade) {
-            popDmg(t.node.x, t.node.y - 110, "회피!", C.green);
-          } else {
-            t.m.hp = Math.max(0, t.m.hp - dmg);
-            popDmg(t.node.x, t.node.y - 110, dmg, 0xff9090);
-            flash(t.node, 0xff6666); shake(t.node);
-            if (t.m.hp <= 0) log(`${t.m.name}(이)가 쓰러졌다!`);
-          }
-        });
-        redrawParty();
-        tween(e.node, { x: e.node.baseX ?? e.node.x }, 200, {
-          onDone: () => {
-            if (allies.every(isDown)) { defeat(); return; }
-            wait(280, nextTurn);
-          },
-        });
-      },
-    });
-  }
-
-  function checkEnd(): boolean {
-    if (allies.every(isDown)) { defeat(); return true; }
-    if (enemies.every((e) => !e.alive)) { victory(); return true; }
-    return false;
-  }
-
-  /* ---- 승리/패배 ---- */
+  /* ---- 종료 처리 ---- */
   let ended = false;
-  function victory(): void {
+  function finish(result: BattleResult): void {
     if (ended) return; ended = true;
-    state = "end"; showCmds(false); closeSub();
+    phase = { t: "end" }; showCmds(false); closeSub();
+    if (result === "fled") { fullFlash(0x000000, 400, () => nav.explore()); return; }
+    if (result === "victory") victory();
+    else defeat();
+  }
+  function victory(): void {
     let exp = 0, gold = 0;
-    enemies.forEach((e) => { exp += e.def.exp; gold += e.def.gold; });
+    engine.enemies.forEach((e) => { exp += e.def.exp; gold += e.def.gold; });
     G.gold += gold;
     /* 운(Fortune) — 희귀 아이템 획득 판정 */
     let luckyLine = "";
@@ -488,7 +454,11 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
     /* 쓰러진 멤버는 HP 1로 일어난다 */
     const revived = G.party.filter((m) => m.hp <= 0);
     revived.forEach((m) => { m.hp = 1; });
-    if (opts.symbol) G.explore.defeated[opts.symbol] = true;
+    let questLines: string[] = [];
+    if (opts.symbol) {
+      G.explore.defeated[opts.symbol] = true;
+      questLines = questNotify({ t: "clear", symbol: opts.symbol }).map(updateText);
+    }
 
     const p = panel(600, 260); p.x = (W - 600) / 2; p.y = 190; p.alpha = 0; root.addChild(p);
     const tt = txt("승 리", 34, C.border, { serif: true });
@@ -496,6 +466,7 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
     const lines = [
       `파티 전원 경험치 +${exp}    ${gold} G 획득`,
       luckyLine,
+      ...questLines,
       ups.length ? `레벨 업!  ${ups.join(" · ")}  (HP/MP 전부 회복)` : "",
       revived.length ? `${revived.map((m) => m.name).join("·")}(이)가 정신을 차렸다. (HP 1)` : "",
     ].filter(Boolean).join("\n\n");
@@ -512,8 +483,6 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
     if (ups.length) toast("레벨 업! 길드에서 전직을 확인해보자. (1차 Lv3 / 2차 Lv6)", C.border);
   }
   function defeat(): void {
-    if (ended) return; ended = true;
-    state = "end"; showCmds(false); closeSub();
     log("파티가 전멸했다…");
     const dim = new PIXI.Graphics();
     dim.rect(0, 0, W, H).fill(0x000000);
@@ -536,14 +505,15 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
   const introCol = tierOf === "일반" ? C.text : tierOf === "정예" ? C.elite : tierOf === "보스" ? C.boss : C.epic;
   const introT = txt(tierOf === "일반" ? "적과 조우했다!" : `[${tierOf}] 강대한 기척!`, 30, introCol, { serif: true, shadow: true });
   introT.anchor.set(0.5); introT.x = W / 2; introT.y = H / 2 - 40; introT.alpha = 0; root.addChild(introT);
-  tween(introT, { alpha: 1 }, 300, {
-    onDone: () => wait(800, () => {
-      tween(introT, { alpha: 0 }, 300, { onDone: () => introT.destroy() });
-      buildRound();
-    }),
-  });
+  void (async () => {
+    await tweenP(introT, { alpha: 1 }, 300);
+    await waitP(800);
+    await tweenP(introT, { alpha: 0 }, 300);
+    introT.destroy();
+    void advance();
+  })();
   showCmds(false);
-  if (blessMult > 1) toast("축복의 가호! 이번 전투 파티 공격력 +25%", C.border);
+  if (engine.blessMult > 1) toast("축복의 가호! 이번 전투 파티 공격력 +25%", C.border);
 
   return {};
 }

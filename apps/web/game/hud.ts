@@ -2,7 +2,7 @@
  * hud.ts — 파티 HUD, 모험 수첩, 필드 스킬 메뉴, 멤버 선택 오버레이
  * ===================================================================== */
 import * as PIXI from "pixi.js";
-import { ATTRS, ATTR_IDS, CLASSES, RANK_NAME, SKILLS, SkillId } from "./data";
+import { ATTRS, ATTR_IDS, CLASSES, RANK_NAME, SKILLS, SkillId } from "./defs";
 import { portraitTexture } from "./portraits";
 import {
   C, H, W, button, overlayRoot, panel, toast, tween, txt, ui, wait,
@@ -147,7 +147,7 @@ export function openStatusMenu(onClose?: () => void): void {
       lt.x = bx + 28; lt.y = cy; detail.addChild(lt);
       cy += Math.max(26, lt.height + 8);
     }
-    const note = txt("숙련 단계: 노비스 → 숙련 → 달인 (스킬 위력·효과 자동 강화)", 13, C.dim);
+    const note = txt("숙련 단계: 노비스 → 전문가 → 달인 (스킬 위력·효과 자동 강화)", 13, C.dim);
     note.x = bx + 28; note.y = by + 620 - 92; detail.addChild(note);
 
     const useP = button("치유 물약 사용", 160, 36, () => {

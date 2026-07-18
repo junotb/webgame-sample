@@ -2,9 +2,10 @@
  * state.ts — 게임 상태 (순수 로직, PIXI 비의존 / 백엔드 연동 지점)
  * ===================================================================== */
 import {
-  ABILITIES, AbilityDef, ATTR_BASE, Attrs, CLASSES, ClassId, FIELD_SKILLS,
-  FieldSkillDef, LD, PARTY_SLOTS, RANK_MULT, Rank, SkillId,
-} from "./data";
+  ABILITIES, AbilityDef, ATTR_BASE, Attrs, CLASSES, ClassId, ENEMY_DEFS,
+  FIELD_SKILLS, FieldSkillDef, LD, PARTY_SLOTS, RANK_MULT, Rank, SkillId,
+} from "./defs";
+import { NORMAL_SPAWNS, START, SYMBOL_SPAWNS, dungeonMap } from "./dungeon";
 
 export interface Member {
   id: string; name: string;
@@ -23,18 +24,44 @@ export interface Member {
 /** 캐릭터 생성 화면 → newGame 으로 전달되는 멤버 구성 */
 export interface CreationConfig {
   slotId: string;
+  name: string;
   portrait: number;
   classId: ClassId;
   bonusSkills: SkillId[];
   attrs: Attrs;
 }
 
+/** 그리드 위의 적 개체 (일반 몹은 재진입 시 리스폰, 심볼은 defeated로 영구 처치) */
+export interface GridEnemy {
+  id: string; defId: string;
+  x: number; y: number;
+  hp: number; alive: boolean;
+  symbol?: "orc" | "lord" | "ancient";
+}
+
 export interface ExploreState {
-  x: number; lane: number;
+  x: number; y: number;
+  /** 0=북 1=동 2=남 3=서 */
+  facing: 0 | 1 | 2 | 3;
+  /** 맵 w*h flat 배열 — 미니맵 안개 걷힘 */
+  explored: boolean[];
+  enemies: GridEnemy[];
   chestOpened: { c1: boolean; hidden: boolean };
   revealed: { hidden: boolean };
   defeated: { orc: boolean; lord: boolean; ancient: boolean };
+  /** 보스 조우 대화를 본 적 있는가 (재조우 시 대화 생략) */
+  lordIntroSeen: boolean;
+  /** 어둠의 장막 남은 턴 수 (어그로 반경 축소) */
   veil: number;
+}
+
+/** 퀘스트 진행 — 정의(QUESTS)와 분리, 수주한 것만 기록 */
+export interface QuestProgress {
+  status: "active" | "done" | "rewarded";
+  /** objectiveId → 누적 카운트 */
+  counts: Record<string, number>;
+  /** 반복 퀘스트 완료(보고) 횟수 */
+  times: number;
 }
 
 export interface GameState {
@@ -44,6 +71,7 @@ export interface GameState {
   blessedNext: boolean;
   explore: ExploreState;
   flags: { intro: boolean; ending: boolean };
+  quests: Record<string, QuestProgress>;
   _fled?: boolean;
 }
 
@@ -62,7 +90,7 @@ export function newGame(configs: CreationConfig[]): void {
       const hp = maxHpOf(attrs), mp = maxMpOf(attrs);
       const cls = CLASSES[cfg.classId];
       return {
-        id: s.id, name: s.name, color: cls.color, accent: cls.accent,
+        id: s.id, name: cfg.name.trim() || s.name, color: cls.color, accent: cls.accent,
         portrait: cfg.portrait,
         classId: cfg.classId, ld: null,
         attrs, bonusSkills: [...cfg.bonusSkills],
@@ -76,14 +104,46 @@ export function newGame(configs: CreationConfig[]): void {
     gold: 120,
     blessedNext: false,
     explore: {
-      x: 180, lane: 1,
+      x: START.x, y: START.y, facing: START.facing,
+      explored: new Array(dungeonMap.w * dungeonMap.h).fill(false),
+      enemies: spawnEnemies({ orc: false, lord: false, ancient: false }),
       chestOpened: { c1: false, hidden: false },
       revealed: { hidden: false },
       defeated: { orc: false, lord: false, ancient: false },
+      lordIntroSeen: false,
       veil: 0,
     },
     flags: { intro: false, ending: false },
+    quests: {},
   };
+}
+
+/** 파티 최고 레벨 — 퀘스트 수주 조건 판정용 */
+export function partyLevel(): number {
+  return G.party.reduce((s, m) => Math.max(s, m.level), 1);
+}
+
+/** 스폰 정의 → 그리드 적 목록. 심볼은 defeated 플래그를 반영해 제외.
+ *  (ancient는 lord 처치 후에만 등장 — explore 씬 진입 시 respawnEnemies로 갱신) */
+export function spawnEnemies(defeated: ExploreState["defeated"]): GridEnemy[] {
+  const out: GridEnemy[] = [];
+  for (const s of NORMAL_SPAWNS) {
+    out.push({ id: s.id, defId: s.defId, x: s.x, y: s.y, hp: ENEMY_DEFS[s.defId].hp, alive: true });
+  }
+  for (const s of SYMBOL_SPAWNS) {
+    if (s.symbol && defeated[s.symbol]) continue;
+    if (s.symbol === "ancient" && !defeated.lord) continue;
+    out.push({
+      id: s.id, defId: s.defId, x: s.x, y: s.y,
+      hp: ENEMY_DEFS[s.defId].hp, alive: true, symbol: s.symbol,
+    });
+  }
+  return out;
+}
+
+/** 마을 → 던전 재진입 시 호출: 일반 몹 전부 리스폰 + 심볼 상태 재계산 */
+export function respawnEnemies(): void {
+  G.explore.enemies = spawnEnemies(G.explore.defeated);
 }
 
 /* ---- 숙련 병합: 클래스 체인 max 병합 + 생성 시 추가 기술, LD는 멤버 선택 반영 ---- */
@@ -124,8 +184,10 @@ export interface Stats {
 export function memberStats(m: Member): Stats {
   const r = memberRanks(m);
   const a = m.attrs;
+  /* 맨손 — 무기를 들고 있지 않을 때(무기 공격력 0) 랭크당 공격력 +3 */
+  const unarmedBonus = m.weapon.atk === 0 ? (r.unarmed ?? 0) * 3 : 0;
   return {
-    atk: a.might + m.weapon.atk,
+    atk: a.might + m.weapon.atk + unarmedBonus,
     magInt: a.int,
     magWit: a.wit,
     def: Math.floor(a.vital / 2) + m.armor.def + (r.armor ?? 0) * 2 + (r.shield ?? 0) * 2,

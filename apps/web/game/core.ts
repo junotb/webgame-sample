@@ -80,6 +80,17 @@ export function tween(obj: any, to: Record<string, number>, dur: number,
 export function wait(ms: number, fn: () => void): void {
   tween({ v: 0 }, { v: 1 }, ms, { ease: linear, onDone: fn });
 }
+
+/* ---- Promise 버전 — async 연출 시퀀스용.
+ * 대상이 파괴되면(씬 전환 등) resolve되지 않고 그대로 멈춘다:
+ * 사라진 씬의 후속 로직이 실행되지 않게 하는 의도된 동작. ---- */
+export function tweenP(obj: object, to: Record<string, number>, dur: number,
+  opts: { ease?: (t: number) => number } = {}): Promise<void> {
+  return new Promise((res) => tween(obj, to, dur, { ...opts, onDone: res }));
+}
+export function waitP(ms: number): Promise<void> {
+  return new Promise((res) => wait(ms, res));
+}
 function tickTweens(): void {
   const dt = app.ticker.deltaMS;
   for (let i = tweens.length - 1; i >= 0; i--) {

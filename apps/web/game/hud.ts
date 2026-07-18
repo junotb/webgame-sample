@@ -8,7 +8,7 @@ import {
   C, H, W, button, overlayRoot, panel, toast, tween, txt, ui, wait,
 } from "./core";
 import {
-  G, Member, expNeed, memberRanks, memberStats, partyFieldSkills,
+  G, Member, PROF_BASE, expNeed, memberRanks, memberStats, partyFieldSkills,
 } from "./state";
 
 export interface HudHandle { redraw: () => void; }
@@ -127,7 +127,7 @@ export function openStatusMenu(onClose?: () => void): void {
       `${m.name} — ${CLASSES[m.classId].name}${m.ld ? " (" + SKILLS[m.ld].name + "의 길)" : ""}   Lv.${m.level}   EXP ${m.exp}/${expNeed(m.level)}\n` +
       `HP ${m.hp}/${m.maxHp}    MP ${m.mp}/${m.maxMp}\n` +
       attrLine + "\n" +
-      `공격 ${st.atk}   마법(법사 ${st.magInt}·사제 ${st.magWit})   방어 ${st.def}   속도 ${st.spd}   회피 ${Math.round(st.evade * 100)}%   치명타 ${Math.round(st.crit * 100)}%\n` +
+      `공격 ${st.atk}   마법(법사 ${st.magInt}·사제 ${st.magWit})   방어 ${st.def}   속도 ${st.spd}   명중 +${PROF_BASE + st.mods.agi}   회피도 ${st.evAC}   치명타 ${Math.round(st.crit * 100)}%\n` +
       `무기: ${m.weapon.name} (+${m.weapon.atk})   방어구: ${m.armor.name} (+${m.armor.def})`,
       14, C.text, { lh: 22 });
     info.x = bx + 140; info.y = by + 104; detail.addChild(info);

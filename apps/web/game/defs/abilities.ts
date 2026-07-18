@@ -2,6 +2,7 @@
  * defs/abilities.ts — 전투 어빌리티·필드 스킬
  * ===================================================================== */
 
+import { AttrId } from "./attrs";
 import { Rank, SkillId } from "./skills";
 
 export interface AbilityDef {
@@ -23,6 +24,9 @@ export interface AbilityDef {
   defDown?: number;
   /** 적중된 적은 다음 턴 마법을 실행할 수 없다 */
   silence?: boolean;
+  /** 제어 효과(도발/봉인 등)에 내성 굴림을 허용 — 대상이 저항하면 효과 무효.
+   *  값은 방어자가 굴리는 능력치(향후 아군 대상 디버프에도 사용). */
+  save?: AttrId;
   /** 남은 MP 전부 소모 — 소모량 × 계수만큼 추가 피해 */
   manaBurn?: number;
   /** 아군 대상 — 다음에 받는 공격을 대신 맞는다 */
@@ -44,7 +48,8 @@ export const ABILITIES: AbilityDef[] = [
     hits: 1,
     kind: "phys",
     taunt: true,
-    desc: "적중된 적은 시전자만 공격하게 된다",
+    save: "wit",
+    desc: "적중된 적은 시전자만 공격하게 된다 (정신 내성으로 저항 가능)",
   },
   {
     id: "armorbreak",
@@ -68,7 +73,8 @@ export const ABILITIES: AbilityDef[] = [
     hits: 1,
     kind: "phys",
     silence: true,
-    desc: "적중된 적은 다음 턴 마법을 쓸 수 없다",
+    save: "vital",
+    desc: "적중된 적은 다음 턴 마법을 쓸 수 없다 (기절 내성으로 저항 가능)",
   },
   {
     id: "slam",

@@ -34,13 +34,19 @@ const seq = (...v: number[]) => {
   let i = 0;
   return () => v[i++ % v.length];
 };
+/** floor(x*20)+1 = n 이 되는 rng 입력값 — d20 자연값 n을 지정 */
+const nat = (n: number) => (n - 1) / 20 + 1e-6;
 
 const hits = (evs: BattleEvent[]) => evs.filter((e) => e.t === "hit");
 
 describe("BattleEngine", () => {
-  it("도발 — 적의 단일 공격이 시전자에게 강제된다", () => {
+  it("도발 — 내성 실패 시 적의 단일 공격이 시전자에게 강제된다", () => {
     const A = mkMember("a"), B = mkMember("b");
-    const engine = new BattleEngine([A, B], ["goblin"], { rng: flat(0.5) });
+    /* rng 순서: [명중 nat12, 편차, 치명, 내성 nat3(실패→도발 적중)]
+     *           [적 명중 nat11, 편차] — 도발로 대상 강제라 선택 rng 없음 */
+    const engine = new BattleEngine([A, B], ["goblin"], {
+      rng: seq(nat(12), 0.5, 0.5, nat(3), nat(11), 0.5),
+    });
 
     let ts = engine.next();
     expect(ts.kind).toBe("player"); // A의 턴
@@ -50,11 +56,33 @@ describe("BattleEngine", () => {
     ts = engine.next(); // B의 턴
     res = engine.act({ type: "guard" });
 
-    /* 적 턴: rng 0.5면 도발이 없을 때 B(index 1)를 노리지만, 도발로 A 강제 */
+    /* 적 턴: 도발 성공으로 A(index 0)에게 강제 */
     ts = engine.next();
     const enemyHits = hits(ts.events).filter((e) => e.t === "hit" && e.unit === "enemy:0");
     expect(enemyHits).toHaveLength(1);
     expect(enemyHits[0]).toMatchObject({ target: "ally:a" });
+  });
+
+  it("내성 성공 — 도발을 저항하면 save 이벤트만 나고 상태이상은 붙지 않는다", () => {
+    const A = mkMember("a"), B = mkMember("b");
+    /* [명중 nat12, 편차, 치명, 내성 nat11(성공→저항)] */
+    const engine = new BattleEngine([A, B], ["goblin"], {
+      rng: seq(nat(12), 0.5, 0.5, nat(11)),
+    });
+    engine.next();
+    const res = engine.act({ type: "ability", ability: ab("provoke", 1), target: "enemy:0" });
+    expect(res.events.some((e) => e.t === "save" && e.status === "taunt")).toBe(true);
+    expect(res.events.some((e) => e.t === "status" && e.status === "taunt")).toBe(false);
+  });
+
+  it("빗나감 — 명중 굴림 실패 시 miss 이벤트가 나고 피해가 없다", () => {
+    const A = mkMember("a");
+    /* 명중 nat3 → 3 + 명중보정(민첩+1, 랭크1)=2 = 5 < 고블린 회피도 11 → 빗나감 */
+    const engine = new BattleEngine([A], ["goblin"], { rng: seq(nat(3)) });
+    engine.next();
+    const res = engine.act({ type: "ability", ability: BASIC_ATTACK, target: "enemy:0" });
+    expect(res.events.some((e) => e.t === "miss" && e.target === "enemy:0")).toBe(true);
+    expect(hits(res.events)).toHaveLength(0);
   });
 
   it("가로막기 — 다음 공격 1회만 보호자가 대신 맞는다", () => {
@@ -110,8 +138,17 @@ describe("BattleEngine", () => {
 
   it("마법 봉인 — 보스의 광역(마법) 공격이 다음 턴에만 막힌다", () => {
     const A = mkMember("a"), B = mkMember("b");
-    /* rng 0.2: 봉인이 없으면 광역 판정(0.2 < 0.35)이 뜬다 */
-    const engine = new BattleEngine([A, B], ["lord"], { rng: flat(0.2) });
+    /* rng 순서:
+     *  뇌진탕: [명중 nat12, 편차, 치명, 내성 nat3(실패→봉인 적중)]
+     *  보스 1턴(봉인): [대상선택→A, 명중 nat11, 편차]  (봉인이라 광역판정 없음)
+     *  보스 2턴(해제): [광역 0.2(<0.35), A명중 2d20, A편차, B명중 2d20, B편차] */
+    const engine = new BattleEngine([A, B], ["lord"], {
+      rng: seq(
+        nat(12), 0.5, 0.5, nat(3),
+        nat(1), nat(11), 0.5,
+        0.2, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+      ),
+    });
 
     engine.next(); // A의 턴
     engine.act({ type: "ability", ability: ab("concuss", 2), target: "enemy:0" });

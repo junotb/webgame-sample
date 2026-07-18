@@ -5,18 +5,18 @@
  *  - 전투는 그리드 위에서 턴제: 근접은 정면 칸, 마법은 시야(LOS) 내
  * ===================================================================== */
 import * as PIXI from "pixi.js";
-import { ENEMY_DEFS, RANK_NAME } from "../defs";
+import { ENEMY_DEFS, RANK_NAME, enemyAC, enemyAcc } from "../defs";
 import {
   C, H, SceneHandle, W, app, button, fullFlash, nav, panel, sceneRoot,
   setModeBadge, switchScene, toast, tween, txt, ui, wait,
 } from "../core";
 import {
-  BattleAbility, G, GridEnemy, Member, gainExpParty,
+  BattleAbility, G, GridEnemy, Member, allyAccuracy, gainExpParty,
   memberAbilities, memberStats, partyFortune, partyRank, rankMult,
   respawnEnemies,
 } from "../state";
 import { BASIC_ATTACK } from "../core/battle-engine";
-import { healAmount, rollAllyHit } from "../core/formulas";
+import { healAmount, rollAllyHit, rollEnemyHit } from "../core/formulas";
 import { questNotify, trackerLines, updateText } from "../core/quests";
 import {
   DIR, FACING_NAME, Facing, cellAt, chebyshev, enemyStep, hasLOS,
@@ -377,13 +377,15 @@ export function exploreScene(): SceneHandle {
     const lines: string[] = [];
     for (const m of victims) {
       const s = memberStats(m);
-      let dmg = Math.round(def.atk * (aoe ? 0.65 : 1) * (0.9 + Math.random() * 0.25));
-      dmg = Math.max(1, dmg - s.def);
-      if (guardSet.has(m.id)) dmg = Math.max(1, Math.round(dmg * 0.45));
-      dmg = Math.max(1, Math.round(dmg * (1 - s.guardCut)));
-      if (Math.random() < s.evade) { lines.push(`${m.name} 회피!`); continue; }
-      m.hp = Math.max(0, m.hp - dmg);
-      lines.push(`${m.name} -${dmg}`);
+      const roll = rollEnemyHit(def.atk, s, {
+        aoe,
+        guarding: guardSet.has(m.id),
+        acc: enemyAcc(def),
+        targetAC: s.evAC,
+      });
+      if (!roll.hit) { lines.push(`${m.name} 회피!`); continue; }
+      m.hp = Math.max(0, m.hp - roll.dmg);
+      lines.push(`${m.name} -${roll.dmg}`);
       if (m.hp <= 0) lines.push(`${m.name} 전투불능!`);
     }
     log(`${def.name}의 ${aoe ? "광역 " : ""}공격! ${lines.join("  ")}`);
@@ -696,7 +698,11 @@ export function exploreScene(): SceneHandle {
       for (const e of targets) {
         if (!e.alive) continue;
         const def = ENEMY_DEFS[e.defId];
-        const roll = rollAllyHit(s, a, { mult, bless: blessMult, enemyDef: def.def });
+        const roll = rollAllyHit(s, a, {
+          mult, bless: blessMult, enemyDef: def.def,
+          acc: allyAccuracy(s, a.rank), targetAC: enemyAC(def),
+        });
+        if (!roll.hit) { popDmg(e, "빗나감!", C.dim); continue; }
         if (roll.crit) popDmg(e, "치명타!", C.border);
         const dmg = roll.dmg;
         e.hp -= dmg; totalDealt += dmg;

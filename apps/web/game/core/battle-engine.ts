@@ -3,8 +3,9 @@
  * 상태 + 행동 → BattleEvent 배열. 연출/입력은 scenes/battle.ts가 담당.
  * Member(HP/MP)와 items는 참조로 받아 직접 갱신한다 (기존 동작 유지).
  * ===================================================================== */
-import { ENEMY_DEFS, EnemyDef, RANK_NAME, Tier } from "../defs";
-import { BattleAbility, Member, memberStats, rankMult } from "../state";
+import { ENEMY_DEFS, EnemyDef, RANK_NAME, Tier, enemyAC, enemyAcc, enemySave } from "../defs";
+import { BattleAbility, Member, Stats, allyAccuracy, memberStats, rankMult } from "../state";
+import { rollSave } from "./dice";
 import { healAmount, rollAllyHit, rollEnemyHit } from "./formulas";
 import { BattleStatusId, StatusInstance, findStatus, removeStatus, upsertStatus } from "./statuses";
 
@@ -42,7 +43,10 @@ export type BattleEvent =
   | { t: "lunge"; unit: UnitId }
   | { t: "return"; unit: UnitId }
   | { t: "hit"; unit: UnitId; target: UnitId; amount: number; crit: boolean; mag: boolean }
-  | { t: "evade"; target: UnitId }
+  /** 명중 굴림 실패 — 공격이 빗나감 */
+  | { t: "miss"; unit: UnitId; target: UnitId }
+  /** 내성 굴림 성공 — 제어 효과를 저항해 무효화 */
+  | { t: "save"; target: UnitId; status: BattleStatusId }
   | { t: "healed"; target: UnitId; amount: number; resource: "hp" | "mp" }
   | { t: "drain"; unit: UnitId; amount: number }
   | { t: "status"; target: UnitId; status: BattleStatusId; on: boolean; power?: number }
@@ -235,9 +239,11 @@ export class BattleEngine {
   private execOffense(actor: EngineAlly, a: BattleAbility, targets: EngineEnemy[], spentMp: number, ev: BattleEvent[]): void {
     const s = memberStats(actor.m);
     const mult = a.id ? rankMult(a.rank) : 1;
+    /* 명중 보정 = 기본 숙련 + 민첩 수정치 + 숙련(랭크). 기본 공격도 rank 1 */
+    const acc = allyAccuracy(s, a.rank);
     ev.push({ t: "log", text: `${actor.m.name}의 ${a.name}!${a.id ? ` [${RANK_NAME[a.rank]}]` : ""}` });
     ev.push({ t: "lunge", unit: actor.id });
-    for (let hit = 1; hit <= a.hits; hit++) {
+    for (let h = 1; h <= a.hits; h++) {
       let totalDealt = 0;
       for (const e of targets) {
         if (!e.alive) continue;
@@ -247,7 +253,14 @@ export class BattleEngine {
           enemyDef: e.defv,
           defDown: findStatus(e.statuses, "defdown")?.power ?? 0,
           bonus: a.manaBurn ? Math.round(spentMp * a.manaBurn) : 0,
+          acc,
+          targetAC: enemyAC(e.def),
         }, this.rng);
+        if (!roll.hit) {
+          ev.push({ t: "miss", unit: actor.id, target: e.id });
+          ev.push({ t: "log", text: `${e.def.name}에게 빗나갔다!` });
+          continue;
+        }
         e.hp -= roll.dmg;
         totalDealt += roll.dmg;
         ev.push({ t: "hit", unit: actor.id, target: e.id, amount: roll.dmg, crit: roll.crit, mag: a.kind === "mag" });
@@ -256,8 +269,8 @@ export class BattleEngine {
           e.alive = false;
           ev.push({ t: "death", unit: e.id });
           ev.push({ t: "log", text: `${e.def.name}을(를) 쓰러뜨렸다!` });
-        } else if (hit === 1) {
-          this.applyOnHitStatuses(actor, a, mult, e, ev);
+        } else if (h === 1) {
+          this.applyOnHitStatuses(actor, a, mult, e, ev, s);
         }
       }
       if (a.drain && totalDealt > 0) {
@@ -269,15 +282,29 @@ export class BattleEngine {
     ev.push({ t: "return", unit: actor.id });
   }
 
-  /** 적중 시 부가 효과 — 첫 타에 1회 (대상 생존 시) */
-  private applyOnHitStatuses(actor: EngineAlly, a: BattleAbility, mult: number, e: EngineEnemy, ev: BattleEvent[]): void {
+  /** 제어기 내성 DC = 8 + 시전 능력치 수정치 + 숙련(랭크) (5e 주문 내성 DC와 동일) */
+  private saveDC(s: Stats, a: BattleAbility): number {
+    const key = a.kind === "mag" ? (a.skill === "spirit" ? s.mods.wit : s.mods.int) : s.mods.might;
+    return 8 + key + a.rank;
+  }
+
+  /** 적중 시 부가 효과 — 첫 타에 1회 (대상 생존 시). save 태그가 있으면 내성 굴림으로 저항 가능 */
+  private applyOnHitStatuses(actor: EngineAlly, a: BattleAbility, mult: number, e: EngineEnemy, ev: BattleEvent[], s: Stats): void {
+    /* 제어기(도발/봉인) 내성 판정 — 저항 시 효과 무효 (defDown은 물리 파쇄라 무저항) */
+    const resisted = !!a.save && rollSave(this.rng, enemySave(e.def), this.saveDC(s, a));
     if (a.taunt) {
-      upsertStatus(e.statuses, { id: "taunt", turns: -1, src: actor.id });
-      ev.push({ t: "status", target: e.id, status: "taunt", on: true });
+      if (resisted) ev.push({ t: "save", target: e.id, status: "taunt" });
+      else {
+        upsertStatus(e.statuses, { id: "taunt", turns: -1, src: actor.id });
+        ev.push({ t: "status", target: e.id, status: "taunt", on: true });
+      }
     }
     if (a.silence) {
-      upsertStatus(e.statuses, { id: "silence", turns: 1 });
-      ev.push({ t: "status", target: e.id, status: "silence", on: true });
+      if (resisted) ev.push({ t: "save", target: e.id, status: "silence" });
+      else {
+        upsertStatus(e.statuses, { id: "silence", turns: 1 });
+        ev.push({ t: "status", target: e.id, status: "silence", on: true });
+      }
     }
     if (a.defDown) {
       const cur = findStatus(e.statuses, "defdown")?.power ?? 0;
@@ -350,9 +377,14 @@ export class BattleEngine {
         }
       }
       const s = memberStats(t.m);
-      const roll = rollEnemyHit(e.atk, s, { aoe, guarding: !!findStatus(t.statuses, "guard") }, this.rng);
-      if (roll.evaded) {
-        ev.push({ t: "evade", target: t.id });
+      const roll = rollEnemyHit(e.atk, s, {
+        aoe,
+        guarding: !!findStatus(t.statuses, "guard"),
+        acc: enemyAcc(e.def),
+        targetAC: s.evAC,
+      }, this.rng);
+      if (!roll.hit) {
+        ev.push({ t: "miss", unit: e.id, target: t.id });
         continue;
       }
       t.m.hp = Math.max(0, t.m.hp - roll.dmg);

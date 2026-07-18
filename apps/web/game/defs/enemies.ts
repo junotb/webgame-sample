@@ -77,6 +77,27 @@ export interface EnemyDef {
   img: string;
   color: number;
   big?: number;
+  /** 회피도(AC) — 생략 시 tier·speed에서 파생 (enemyAC) */
+  ac?: number;
+  /** 공격 명중 보정 — 생략 시 파생 (enemyAcc) */
+  acc?: number;
+  /** 내성(제어기 저항) 보정 — 생략 시 tier에서 파생 (enemySave) */
+  save?: number;
+}
+
+/* ---- D&D식 판정 파생치 (tier가 성장 없는 적의 bounded accuracy를 담당) ---- */
+const TIER_BONUS: Record<Tier, number> = { "일반": 0, "정예": 2, "보스": 3, "에픽": 4 };
+/** 적 회피도 — 아군 명중 굴림이 넘어야 할 값 */
+export function enemyAC(d: EnemyDef): number {
+  return d.ac ?? 10 + TIER_BONUS[d.tier] + Math.floor(d.spd / 6);
+}
+/** 적 공격 명중 보정 (d20에 가산) */
+export function enemyAcc(d: EnemyDef): number {
+  return d.acc ?? 3 + TIER_BONUS[d.tier] + Math.floor(d.spd / 8);
+}
+/** 적 내성 보정 — 도발·마법봉인 등 제어기를 저항할 확률 (보스일수록 높음) */
+export function enemySave(d: EnemyDef): number {
+  return d.save ?? TIER_BONUS[d.tier];
 }
 
 /* 4인 파티 기준으로 스케일 조정 */

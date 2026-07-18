@@ -2,9 +2,10 @@
  * state.ts — 게임 상태 (순수 로직, PIXI 비의존 / 백엔드 연동 지점)
  * ===================================================================== */
 import {
-  ABILITIES, AbilityDef, ATTR_BASE, Attrs, CLASSES, ClassId, ENEMY_DEFS,
+  ABILITIES, AbilityDef, AttrId, ATTR_IDS, Attrs, CLASSES, ClassId, ENEMY_DEFS,
   FIELD_SKILLS, FieldSkillDef, LD, PARTY_SLOTS, RANK_MULT, Rank, SkillId,
 } from "./defs";
+import { abilityMod } from "./core/dice";
 import { NORMAL_SPAWNS, START, SYMBOL_SPAWNS, dungeonMap } from "./dungeon";
 
 export interface Member {
@@ -179,11 +180,17 @@ export interface Stats {
   /** 사제형(영혼) 마법 공격 기반 */
   magWit: number;
   def: number; spd: number;
-  evade: number; crit: number; guardCut: number;
+  /** 회피도 (Armor Class 유사) — 상대 명중 굴림이 넘어야 할 값 */
+  evAC: number;
+  crit: number; guardCut: number;
+  /** 능력치 수정치 (±5 캡) — 명중·내성 굴림용 */
+  mods: Record<AttrId, number>;
 }
 export function memberStats(m: Member): Stats {
   const r = memberRanks(m);
   const a = m.attrs;
+  const mods = {} as Record<AttrId, number>;
+  for (const k of ATTR_IDS) mods[k] = abilityMod(a[k]);
   /* 맨손 — 무기를 들고 있지 않을 때(무기 공격력 0) 랭크당 공격력 +3 */
   const unarmedBonus = m.weapon.atk === 0 ? (r.unarmed ?? 0) * 3 : 0;
   return {
@@ -192,15 +199,23 @@ export function memberStats(m: Member): Stats {
     magWit: a.wit,
     def: Math.floor(a.vital / 2) + m.armor.def + (r.armor ?? 0) * 2 + (r.shield ?? 0) * 2,
     spd: a.agi,
-    evade: 0.05 * (r.dodge ?? 0) + Math.max(0, a.agi - ATTR_BASE) * 0.01,
+    evAC: 10 + mods.agi + (r.dodge ?? 0) * 2,
     crit: a.fortune * 0.01,
     guardCut: 0.06 * (r.shield ?? 0),
+    mods,
   };
 }
 
 /** 스킬 계열에 따른 마법 공격 기반치 — 영혼은 지혜, 나머지는 지능 */
 export function magicBase(s: Stats, skill: SkillId): number {
   return skill === "spirit" ? s.magWit : s.magInt;
+}
+
+/** 모든 아군 공격에 공통으로 붙는 기본 명중 보정 (저레벨 숙련 보너스) */
+export const PROF_BASE = 3;
+/** 아군 명중 보정 = 기본 숙련 + 민첩 수정치 + 기술 숙련(랭크) */
+export function allyAccuracy(s: Stats, rank: number): number {
+  return PROF_BASE + s.mods.agi + rank;
 }
 
 export function expNeed(lv: number): number { return lv * lv * 22; }

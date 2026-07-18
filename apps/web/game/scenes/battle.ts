@@ -351,9 +351,14 @@ export function battleScene(groupIds: string[], opts: BattleOpts = {}): SceneHan
           await waitP(200);
           break;
         }
-        case "evade": {
+        case "miss": {
           const n = nodeOf(ev.target);
-          if (n) popDmg(n.x, n.y - 110, "회피!", C.green);
+          if (n) popDmg(n.x, n.y - 110, "빗나감!", C.dim);
+          break;
+        }
+        case "save": {
+          const n = nodeOf(ev.target);
+          if (n) popDmg(n.x, n.y - 130, "저항!", C.epic);
           break;
         }
         case "healed": {

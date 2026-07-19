@@ -60,7 +60,8 @@ export const CROSSVALE_STARTS: Record<"fountain" | "gate" | "carriage" | "westGa
  *  quests: 이 시설에서 수주·보고하는 의뢰
  *  title: 시설 오버레이 제목(생략 시 name) */
 export const CROSSVALE_FACILITIES: TownFacilityDef[] = [
-  { id: "temple", name: "신전", title: "신전 — 여명의 성소", x: 13, y: 4 },
+  { id: "temple", name: "신전", title: "신전 — 여명의 성소", x: 13, y: 4,
+    description: "촛불과 약초 향이 고요한 성소를 채운다." },
   {
     id: "spiritGuild", name: "영혼 길드", x: 7, y: 7,
     trains: ["spirit"],
@@ -84,8 +85,14 @@ export const CROSSVALE_FACILITIES: TownFacilityDef[] = [
     classes: ["spellsword", "paladin", "ranger"],
   },
   /* 남동쪽 길가의 독립 건물 — 가운데 한 칸은 두 시설을 가르는 골목이다. */
-  { id: "inn", name: "여관 '잿불'", x: 23, y: 20, quests: ["s2"] },
-  { id: "stable", name: "마굿간", x: 18, y: 20 },
+  { id: "inn", name: "여관 '잿불'", x: 23, y: 20, quests: ["s2"],
+    description: "난롯불과 수프 냄새가 여행객을 맞는다.",
+    topics: [
+      { id: "rumor", label: "소문", text: "할로우베일 심부의 옛길에 백골들이 걸어다닌다는 소문이 떠돈다." },
+      { id: "veterans", label: "옛 손님", text: "옛날에는 에버모어의 기사단도 이곳에 묵어갔다." },
+    ] },
+  { id: "stable", name: "마굿간", x: 18, y: 20,
+    description: "건초 냄새 사이로 에버모어행 역마차가 출발을 기다린다." },
 ];
 
 /* ---- 장식 POI — 기능 없음, 조사 시 정취 텍스트. 칸을 점유(차단)한다 ---- */

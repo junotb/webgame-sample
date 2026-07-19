@@ -2,6 +2,7 @@
  * defs/npcs.ts — NPC·대화 주제 정의
  * ===================================================================== */
 import type { TownId } from "../towns";
+import type { TownContentRequirement } from "../town/types";
 
 /* ---- NPC ----
  * 울티마식 주제 대화: 말을 걸면 [의뢰]/[보고](퀘스트) · 대화하기(주제 선택).
@@ -12,7 +13,7 @@ export interface NpcTopicDef {
   label: string;
   text: string;
   /** 명시된 퀘스트를 완료(보고)해야 열리는 주제 */
-  requires?: { quests?: string[] };
+  requires?: TownContentRequirement;
 }
 
 export interface NpcDef {

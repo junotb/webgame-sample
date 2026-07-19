@@ -50,10 +50,17 @@ export const EVERMORE_STARTS: Record<"carriage" | "throne" | "gate", TownSpawnPo
 
 export const EVERMORE_FACILITIES: TownFacilityDef[] = [
   { id: "throne", name: "알현실", title: "알현실 — 연방 군주", x: 13, y: 4 },
-  { id: "temple", name: "대성당", title: "대성당 — 연방 대성소", x: 6, y: 8 },
+  { id: "temple", name: "대성당", title: "대성당 — 연방 대성소", x: 6, y: 8,
+    description: "높은 천장 아래 연방 각지에서 온 순례자의 기도가 울린다." },
   { id: "item", name: "왕도 시장", title: "왕도 시장 — 만물상", x: 21, y: 8 },
-  { id: "inn", name: "여관 '왕관과 방패'", x: 6, y: 14 },
-  { id: "stable", name: "마굿간", x: 21, y: 14 },
+  { id: "inn", name: "여관 '왕관과 방패'", x: 6, y: 14,
+    description: "왕도 여행객들의 이야기와 따뜻한 빵 냄새가 홀을 채운다.",
+    topics: [
+      { id: "federation", label: "연방의 소문", text: "세 성의 사절들이 다음 회의를 위해 속속 왕도에 도착하고 있다." },
+      { id: "letter", label: "헤르만의 사자", text: "대스승의 편지를 든 젊은 모험가들이 왔다는 이야기가 벌써 퍼졌다.", requires: { flags: ["letter"] } },
+    ] },
+  { id: "stable", name: "마굿간", x: 21, y: 14,
+    description: "연방 각지의 문장이 달린 마차들이 가지런히 늘어서 있다." },
 ];
 
 export const EVERMORE_DECOS: TownDecoDef[] = [

@@ -27,6 +27,23 @@ export interface TownFacilityDef {
   classes?: ClassId[];
   /** 이 시설에서 수주·보고하는 의뢰 id */
   quests?: string[];
+  /** 시설에 들어왔을 때 표시할 마을별 분위기 문구 */
+  description?: string;
+  /** 여관·길드 등에서 제공할 데이터 기반 대화 항목 */
+  topics?: TownContentEntry[];
+}
+
+export interface TownContentRequirement {
+  quests?: string[];
+  flags?: Array<"intro" | "ending" | "letter">;
+  minLevel?: number;
+}
+
+export interface TownContentEntry {
+  id: string;
+  label: string;
+  text: string;
+  requires?: TownContentRequirement;
 }
 
 export interface TownDecoDef {

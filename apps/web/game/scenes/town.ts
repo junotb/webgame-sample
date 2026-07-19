@@ -15,10 +15,11 @@ import {
   C, H, SceneHandle, SceneScope, W, button, fullFlash, nav, overlayRoot, panel,
   sceneRoot, setModeBadge, toast, tween, txt, ui,
 } from "../core";
-import { G } from "../state";
+import { G, partyLevel } from "../state";
 import { acceptQuest, questList, questStatus, reportQuest } from "../core/quests";
 import type { RelativeMove } from "../grid";
 import { compileTown } from "../town/compile";
+import { townContentUnlocked } from "../town/content";
 import { openTownFacility, type TownFacilityHandlers } from "../town/facilities";
 import { TownNavigation } from "../town/navigation";
 import { createTownPresentation } from "../town/presentation";
@@ -40,6 +41,11 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     ?? T.starts.fountain ?? T.starts.throne!;
   const movement = new TownNavigation(T.map, spatial, start);
   const presentation = createTownPresentation(root, T, npcs, spatial);
+  const contentContext = () => ({
+    questCompleted: (id: string) => questStatus(id) === "rewarded",
+    flagEnabled: (id: "intro" | "ending" | "letter") => G.flags[id],
+    partyLevel: partyLevel(),
+  });
 
   const refreshNpcMarks = presentation.refreshNpcMarks;
 
@@ -152,7 +158,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const tt = txt("마굿간 — 역마차", 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
     const ds = txt(
-      `${destName}(으)로 향하는 역마차가 대기 중이다.\n삯은 ${CARRIAGE_FARE} G — 오르면 눈 깜짝할 새 도착한다.`,
+      `${T.facilities.find((facility) => facility.id === "stable")?.description ?? "역마차가 출발을 기다린다."}\n${destName}(으)로 가는 삯은 ${CARRIAGE_FARE} G다.`,
       15, C.text, { lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
     function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }
@@ -205,7 +211,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const PW = 720, PH = 430;
     const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; rootS.addChild(p);
     const title = txt(f.name, 24, C.border, { serif: true }); title.x = p.x + 28; title.y = p.y + 20; rootS.addChild(title);
-    const intro = txt("난롯불과 수프 냄새가 여행객을 맞는다.", 14, C.dim);
+    const intro = txt(f.description ?? "여행객들이 잠시 쉬어가는 곳이다.", 14, C.dim);
     intro.x = p.x + 28; intro.y = p.y + 58; rootS.addChild(intro);
     const speech = txt("따뜻한 불빛 아래, 잠시 발걸음을 멈출 수 있다.", 15, C.text, { wrap: 650, lh: 24 });
     speech.x = p.x + 28; speech.y = p.y + 94; rootS.addChild(speech);
@@ -258,8 +264,9 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         say("푹신한 침대와 잔잔한 난롯불 아래에서 파티가 푹 쉬었다.\n\n전원 HP/MP가 회복되었다.");
         fullFlash(0x000000, 900, () => toast("파티가 푹 쉬었다. 전원 HP/MP 회복!", C.text));
       }, true);
-      option("소문", i++, () => say("할로우베일 심부의 옛길에 백골들이 걸어다닌다는 소문이 떠돈다. 마차꾼들이 발길을 끊으면서, 여관도 한산해졌다."));
-      option("옛 손님", i++, () => say("옛날에는 에버모어의 기사단도 이곳에 묵어갔다. 지금 그 방에는 먼지만 쌓였지만, 모험가들의 발걸음은 다시 이어지고 있다."));
+      for (const topic of (f.topics ?? []).filter((entry) => townContentUnlocked(entry.requires, contentContext()))) {
+        option(topic.label, i++, () => say(topic.text));
+      }
       option("나가기", i, close);
     }
 
@@ -277,7 +284,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const tt = txt(f.title ?? f.name, 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
     const ds = txt(
-      "촛불이 조용히 흔들린다. 사제가 파티의 몸에 깃든 나쁜 것 —\n독·저주 같은 상태이상을 정화해 준다.",
+      `${f.description ?? "사제가 파티를 맞는다."}\n독·저주 같은 상태이상을 정화해 준다.`,
       15, C.text, { lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
     const cure = button("정화 의식 — 상태이상 회복 (무료)", 340, 48, () => {
@@ -467,8 +474,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
 
     function menuTopics(): void {
       clearOpts();
-      const unlocked = npc.topics.filter((t) =>
-        (t.requires?.quests ?? []).every((qid) => questStatus(qid) === "rewarded"));
+      const unlocked = npc.topics.filter((topic) => townContentUnlocked(topic.requires, contentContext()));
       unlocked.forEach((t, i) => mkOpt(t.label, i, () => say(t.text)));
       mkOpt("← 돌아가기", unlocked.length, menuRoot);
     }

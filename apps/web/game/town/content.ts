@@ -1,4 +1,7 @@
-import type { TownContentRequirement } from "./types";
+import type { TownContentRequirement, TownKeeperDef } from "./types";
+
+export const keeperSays = (keeper: TownKeeperDef, text: string): string =>
+  `${keeper.name}  “${text}”`;
 
 export interface TownContentContext {
   questCompleted(id: string): boolean;

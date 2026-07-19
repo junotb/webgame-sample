@@ -5,6 +5,8 @@ import {
 import { C, H, W, button, overlayRoot, panel, toast, txt } from "../core";
 import { G, Member, equipGear } from "../state";
 import { pickMember } from "./member-picker";
+import { keeperSays } from "../town/content";
+import type { TownKeeperDef } from "../town/types";
 
 export type ShopKind = "weapon" | "armor" | "item";
 
@@ -54,8 +56,9 @@ export function openShopMenu(opts: {
   kind: ShopKind;
   onChange: () => void;
   onClose: () => void;
+  keeper: TownKeeperDef;
 }): void {
-  const { title, goods, kind, onChange, onClose } = opts;
+  const { title, goods, kind, onChange, onClose, keeper } = opts;
   const root = new PIXI.Container(); root.zIndex = 60; overlayRoot.addChild(root);
   const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
   dim.eventMode = "static"; root.addChild(dim);
@@ -64,13 +67,15 @@ export function openShopMenu(opts: {
   const rows = Math.ceil(goods.length / cols);
   const panelWidth = twoCol ? 944 : 660;
   const colWidth = twoCol ? 452 : 610;
-  const panelHeight = 172 + rows * 64;
+  const panelHeight = 196 + rows * 64;
   const p = panel(panelWidth, panelHeight);
   p.x = (W - panelWidth) / 2; p.y = (H - panelHeight) / 2; root.addChild(p);
   const heading = txt(title, 24, C.border, { serif: true });
   heading.x = p.x + 26; heading.y = p.y + 18; root.addChild(heading);
-  const goldText = txt("", 15, C.text); goldText.x = p.x + 26; goldText.y = p.y + 56; root.addChild(goldText);
-  function refreshGold(): void { goldText.text = `소지금 ${G.gold} G`; onChange(); }
+  const speech = txt(keeperSays(keeper, "천천히 둘러봐요. 필요한 건 가격표 옆에 다 적어 뒀어요."), 13, C.dim);
+  speech.x = p.x + 26; speech.y = p.y + 54; root.addChild(speech);
+  const goldText = txt("", 15, C.text); goldText.x = p.x + 26; goldText.y = p.y + 78; root.addChild(goldText);
+  function refreshGold(): void { goldText.text = keeperSays(keeper, `지금 가진 돈은 ${G.gold} G네요.`); onChange(); }
   refreshGold();
 
   function slotNote(it: GearDef, m: Member): string {
@@ -83,12 +88,12 @@ export function openShopMenu(opts: {
     const col = twoCol ? i % 2 : 0;
     const row = twoCol ? Math.floor(i / 2) : i;
     const colX = p.x + 26 + col * (colWidth + 8);
-    const y = p.y + 92 + row * 64;
+    const y = p.y + 116 + row * 64;
     const desc = kind === "item" ? (it.desc ?? "") : gearDesc(it);
     const nameText = txt(`${it.name}  —  ${desc}`, 14, C.text, { wrap: colWidth - 128 });
     nameText.x = colX; nameText.y = y + 8; root.addChild(nameText);
     const buy = button(`${it.price} G`, 110, 42, () => {
-      if (G.gold < it.price) return toast("골드가 부족하다.", C.dim);
+      if (G.gold < it.price) return toast(keeperSays(keeper, "그 물건을 사기엔 돈이 조금 모자라요."), C.dim);
       if (kind === "item") {
         G.gold -= it.price;
         if (it.id === "potion") G.items.potion++;

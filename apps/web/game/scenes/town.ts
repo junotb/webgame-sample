@@ -19,7 +19,7 @@ import { G, partyLevel } from "../state";
 import { acceptQuest, questList, questStatus, reportQuest } from "../core/quests";
 import type { RelativeMove } from "../grid";
 import { compileTown } from "../town/compile";
-import { townContentUnlocked } from "../town/content";
+import { keeperSays, townContentUnlocked } from "../town/content";
 import { openTownFacility, type TownFacilityHandlers } from "../town/facilities";
 import { TownNavigation } from "../town/navigation";
 import { createTownPresentation } from "../town/presentation";
@@ -133,12 +133,12 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
    * 시설 라우팅
    * ===================================================================== */
   const facilityHandlers: TownFacilityHandlers = {
-    item: (facility) => openShop(facility.title ?? facility.name, SHOP_ITEMS, "item"),
+    item: (facility) => openShop(facility, SHOP_ITEMS, "item"),
     inn,
     temple: openTemple,
-    bountyGuild: () => openBountyGuild(),
-    stable: () => openStable(),
-    throne: () => openThrone(),
+    bountyGuild: openBountyGuild,
+    stable: openStable,
+    throne: openThrone,
     spiritGuild: openHall,
     elementsGuild: openHall,
     weapon: openHall,
@@ -154,7 +154,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   }
 
   /* ---------- 마굿간: 역마차 빠른이동 ---------- */
-  function openStable(): void {
+  function openStable(f: TownFacilityDef): void {
     overlayOpen = true;
     const dest = otherTown(G.town);
     const destName = TOWNS[dest].name;
@@ -165,12 +165,12 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const tt = txt("마굿간 — 역마차", 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
     const ds = txt(
-      `${T.facilities.find((facility) => facility.id === "stable")?.description ?? "역마차가 출발을 기다린다."}\n${destName}(으)로 가는 삯은 ${CARRIAGE_FARE} G다.`,
+      keeperSays(f.keeper, `${destName}까지 ${CARRIAGE_FARE} G예요. 준비됐으면 바로 출발하죠.`),
       15, C.text, { lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
     function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }
     const go = button(`${destName}(으)로 출발 — ${CARRIAGE_FARE} G`, 340, 50, () => {
-      if (G.gold < CARRIAGE_FARE) return toast(`역마차 삯 ${CARRIAGE_FARE} G가 부족하다.`, C.dim);
+      if (G.gold < CARRIAGE_FARE) return toast(keeperSays(f.keeper, "삯이 모자라네요. 외상은 안 됩니다."), C.dim);
       G.gold -= CARRIAGE_FARE;
       G.town = dest;
       close();
@@ -182,7 +182,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   }
 
   /* ---------- 알현실: 연방 군주에게 편지 전달 ---------- */
-  function openThrone(): void {
+  function openThrone(f: TownFacilityDef): void {
     if (!G.flags.letter) { fullFlash(0x000000, 600, () => nav.letter()); return; }
     overlayOpen = true;
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
@@ -192,7 +192,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const tt = txt("알현실 — 연방 군주", 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
     const ds = txt(
-      "\"헤르만의 제자들이여, 그의 뜻은 잘 새겼네.\n크로스베일의 앞날은 그대들 손에 달렸으니 — 부디 몸조심하게.\"",
+      keeperSays(f.keeper, "군주께서 뜻을 잘 받으셨습니다. 크로스베일의 일은 여러분께 맡기겠다고 하시는군요."),
       15, C.text, { lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
     const closeBtn = button("물러난다", 130, 44, () => {
@@ -202,10 +202,10 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   }
 
   /* ---------- 상점 (도구점 직행 / 무기·방어구점 하위 메뉴) ---------- */
-  function openShop(shopTitle: string, goods: GearDef[], kind: ShopKind, onClose?: () => void): void {
+  function openShop(f: TownFacilityDef, goods: GearDef[], kind: ShopKind, onClose?: () => void): void {
     overlayOpen = true;
     openShopMenu({
-      title: shopTitle, goods, kind, onChange: hud.redraw,
+      title: f.title ?? f.name, goods, kind, keeper: f.keeper, onChange: hud.redraw,
       onClose: () => { overlayOpen = false; onClose?.(); },
     });
   }
@@ -220,9 +220,9 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const title = txt(f.name, 24, C.border, { serif: true }); title.x = p.x + 28; title.y = p.y + 20; rootS.addChild(title);
     const intro = txt(f.description ?? "여행객들이 잠시 쉬어가는 곳이다.", 14, C.dim);
     intro.x = p.x + 28; intro.y = p.y + 58; rootS.addChild(intro);
-    const speech = txt("따뜻한 불빛 아래, 잠시 발걸음을 멈출 수 있다.", 15, C.text, { wrap: 650, lh: 24 });
+    const speech = txt(keeperSays(f.keeper, "방도 따뜻하고 수프도 남았어요. 필요한 게 뭔지 말해 봐요."), 15, C.text, { wrap: 650, lh: 24 });
     speech.x = p.x + 28; speech.y = p.y + 94; rootS.addChild(speech);
-    const say = (text: string) => { speech.text = text; };
+    const say = (text: string) => { speech.text = keeperSays(f.keeper, text); };
     const opts = new PIXI.Container(); rootS.addChild(opts);
     const clearOpts = () => opts.removeChildren().forEach((child) => child.destroy({ children: true }));
     const option = (label: string, i: number, fn: () => void, gold = false) => {
@@ -240,7 +240,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         if (status === "available") {
           option(`[의뢰] ${q.name}`, i++, () => {
             if (!acceptQuest(qid)) return;
-            say(`${q.desc}\n\n— 의뢰 [${q.name}] 수주! (${q.objectives.map((o) => `${o.desc} 0/${o.count}`).join(" · ")})`);
+            say(`좋아요, 그 일을 맡아 줘요. ${q.desc} (${q.objectives.map((o) => `${o.desc} 0/${o.count}`).join(" · ")})`);
             toast(`의뢰 수주: ${q.name}`, C.border);
             menu();
           }, true);
@@ -251,7 +251,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
             const parts = [
               reward.gold ? `${reward.gold} G` : "", reward.exp ? `경험치 ${reward.exp}` : "", ...reward.items,
             ].filter(Boolean).join(" · ");
-            say(`옛길에는 다시 조용함이 찾아들었다. [${q.name}]의 완수를 확인했다.\n\n보상: ${parts}`);
+            say(`정말 해냈군요! [${q.name}] 완료로 적어 둘게요. 보상은 ${parts}예요.`);
             toast(`의뢰 완수! 보상: ${parts}`, C.border);
             if (reward.ups.length) toast(`레벨 업! ${reward.ups.join(" · ")} (HP/MP 전부 회복)`, C.border);
             hud.redraw(); menu();
@@ -259,19 +259,19 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         } else if (status === "active") {
           const progress = G.quests[qid];
           option(`[진행 중] ${q.name}`, i++, () => {
-            say(`여관 장부에는 아직 이 의뢰가 남아 있다. (${q.objectives.map((o) => `${o.desc} ${Math.min(progress.counts[o.id] ?? 0, o.count)}/${o.count}`).join(" · ")})`);
+            say(`아직 장부에 남아 있어요. 지금은 ${q.objectives.map((o) => `${o.desc} ${Math.min(progress.counts[o.id] ?? 0, o.count)}/${o.count}`).join(" · ")}만큼 진행됐네요.`);
           });
         }
       }
       option("숙박 — 30 G (전원 HP/MP 회복)", i++, () => {
-        if (G.gold < 30) return toast("숙박비 30 G가 부족하다.", C.dim);
+        if (G.gold < 30) return toast(keeperSays(f.keeper, "숙박비가 조금 모자라네요."), C.dim);
         G.gold -= 30;
         G.party.forEach((m) => { m.hp = m.maxHp; m.mp = m.maxMp; });
         advanceTownTime(G, 8 * 60);
         presentation.setTime(townTime(G));
         presentation.render(movement.pose);
         hud.redraw();
-        say("푹신한 침대와 잔잔한 난롯불 아래에서 파티가 푹 쉬었다.\n\n전원 HP/MP가 회복되었다.");
+        say("푹 쉬었죠? 다들 얼굴빛이 좋아졌네요. 몸과 마력이 전부 회복됐어요.");
         fullFlash(0x000000, 900, () => toast("파티가 푹 쉬었다. 전원 HP/MP 회복!", C.text));
       }, true);
       for (const topic of (f.topics ?? []).filter((entry) => townContentUnlocked(entry.requires, contentContext()))) {
@@ -294,13 +294,13 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const tt = txt(f.title ?? f.name, 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
     const ds = txt(
-      `${f.description ?? "사제가 파티를 맞는다."}\n독·저주 같은 상태이상을 정화해 준다.`,
+      keeperSays(f.keeper, "어디 불편한 곳이 있나요? 독이나 저주가 남아 있다면 제가 살펴볼게요."),
       15, C.text, { lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
     const cure = button("정화 의식 — 상태이상 회복 (무료)", 340, 48, () => {
       /* 지속형 상태이상은 아직 없다(전투 상태는 전투 종료 시 소멸).
        * 독·저주 등 필드 지속 상태 추가 시 이곳에서 정화한다. */
-      toast("사제가 파티를 살폈다 — 정화할 상태이상이 없다.", C.dim);
+      toast(keeperSays(f.keeper, "다행이네요. 지금은 정화할 상태이상이 없어요."), C.dim);
     }, { size: 15, border: C.border });
     cure.x = p.x + 26; cure.y = p.y + 140; rootS.addChild(cure);
     const closeBtn = button("나가기", 110, 40, () => {
@@ -310,7 +310,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   }
 
   /* ---------- 현상금 길드: 의뢰 게시판 ---------- */
-  function openBountyGuild(): void {
+  function openBountyGuild(f: TownFacilityDef): void {
     overlayOpen = true;
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
     const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
@@ -324,6 +324,8 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
       content.removeChildren().forEach((c) => c.destroy({ children: true }));
       const tt = txt("현상금 길드 — 의뢰 게시판", 24, C.border, { serif: true });
       tt.x = p.x + 28; tt.y = p.y + 18; content.addChild(tt);
+      const keeperLine = txt(keeperSays(f.keeper, "조건을 읽고 골라요. 끝낸 일은 내가 확인해 드리죠."), 12, C.dim);
+      keeperLine.x = p.x + 360; keeperLine.y = p.y + 26; content.addChild(keeperLine);
       const list = questList();
       list.forEach((e, i) => {
         const y = p.y + 62 + i * 54;

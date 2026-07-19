@@ -6,6 +6,7 @@ import type { TownFacilityDef } from "../town/types";
 import { SKILL_PRICE } from "../towns";
 import { pickMember } from "./member-picker";
 import { openShopMenu } from "./shop-menu";
+import { keeperSays } from "../town/content";
 
 export interface TrainingHallOptions {
   onChange: () => void;
@@ -37,44 +38,47 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
 
   function main(): void {
     clear(); header(f.name);
+    const greeting = txt(keeperSays(f.keeper, "뭘 배우고 싶은지 말해 봐요. 맞는 길을 같이 찾아보죠."), 13, C.dim, { wrap: 760 });
+    greeting.x = p.x + 28; greeting.y = p.y + 54; content.addChild(greeting);
     let i = 0;
     const option = (label: string, desc: string, onTap: () => void) => {
       const b = button(label, 340, 52, onTap, { size: 16 });
-      b.x = p.x + 28; b.y = p.y + 76 + i * 66; content.addChild(b);
+      b.x = p.x + 28; b.y = p.y + 88 + i * 66; content.addChild(b);
       const d = txt(desc, 13, C.dim, { wrap: 420 });
-      d.x = p.x + 390; d.y = p.y + 76 + i * 66 + 16; content.addChild(d);
+      d.x = p.x + 390; d.y = p.y + 88 + i * 66 + 16; content.addChild(d);
       i++;
     };
     if (shopGoods) {
-      option("장비 구매", f.id === "weapon" ? "담금질한 강철 — 무기·방패 일람." : "견고한 수호 — 방어구·장신구 일람.", () => {
+      option("장비 구매", keeperSays(f.keeper, f.id === "weapon" ? "무기와 방패는 이쪽이에요." : "갑옷과 장신구는 이쪽에서 봐요."), () => {
         destroy();
         openShopMenu({
           title: f.id === "weapon" ? "무기점 — 담금질한 강철" : "방어구점 — 견고한 수호",
           goods: shopGoods,
           kind: f.id === "weapon" ? "weapon" : "armor",
+          keeper: f.keeper,
           onChange: opts.onChange,
           onClose: () => openTrainingHall(f, opts),
         });
       });
     }
     if (f.trains?.length)
-      option(trainLabel, `${f.trains.map((k) => SKILLS[k].name).join(" · ")} — 미습득 기술을 ${SKILL_PRICE} G에 가르친다.`, trainPage);
+      option(trainLabel, keeperSays(f.keeper, `${f.trains.map((k) => SKILLS[k].name).join(" · ")} 중 필요한 걸 가르쳐 드리죠.`), trainPage);
     if (f.classes?.length)
-      option("전직 상담", `이곳의 길: ${pathNames.join(" · ")}`, classPage);
+      option("전직 상담", keeperSays(f.keeper, `${pathNames.join(" · ")}의 길을 함께 살펴보죠.`), classPage);
   }
 
   function trainPage(): void {
     clear(); header(`${f.name} — ${trainLabel}`);
-    const sub = txt(`미습득 기술을 ${SKILL_PRICE} G에 가르친다. (습득 시 노비스 랭크)`, 13, C.dim);
+    const sub = txt(keeperSays(f.keeper, `처음 배우는 기술은 ${SKILL_PRICE} G예요. 기초부터 제대로 봐 드리죠.`), 13, C.dim);
     sub.x = p.x + 28; sub.y = p.y + 56; content.addChild(sub);
     (f.trains ?? []).forEach((skill, i) => {
       const y = p.y + 92 + i * 52;
       const b = button(`${SKILLS[skill].name}  —  ${SKILL_PRICE} G`, 280, 42, () => {
-        if (G.gold < SKILL_PRICE) return toast("골드가 부족하다.", C.dim);
+        if (G.gold < SKILL_PRICE) return toast(keeperSays(f.keeper, "수련비가 모자라네요. 준비되면 다시 와요."), C.dim);
         pickMember(`${SKILLS[skill].name} — 누가 배울까?`, (member) => {
           G.gold -= SKILL_PRICE;
           member.bonusSkills.push(skill);
-          toast(`${member.name}, [${SKILLS[skill].name}] 습득! (노비스)`, C.border);
+          toast(keeperSays(f.keeper, `${member.name}, 이제 ${SKILLS[skill].name}의 기초는 익혔어요.`), C.border);
           opts.onChange(); trainPage();
         }, {
           filter: (member) => (memberRanks(member)[skill] ?? 0) === 0,
@@ -98,7 +102,7 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
 
   function classPage(): void {
     clear(); header(`${f.name} — 전직 상담`);
-    const sub = txt(`이곳의 길: ${pathNames.join(" · ")}   (1차 Lv3 / 2차 Lv6, 되돌릴 수 없다)`, 13, C.dim, { wrap: 780 });
+    const sub = txt(keeperSays(f.keeper, `여기선 ${pathNames.join(" · ")}의 길을 안내해요. 선택은 되돌릴 수 없으니 신중히 골라요.`), 13, C.dim, { wrap: 780 });
     sub.x = p.x + 28; sub.y = p.y + 56; content.addChild(sub);
     G.party.forEach((member, i) => {
       const change = canClassChange(member);
@@ -118,7 +122,7 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
 
   function memberPage(member: Member): void {
     clear(); header(`${member.name}의 갈림길`);
-    const intro = txt(`${CLASSES[member.classId].name}의 소양을 살릴 길 — ${f.name}이 안내한다.`, 15, C.text);
+    const intro = txt(keeperSays(f.keeper, `${member.name}의 ${CLASSES[member.classId].name} 소양이라면 이런 길이 어울리겠네요.`), 15, C.text);
     intro.x = p.x + 28; intro.y = p.y + 62; content.addChild(intro);
     hallOptions(member).forEach((classId, i) => {
       const cls = CLASSES[classId];
@@ -150,7 +154,7 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
   }
 
   function done(member: Member, classId: ClassId): void {
-    toast(`${member.name}, [${CLASSES[classId].name}] (으)로 전직!`, C.border);
+    toast(keeperSays(f.keeper, `${member.name}, 이제 ${CLASSES[classId].name}의 길을 걷는군요.`), C.border);
     opts.onChange(); classPage();
   }
 

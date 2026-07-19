@@ -9,15 +9,15 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  ATTRS, AttrId, CLASSES, ClassId, DAMAGE_META, DamageType, EquipSlot, GearDef, NPCS, NpcDef,
-  QUESTS, RANK_NAME, SHOP_ARMORS, SHOP_ITEMS, SHOP_WEAPONS, SKILLS, SLOT_META,
+  CLASSES, ClassId, GearDef, NPCS, NpcDef, QUESTS, RANK_NAME, SHOP_ARMORS, SHOP_ITEMS,
+  SHOP_WEAPONS, SKILLS,
 } from "../defs";
 import {
   C, H, SceneHandle, W, app, button, fullFlash, nav, overlayRoot, panel,
   sceneRoot, setModeBadge, toast, tween, txt, ui,
 } from "../core";
 import {
-  G, Member, canClassChange, classOptions, doClassChange, equipGear, memberRanks,
+  G, Member, canClassChange, classOptions, doClassChange, memberRanks,
 } from "../state";
 import { acceptQuest, questList, questStatus, reportQuest } from "../core/quests";
 import { DIR, FACING_NAME, Facing, GridMap, cellAt, leftOf, passable, rightOf } from "../grid";
@@ -28,45 +28,7 @@ import { TileName, tileSprite } from "../tiles";
 import { portraitTexture } from "../portraits";
 import { drawAdventurer } from "../monsters";
 import { buildPartyHUD, pickMember } from "../hud";
-
-/** 장비 저항을 짧은 설명으로 — 4원소 균일 경감은 "원소 피해 N% 경감"으로 요약 */
-function gearResSummary(it: GearDef): string {
-  const res = it.res;
-  if (!res) return "";
-  const entries = Object.entries(res) as [DamageType, number][];
-  const elems: DamageType[] = ["earth", "fire", "wind", "water"];
-  const uniformElem = entries.length === 4
-    && elems.every((e) => res[e] !== undefined)
-    && new Set(elems.map((e) => res[e])).size === 1;
-  if (uniformElem) return `원소 피해 ${Math.round((1 - (res.fire ?? 1)) * 100)}% 경감`;
-  return entries.map(([t, m]) => `${DAMAGE_META[t].name} ${Math.round((1 - m) * 100)}% 경감`).join(" ");
-}
-/** 장비의 슬롯 표시명 (투구/갑옷/…/반지). 무기는 오른손/왼손 */
-function slotLabel(it: GearDef): string {
-  if (it.slot === "ring") return "반지";
-  if (it.slot && it.slot in SLOT_META) return SLOT_META[it.slot as EquipSlot].name;
-  return "장비";
-}
-/** 상점 장비 한 줄 설명 — 공격/방어·계열·사거리·능력치·저항을 요약 */
-function gearDesc(it: GearDef): string {
-  const parts: string[] = [];
-  if (it.atk !== undefined) {
-    let head = `공격 +${it.atk} · ${DAMAGE_META[it.wtype ?? "slash"].name}`;
-    head += it.reach === "ranged" ? " · 원거리(후열)" : " · 근접";
-    if (it.twoHanded) head += " · 양손";
-    else if (it.slot === "offHand") head += " · 왼손";
-    parts.push(head);
-  } else {
-    parts.push(`${slotLabel(it)}${it.def ? ` · 방어 +${it.def}` : ""}`);
-  }
-  if (it.attrs) {
-    const ap = (Object.keys(it.attrs) as AttrId[]).filter((k) => it.attrs![k]).map((k) => `${ATTRS[k].name}+${it.attrs![k]}`);
-    if (ap.length) parts.push(ap.join(" "));
-  }
-  const rs = gearResSummary(it);
-  if (rs) parts.push(rs);
-  return parts.join(" · ");
-}
+import { openShopMenu, type ShopKind } from "../ui/shop-menu";
 
 export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   const T = TOWNS[G.town];
@@ -454,64 +416,13 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   }
 
   /* ---------- 상점 (도구점 직행 / 무기·방어구점 하위 메뉴) ---------- */
-  function openShop(shopTitle: string, goods: GearDef[], kind: "weapon" | "armor" | "item",
-    onClose?: () => void): void {
+  function openShop(shopTitle: string, goods: GearDef[], kind: ShopKind, onClose?: () => void): void {
     overlayOpen = true;
-    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
-    dim.eventMode = "static"; rootS.addChild(dim);
-    /* 물품이 많은 장비점은 2열, 소모품점은 1열 */
-    const twoCol = goods.length > 6;
-    const cols = twoCol ? 2 : 1;
-    const rows = Math.ceil(goods.length / cols);
-    const PWID = twoCol ? 944 : 660;
-    const colW = twoCol ? 452 : 610;
-    const ph = 172 + rows * 64;
-    const p = panel(PWID, ph); p.x = (W - PWID) / 2; p.y = (H - ph) / 2; rootS.addChild(p);
-    const tt = txt(shopTitle, 24, C.border, { serif: true }); tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
-    const goldT = txt("", 15, C.text); goldT.x = p.x + 26; goldT.y = p.y + 56; rootS.addChild(goldT);
-    function refreshGold(): void { goldT.text = `소지금 ${G.gold} G`; hud.redraw(); }
-    refreshGold();
-    /** it가 장착될 슬롯의 현재 장비 표시 (장착 전 미리보기) */
-    function slotNote(it: GearDef, m: Member): string {
-      if (it.slot === "ring") return `반지 ${m.equip.ring1?.name ?? "—"} / ${m.equip.ring2?.name ?? "—"}`;
-      const slot = (it.slot ?? (it.atk !== undefined ? "mainHand" : "body")) as EquipSlot;
-      return `${slotLabel(it)} ${m.equip[slot]?.name ?? "—"}`;
-    }
-    goods.forEach((it, i) => {
-      const col = twoCol ? i % 2 : 0;
-      const row = twoCol ? Math.floor(i / 2) : i;
-      const colX = p.x + 26 + col * (colW + 8);
-      const y = p.y + 92 + row * 64;
-      const desc = kind === "item" ? (it.desc ?? "") : gearDesc(it);
-      const nameT = txt(`${it.name}  —  ${desc}`, 14, C.text, { wrap: colW - 128 });
-      nameT.x = colX; nameT.y = y + 8; rootS.addChild(nameT);
-      const b = button(`${it.price} G`, 110, 42, () => {
-        if (G.gold < it.price) return toast("골드가 부족하다.", C.dim);
-        if (kind === "item") {
-          G.gold -= it.price;
-          if (it.id === "potion") G.items.potion++;
-          else G.items.mpotion++;
-          toast(`${it.name} 구입.`); refreshGold();
-          return;
-        }
-        // 장비: 장착할 멤버 선택
-        pickMember(`${it.name} — 누구에게 장착할까?`, (m) => {
-          G.gold -= it.price;
-          const slot = equipGear(m, it);
-          toast(`${m.name}에게 ${it.name} 장착! (${SLOT_META[slot].name})`); refreshGold();
-        }, { note: (m) => `(${slotNote(it, m)})` });
-      }, { size: 15 });
-      b.x = colX + colW - 116; b.y = y; rootS.addChild(b);
+    openShopMenu({
+      title: shopTitle, goods, kind, onChange: hud.redraw,
+      onClose: () => { overlayOpen = false; onClose?.(); },
     });
-    const closeBtn = button("나가기", 110, 40, () => {
-      overlayOpen = false;
-      rootS.destroy({ children: true });
-      onClose?.();
-    }, { size: 15 });
-    closeBtn.x = p.x + PWID - 136; closeBtn.y = p.y + ph - 56; rootS.addChild(closeBtn);
   }
-
   /* ---------- 여관: 숙박·소문·시설 의뢰 ---------- */
   function inn(f: TownFacilityDef): void {
     overlayOpen = true;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DIR, Facing, adjacent, backOf, cellAt, chebyshev, enemyStep, hasLOS,
-  leftOf, parseMap, passable, rightOf,
+  leftOf, moveTarget, parseMap, passable, rightOf, rotateFacing,
 } from "../grid";
 import { DUNGEON_ROWS, NORMAL_SPAWNS, POIS, START, SYMBOL_SPAWNS, dungeonMap } from "../dungeon";
 
@@ -23,6 +23,15 @@ describe("방향 수학", () => {
     let f: Facing = 0;
     for (let i = 0; i < 4; i++) f = rightOf(f);
     expect(f).toBe(0);
+  });
+  it("상대 이동 입력을 현재 방향 기준 좌표로 변환", () => {
+    const east = { x: 5, y: 5, facing: 1 as Facing };
+    expect(moveTarget(east, "fwd")).toEqual({ x: 6, y: 5 });
+    expect(moveTarget(east, "back")).toEqual({ x: 4, y: 5 });
+    expect(moveTarget(east, "sl")).toEqual({ x: 5, y: 4 });
+    expect(moveTarget(east, "sr")).toEqual({ x: 5, y: 6 });
+    expect(rotateFacing(0, -1)).toBe(3);
+    expect(rotateFacing(3, 1)).toBe(0);
   });
 });
 

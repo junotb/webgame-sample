@@ -17,6 +17,21 @@ export const leftOf = (f: Facing): Facing => (((f + 3) % 4) as Facing);
 export const rightOf = (f: Facing): Facing => (((f + 1) % 4) as Facing);
 export const backOf = (f: Facing): Facing => (((f + 2) % 4) as Facing);
 
+export type RelativeMove = "fwd" | "back" | "sl" | "sr";
+export interface GridPose { x: number; y: number; facing: Facing; }
+
+/** 현재 방향을 기준으로 한 이동 입력을 절대 좌표 후보로 변환한다. */
+export function moveTarget(pose: GridPose, move: RelativeMove): { x: number; y: number } {
+  const direction: Facing = move === "fwd" ? pose.facing
+    : move === "back" ? backOf(pose.facing)
+      : move === "sl" ? leftOf(pose.facing) : rightOf(pose.facing);
+  return { x: pose.x + DIR[direction].dx, y: pose.y + DIR[direction].dy };
+}
+
+export function rotateFacing(facing: Facing, direction: -1 | 1): Facing {
+  return direction < 0 ? leftOf(facing) : rightOf(facing);
+}
+
 export type CellKind = "wall" | "floor" | "door" | "water" | "stairs";
 
 export interface GridMap {

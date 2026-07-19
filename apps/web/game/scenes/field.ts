@@ -4,10 +4,10 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  C, H, SceneHandle, W, app, nav, panel, sceneRoot, setModeBadge, tween, txt,
+  C, H, SceneHandle, SceneScope, W, nav, panel, sceneRoot, setModeBadge, tween, txt,
 } from "../core";
 import { FIELDS, FieldData, FieldDeco, FieldExit, FieldId } from "../fieldmaps";
-import { DIR, Facing, leftOf, passable, rightOf } from "../grid";
+import { DIR, Facing, RelativeMove, moveTarget, passable, rotateFacing } from "../grid";
 import { FPEntity, FPTheme, createFPView } from "../fpview";
 import { G } from "../state";
 import { tileSprite } from "../tiles";
@@ -27,6 +27,7 @@ function fieldNode(deco: FieldDeco): FPEntity {
 
 export function fieldScene(id: FieldId): SceneHandle {
   const F: FieldData = FIELDS[id];
+  const scope = new SceneScope();
   setModeBadge(F.badge, C.green);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
   const map = F.map;
@@ -87,15 +88,13 @@ export function fieldScene(id: FieldId): SceneHandle {
       onDone: () => tween(fp.root, { x: -5 }, 45, { onDone: () => tween(fp.root, { x: 0 }, 60) }),
     });
   }
-  function move(rel: "fwd" | "back" | "sl" | "sr"): void {
-    const dir: Facing = rel === "fwd" ? facing : rel === "back" ? ((facing + 2) % 4) as Facing
-      : rel === "sl" ? leftOf(facing) : rightOf(facing);
-    const nx = px + DIR[dir].dx, ny = py + DIR[dir].dy;
+  function move(rel: RelativeMove): void {
+    const { x: nx, y: ny } = moveTarget({ x: px, y: py, facing }, rel);
     if (!passable(map, nx, ny) || blockedAt(nx, ny)) { bump(); return; }
     px = nx; py = ny; fp.root.y = 7; tween(fp.root, { y: 0 }, 130); refresh();
   }
   function rotate(dir: -1 | 1): void {
-    facing = dir < 0 ? leftOf(facing) : rightOf(facing); refresh();
+    facing = rotateFacing(facing, dir); refresh();
   }
   function leave(exit: FieldExit): void {
     if (exit.target.kind === "field") { nav.field(exit.target.id); return; }
@@ -112,7 +111,7 @@ export function fieldScene(id: FieldId): SceneHandle {
   }
 
   const ticker = (t: PIXI.Ticker) => fp.tick(t.deltaMS);
-  app.ticker.add(ticker);
+  scope.ticker(ticker);
   refresh();
   const KEYMAP: Record<string, () => void> = {
     w: () => move("fwd"), s: () => move("back"), a: () => move("sl"), d: () => move("sr"),
@@ -123,6 +122,6 @@ export function fieldScene(id: FieldId): SceneHandle {
   };
   return {
     onKey(k) { KEYMAP[k.length === 1 ? k.toLowerCase() : k]?.(); },
-    dispose() { app.ticker.remove(ticker); },
+    dispose() { scope.dispose(); },
   };
 }

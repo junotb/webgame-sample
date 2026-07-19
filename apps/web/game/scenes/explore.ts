@@ -9,7 +9,7 @@ import {
   ENEMY_DEFS, RANK_NAME, RARITY_META, enemyMelee, gearDisplayName,
 } from "../defs";
 import {
-  C, H, SceneHandle, W, app, button, fullFlash, nav, panel, sceneRoot,
+  C, H, SceneHandle, SceneScope, W, button, fullFlash, nav, panel, sceneRoot,
   setModeBadge, toast, tween, txt, ui, wait,
 } from "../core";
 import {
@@ -23,8 +23,8 @@ import {
 } from "../core/statuses";
 import { questNotify, trackerLines, updateText } from "../core/quests";
 import {
-  DIR, FACING_NAME, Facing, cellAt, chebyshev, enemyStep, hasLOS,
-  leftOf, passable, rightOf,
+  DIR, FACING_NAME, RelativeMove, cellAt, chebyshev, enemyStep, hasLOS,
+  moveTarget, passable, rightOf, rotateFacing,
 } from "../grid";
 import { POIS, PoiDef, START, dungeonMap } from "../dungeon";
 import { FPEntity, createFPView } from "../fpview";
@@ -41,6 +41,7 @@ const REVEAL_R = 4;              // 미니맵 안개 걷힘 반경
 const VEIL_TURNS = 30;           // 어둠의 장막 지속 턴
 
 export function exploreScene(): SceneHandle {
+  const scope = new SceneScope();
   setModeBadge("탐험 모드 — 할로우베일 계곡", C.green);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
   const map = dungeonMap;
@@ -303,11 +304,9 @@ export function exploreScene(): SceneHandle {
   }
 
   /* ---- 이동/회전 ---- */
-  function tryMove(rel: "fwd" | "back" | "sl" | "sr"): void {
+  function tryMove(rel: RelativeMove): void {
     if (ui.menuOpen || phase === "anim" || phase === "end") return;
-    const f: Facing = rel === "fwd" ? E.facing : rel === "back" ? (((E.facing + 2) % 4) as Facing)
-      : rel === "sl" ? leftOf(E.facing) : rightOf(E.facing);
-    const nx = E.x + DIR[f].dx, ny = E.y + DIR[f].dy;
+    const { x: nx, y: ny } = moveTarget(E, rel);
     if (!passable(map, nx, ny) || enemyAt(nx, ny) || poiBlocking(nx, ny)) {
       bump(); return;
     }
@@ -318,7 +317,7 @@ export function exploreScene(): SceneHandle {
   }
   function rotate(dir: -1 | 1): void {
     if (ui.menuOpen || phase === "anim" || phase === "end") return;
-    E.facing = dir < 0 ? leftOf(E.facing) : rightOf(E.facing);
+    E.facing = rotateFacing(E.facing, dir);
     if (ROTATE_COSTS_TURN) {
       if (phase === "party") cancelRound("파티는 방향을 틀었다.");
       advanceTurn();
@@ -982,7 +981,7 @@ export function exploreScene(): SceneHandle {
 
   /* ---- ticker: 횃불 플리커만 (이동은 이산 스텝) ---- */
   const ticker = (t: PIXI.Ticker) => { fp.tick(t.deltaMS); };
-  app.ticker.add(ticker);
+  scope.ticker(ticker);
 
   /* ---- 초기화 ---- */
   revealAround();
@@ -1012,7 +1011,7 @@ export function exploreScene(): SceneHandle {
       disposed = true;
       activeEvent?.dispose?.();
       activeEvent = null;
-      app.ticker.remove(ticker);
+      scope.dispose();
     },
   };
 }

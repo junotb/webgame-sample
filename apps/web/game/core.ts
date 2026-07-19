@@ -2,6 +2,8 @@
  * core.ts — PIXI 셋업, 씬 매니저, 트윈, 공용 UI 헬퍼, nav 라우터
  * ===================================================================== */
 import * as PIXI from "pixi.js";
+import type { FieldId } from "./fieldmaps";
+import type { TownSpawn } from "./townmap";
 
 export const W = 1280;
 export const H = 720;
@@ -30,16 +32,54 @@ export interface SceneHandle {
   dispose?: () => void;
 }
 let currentScene: SceneHandle | null = null;
+let sceneEpoch = 0;
 
 export function switchScene(builder: () => SceneHandle): void {
   if (currentScene?.dispose) currentScene.dispose();
+  /* 이전 씬이 예약한 wait/tween 콜백을 제거해 전환 후 실행되지 않게 한다. */
+  sceneEpoch++;
+  for (let i = tweens.length - 1; i >= 0; i--)
+    if (!tweens[i].global) tweens.splice(i, 1);
   sceneRoot.removeChildren().forEach((c) => c.destroy({ children: true }));
   currentScene = builder();
 }
 
-/* ---- nav: 씬 간 순환 import 방지용 라우터 (index.ts에서 배선) ---- */
-type NavFn = (...args: any[]) => void;
-export const nav: Record<string, NavFn> = {};
+/** 장면이 등록한 ticker·리스너 같은 자원을 한 번에 정리한다. */
+export class SceneScope {
+  private cleanups: Array<() => void> = [];
+  private closed = false;
+
+  add(cleanup: () => void): void {
+    if (this.closed) cleanup();
+    else this.cleanups.push(cleanup);
+  }
+
+  ticker(fn: (ticker: PIXI.Ticker) => void): void {
+    app.ticker.add(fn);
+    this.add(() => app.ticker.remove(fn));
+  }
+
+  dispose(): void {
+    if (this.closed) return;
+    this.closed = true;
+    for (let i = this.cleanups.length - 1; i >= 0; i--) this.cleanups[i]();
+    this.cleanups.length = 0;
+  }
+}
+
+/* ---- nav: 씬 간 순환 import 방지용 타입 안전 라우터 (index.ts에서 배선) ---- */
+export interface GameNavigator {
+  title(): void;
+  create(): void;
+  prologue(): void;
+  town(spawn?: TownSpawn): void;
+  letter(): void;
+  explore(): void;
+  field(id: FieldId): void;
+  ending(): void;
+  epicClear(): void;
+}
+export const nav = {} as GameNavigator;
 
 /* ---- 키 입력 ---- */
 export const keys: Record<string, boolean> = {};
@@ -64,18 +104,23 @@ export function detachInput(): void {
 
 /* ---- 트윈 ---- */
 interface Tween {
-  obj: any; from: Record<string, number>; to: Record<string, number>;
+  obj: object; from: Record<string, number>; to: Record<string, number>;
   dur: number; t: number; ease: (t: number) => number; onDone?: () => void;
+  epoch: number; global: boolean;
 }
 const tweens: Tween[] = [];
 export const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 export const linear = (t: number) => t;
 
-export function tween(obj: any, to: Record<string, number>, dur: number,
-  opts: { ease?: (t: number) => number; onDone?: () => void } = {}): void {
+export function tween<T extends object>(obj: T, to: Record<string, number>, dur: number,
+  opts: { ease?: (t: number) => number; onDone?: () => void; global?: boolean } = {}): void {
+  const values = obj as unknown as Record<string, number>;
   const from: Record<string, number> = {};
-  for (const k in to) from[k] = obj[k];
-  tweens.push({ obj, from, to, dur, t: 0, ease: opts.ease ?? easeOut, onDone: opts.onDone });
+  for (const k in to) from[k] = values[k];
+  tweens.push({
+    obj, from, to, dur, t: 0, ease: opts.ease ?? easeOut, onDone: opts.onDone,
+    epoch: sceneEpoch, global: opts.global ?? false,
+  });
 }
 export function wait(ms: number, fn: () => void): void {
   tween({ v: 0 }, { v: 1 }, ms, { ease: linear, onDone: fn });
@@ -95,11 +140,12 @@ function tickTweens(): void {
   const dt = app.ticker.deltaMS;
   for (let i = tweens.length - 1; i >= 0; i--) {
     const tw = tweens[i];
-    if (tw.obj && tw.obj.destroyed) { tweens.splice(i, 1); continue; }
+    if ((tw.obj as { destroyed?: boolean }).destroyed) { tweens.splice(i, 1); continue; }
     tw.t += dt;
     const p = Math.min(1, tw.t / tw.dur);
     const e = tw.ease(p);
-    for (const k in tw.to) tw.obj[k] = tw.from[k] + (tw.to[k] - tw.from[k]) * e;
+    const values = tw.obj as unknown as Record<string, number>;
+    for (const k in tw.to) values[k] = tw.from[k] + (tw.to[k] - tw.from[k]) * e;
     if (p >= 1) { tweens.splice(i, 1); tw.onDone?.(); }
   }
 }
@@ -167,8 +213,11 @@ export function toast(msg: string, color: number = C.text): void {
   c.addChild(p, t);
   c.x = (W - p.width) / 2; c.y = 90; c.alpha = 0; c.zIndex = 99;
   overlayRoot.addChild(c);
-  tween(c, { alpha: 1, y: 100 }, 250);
-  wait(1600, () => tween(c, { alpha: 0 }, 400, { onDone: () => c.destroy({ children: true }) }));
+  tween(c, { alpha: 1, y: 100 }, 250, { global: true });
+  tween({ v: 0 }, { v: 1 }, 1600, {
+    global: true,
+    onDone: () => tween(c, { alpha: 0 }, 400, { global: true, onDone: () => c.destroy({ children: true }) }),
+  });
 }
 
 export function fullFlash(color = 0xffffff, dur = 350, cb?: () => void): void {
@@ -176,9 +225,10 @@ export function fullFlash(color = 0xffffff, dur = 350, cb?: () => void): void {
   g.rect(0, 0, W, H).fill(color);
   g.alpha = 0; g.zIndex = 98; overlayRoot.addChild(g);
   tween(g, { alpha: 1 }, dur / 2, {
+    global: true,
     onDone: () => {
       cb?.();
-      tween(g, { alpha: 0 }, dur / 2, { onDone: () => g.destroy() });
+      tween(g, { alpha: 0 }, dur / 2, { global: true, onDone: () => g.destroy() });
     },
   });
 }

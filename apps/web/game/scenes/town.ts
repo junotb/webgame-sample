@@ -13,14 +13,14 @@ import {
   SHOP_WEAPONS, SKILLS,
 } from "../defs";
 import {
-  C, H, SceneHandle, W, app, button, fullFlash, nav, overlayRoot, panel,
+  C, H, SceneHandle, SceneScope, W, button, fullFlash, nav, overlayRoot, panel,
   sceneRoot, setModeBadge, toast, tween, txt, ui,
 } from "../core";
 import {
   G, Member, canClassChange, classOptions, doClassChange, memberRanks,
 } from "../state";
 import { acceptQuest, questList, questStatus, reportQuest } from "../core/quests";
-import { DIR, FACING_NAME, Facing, GridMap, cellAt, leftOf, passable, rightOf } from "../grid";
+import { DIR, FACING_NAME, Facing, GridMap, RelativeMove, cellAt, moveTarget, passable, rotateFacing } from "../grid";
 import { SKILL_PRICE, TownDecoDef, TownFacilityDef, TownGateDef, TownSpawn } from "../townmap";
 import { CARRIAGE_FARE, TOWNS, otherTown } from "../towns";
 import { FPEntity, FPTheme, SurfacePick, createFPView } from "../fpview";
@@ -31,6 +31,7 @@ import { buildPartyHUD, pickMember } from "../hud";
 import { openShopMenu, type ShopKind } from "../ui/shop-menu";
 
 export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
+  const scope = new SceneScope();
   const T = TOWNS[G.town];
   setModeBadge(T.badge, C.border);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
@@ -288,11 +289,9 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   let overlayOpen = false;
   const busy = (): boolean => overlayOpen || ui.menuOpen;
 
-  function tryMove(rel: "fwd" | "back" | "sl" | "sr"): void {
+  function tryMove(rel: RelativeMove): void {
     if (busy()) return;
-    const f: Facing = rel === "fwd" ? facing : rel === "back" ? (((facing + 2) % 4) as Facing)
-      : rel === "sl" ? leftOf(facing) : rightOf(facing);
-    const nx = px + DIR[f].dx, ny = py + DIR[f].dy;
+    const { x: nx, y: ny } = moveTarget({ x: px, y: py, facing }, rel);
     if (!passable(map, nx, ny) || facilityAt(nx, ny) || npcAt(nx, ny) || blockingDecoAt(nx, ny)) { bump(); return; }
     px = nx; py = ny;
     stepBob();
@@ -300,7 +299,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   }
   function rotate(dir: -1 | 1): void {
     if (busy()) return;
-    facing = dir < 0 ? leftOf(facing) : rightOf(facing);
+    facing = rotateFacing(facing, dir);
     refresh();
   }
   function bump(): void {
@@ -874,7 +873,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
 
   /* ---- ticker: 횃불 플리커 ---- */
   const ticker = (t: PIXI.Ticker) => { fp.tick(t.deltaMS); };
-  app.ticker.add(ticker);
+  scope.ticker(ticker);
 
   refresh();
 
@@ -893,6 +892,6 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
 
   return {
     onKey(k) { (KEYMAP[k.length === 1 ? k.toLowerCase() : k])?.(); },
-    dispose() { app.ticker.remove(ticker); },
+    dispose() { scope.dispose(); },
   };
 }

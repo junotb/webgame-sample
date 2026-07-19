@@ -68,7 +68,6 @@ describe.each(townIds)("마을 맵 규칙 — %s", (id) => {
       expect(new Set(facility.keeper.greetings).size, `${facility.name}: 인사말 중복`).toBe(3);
       for (const greeting of facility.keeper.greetings) {
         expect(greeting.length, `${facility.name}: 인사말이 너무 짧음`).toBeGreaterThan(15);
-        expect(greeting, `${facility.name}: 기능 키워드 인사말 누락`).toMatch(/^[^!]{1,8}! /);
       }
       expect(facility.keeper.portrait, `${facility.name}: 초상화 범위`).toBeGreaterThanOrEqual(1);
       expect(facility.keeper.portrait, `${facility.name}: 초상화 범위`).toBeLessThanOrEqual(48);

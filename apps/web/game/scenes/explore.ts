@@ -6,25 +6,21 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  ENEMY_DEFS, EnemyDef, RANK_NAME, RARITY_META, attackDamageType, enemyAC, enemyAcc,
-  enemyInflictDC, enemyMelee, enemySave, gearDisplayName,
+  ENEMY_DEFS, RANK_NAME, RARITY_META, enemyMelee, gearDisplayName,
 } from "../defs";
 import {
   C, H, SceneHandle, W, app, button, fullFlash, nav, panel, sceneRoot,
   setModeBadge, toast, tween, txt, ui, wait,
 } from "../core";
 import {
-  BattleAbility, G, GridEnemy, LEVEL_AP, LEVEL_SP, Member, Stats, allyAccuracy, attackReach,
-  equippedWeapon, gainExpParty, memberAbilities, memberResist, memberStats, partyFortune,
-  partyRank, rankMult, respawnEnemies, rollDropToBag,
+  BattleAbility, G, GridEnemy, LEVEL_AP, LEVEL_SP, Member, attackReach,
+  equippedWeapon, gainExpParty, memberAbilities, memberStats, partyFortune,
+  partyRank, respawnEnemies, rollDropToBag,
 } from "../state";
-import { BASIC_ATTACK } from "../core/battle-engine";
-import { rollSave } from "../core/dice";
+import { BASIC_ATTACK, BattleEngine, BattleEvent } from "../core/battle-engine";
 import {
-  STATUS_COLOR, STATUS_NAME, StatusInstance, incapacitatedBy,
-  isFeared, poisonPower, tickDurations, upsertStatus, wakeOnDamage,
+  STATUS_COLOR, STATUS_NAME, incapacitatedBy,
 } from "../core/statuses";
-import { healAmount, rollAllyHit, rollEnemyHit } from "../core/formulas";
 import { questNotify, trackerLines, updateText } from "../core/quests";
 import {
   DIR, FACING_NAME, Facing, cellAt, chebyshev, enemyStep, hasLOS,
@@ -288,17 +284,9 @@ export function exploreScene(): SceneHandle {
   let disposed = false;
   let actQueue: Member[] = [];
   let actIdx = 0;
-  const guardSet = new Set<string>();
-  let blessMult = 1;
+  let combat: BattleEngine | null = null;
   let inCombat = false;
   let pendingMag: BattleAbility | null = null; // 마법 대상 선택 중
-  /* 아군 전투 상태이상 — 멤버 id별. 전투 종료 시 비운다 (적은 GridEnemy.statuses) */
-  const allyStatus = new Map<string, StatusInstance[]>();
-  const aStat = (m: Member): StatusInstance[] => {
-    let s = allyStatus.get(m.id);
-    if (!s) { s = []; allyStatus.set(m.id, s); }
-    return s;
-  };
 
   function aggroList(): GridEnemy[] {
     const r = E.veil > 0 ? VEIL_R : AGGRO_R;
@@ -371,35 +359,25 @@ export function exploreScene(): SceneHandle {
 
   /** 세계 턴마다: 중독 지속 피해 + 상태이상 지속시간 감소 (전투 중에만 호출) */
   function statusUpkeep(): void {
-    for (const e of E.enemies) {
-      if (!e.alive) continue;
-      const pp = poisonPower(e.statuses);
-      if (pp > 0) {
-        e.hp -= pp;
-        popDmg(e, `-${pp}`, STATUS_COLOR.poison ?? 0x8fbf4a);
-        log(`${ENEMY_DEFS[e.defId].name}이(가) 중독으로 ${pp} 피해!`);
-        if (e.hp <= 0) { e.hp = 0; killEnemy(e); if ((phase as string) === "end") return; continue; }
+    if (!combat) return;
+    const events = combat.gridUpkeep();
+    for (const ev of events) {
+      if (ev.t === "log") log(ev.text);
+      else if (ev.t === "tick") {
+        const enemy = E.enemies.find((e) => e.id === ev.unit);
+        if (enemy) popDmg(enemy, `-${ev.amount}`, STATUS_COLOR.poison ?? 0x8fbf4a);
+      } else if (ev.t === "status" && !ev.on) {
+        const enemy = E.enemies.find((e) => e.id === ev.target);
+        const member = G.party.find((m) => `ally:${m.id}` === ev.target);
+        const name = enemy ? ENEMY_DEFS[enemy.defId].name : member?.name;
+        if (name) toast(`${name} — ${STATUS_NAME[ev.status]} 해제`, C.dim);
+      } else if (ev.t === "death") {
+        const enemy = E.enemies.find((e) => e.id === ev.unit);
+        if (enemy) { killEnemy(enemy); if ((phase as string) === "end") return; }
       }
-      expireStatuses(e.statuses, ENEMY_DEFS[e.defId].name);
-    }
-    for (const m of G.party) {
-      if (m.hp <= 0) continue;
-      const list = allyStatus.get(m.id);
-      if (!list?.length) continue;
-      const pp = poisonPower(list);
-      if (pp > 0) {
-        m.hp = Math.max(0, m.hp - pp);
-        log(`${m.name}이(가) 중독으로 ${pp} 피해!`);
-        if (m.hp <= 0) log(`${m.name} 전투불능!`);
-      }
-      expireStatuses(list, m.name);
     }
     hud.redraw();
     redrawEnemyInfo();
-  }
-  /** 지속시간 감소 후 만료된 상태를 안내 */
-  function expireStatuses(list: StatusInstance[], name: string): void {
-    for (const id of tickDurations(list)) toast(`${name} — ${STATUS_NAME[id]} 해제`, C.dim);
   }
 
   function enemyPhase(): void {
@@ -423,46 +401,37 @@ export function exploreScene(): SceneHandle {
   }
 
   function enemyAttack(e: GridEnemy): void {
+    if (!combat) return;
     const def = ENEMY_DEFS[e.defId];
     const alive = G.party.filter((m) => m.hp > 0);
     if (!alive.length) return;
-    const aoe = (def.tier === "보스" || def.tier === "에픽") && Math.random() < 0.35;
-    const feared = isFeared(e.statuses); // 공포 — 적 명중 불리
     /* 근접 공격은 전열만 노린다 (전열이 전멸했으면 후열이 노출됨). 원거리·광역은 후열까지 닿는다 */
     const front = alive.filter((m) => !m.back);
     const pool = enemyMelee(def) && front.length ? front : alive;
-    const victims = aoe ? alive : [pool[(Math.random() * pool.length) | 0]];
+    const events = combat.gridEnemyAct(e.id, pool.map((m) => m.id));
     const lines: string[] = [];
-    for (const m of victims) {
-      const s = memberStats(m);
-      const roll = rollEnemyHit(def.atk, s, {
-        aoe,
-        guarding: guardSet.has(m.id),
-        attackerFeared: feared,
-        acc: enemyAcc(def),
-        targetAC: s.evAC,
-        dtype: def.atkType ?? "bludgeon",
-        res: memberResist(m),
-      });
-      if (!roll.hit) { lines.push(`${m.name} 회피!`); continue; }
-      m.hp = Math.max(0, m.hp - roll.dmg);
-      const tag = roll.resist === "weak" ? " 약점!" : roll.resist === "resist" ? " 저항" : roll.resist === "immune" ? " 무효!" : "";
-      lines.push(`${m.name} -${roll.dmg}${tag}`);
-      if (m.hp <= 0) { lines.push(`${m.name} 전투불능!`); continue; }
-      if (wakeOnDamage(aStat(m))) lines.push(`${m.name} 각성!`); // 수면 중 피격
-      applyEnemyInflict(def, m, s, lines); // 상태이상 부여 시도
+    for (const ev of events) {
+      const member = "target" in ev ? G.party.find((m) => `ally:${m.id}` === ev.target) : undefined;
+      if (ev.t === "hit" && member) {
+        const tag = ev.resist === "weak" ? " 약점!" : ev.resist === "resist" ? " 저항" : ev.resist === "immune" ? " 무효!" : "";
+        lines.push(`${member.name} -${ev.amount}${tag}`);
+      } else if (ev.t === "miss" && member) lines.push(`${member.name} 회피!`);
+      else if (ev.t === "death") {
+        const down = G.party.find((m) => `ally:${m.id}` === ev.unit);
+        if (down) lines.push(`${down.name} 전투불능!`);
+      } else if (ev.t === "status" && ev.on && member) lines.push(`${member.name} ${STATUS_NAME[ev.status]}!`);
+      else if (ev.t === "status" && !ev.on && ev.status === "sleep" && member) lines.push(`${member.name} 각성!`);
+      else if (ev.t === "save" && member) lines.push(`${member.name} 내성!`);
+      else if (ev.t === "cover") {
+        const guard = G.party.find((m) => `ally:${m.id}` === ev.guard);
+        const covered = G.party.find((m) => `ally:${m.id}` === ev.covered);
+        if (guard && covered) lines.push(`${guard.name}(이)가 ${covered.name}을(를) 가로막았다!`);
+      }
     }
-    log(`${def.name}의 ${aoe ? "광역 " : ""}공격! ${lines.join("  ")}`);
-    hitFlash();
+    const heading = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log")?.text ?? `${def.name}의 공격!`;
+    log(`${heading} ${lines.join("  ")}`);
+    if (events.some((ev) => ev.t === "hit")) hitFlash();
     hud.redraw();
-  }
-  /** 적 명중 시 확률로 아군에게 상태이상 (내성 성공 시 무효) */
-  function applyEnemyInflict(def: EnemyDef, m: Member, s: Stats, lines: string[]): void {
-    const inf = def.inflict;
-    if (!inf || Math.random() >= inf.chance) return;
-    if (rollSave(Math.random, s.mods[inf.save], enemyInflictDC(def))) { lines.push(`${m.name} 내성!`); return; }
-    upsertStatus(aStat(m), { id: inf.status, turns: inf.turns, power: inf.power });
-    lines.push(`${m.name} ${STATUS_NAME[inf.status]}!`);
   }
   function hitFlash(): void {
     const g = new PIXI.Graphics();
@@ -495,19 +464,17 @@ export function exploreScene(): SceneHandle {
   /* ---- 전투 상태 ---- */
   function enterCombat(): void {
     inCombat = true;
-    blessMult = G.blessedNext ? 1.25 : 1;
-    if (blessMult > 1) { G.blessedNext = false; toast("축복의 가호! 이번 전투 파티 공격력 +25%", C.border); }
-    allyStatus.clear();
-    E.enemies.forEach((e) => { e.statuses = []; });
+    const blessed = G.blessedNext;
+    if (blessed) { G.blessedNext = false; toast("축복의 가호! 이번 전투 파티 공격력 +25%", C.border); }
+    combat = new BattleEngine(G.party, E.enemies, { bless: blessed, items: G.items });
+    combat.gridEnter();
     setModeBadge("전투! — 그리드 턴제", C.blood);
     log("적이 파티를 발견했다! (이동·옆걸음도 한 턴을 소모한다)");
   }
   function exitCombat(): void {
     inCombat = false;
-    blessMult = 1;
-    guardSet.clear();
-    allyStatus.clear();
-    E.enemies.forEach((e) => { e.statuses = []; });
+    combat?.gridExit();
+    combat = null;
     setModeBadge("탐험 모드 — 할로우베일 계곡", C.green);
     const revived = G.party.filter((m) => m.hp <= 0);
     if (revived.length) {
@@ -540,9 +507,8 @@ export function exploreScene(): SceneHandle {
       return;
     }
     const m = actQueue[actIdx];
-    guardSet.delete(m.id);
+    const incap = combat?.gridBeginAllyTurn(m.id) ?? null;
     /* 수면·마비 — 이 멤버는 이번 라운드 행동 불가 */
-    const incap = incapacitatedBy(aStat(m));
     if (incap) {
       log(`${m.name}은(는) ${incap === "sleep" ? "잠들어" : "마비되어"} 행동할 수 없다!`);
       hideCmds();
@@ -579,14 +545,14 @@ export function exploreScene(): SceneHandle {
       const ts = magTargets();
       if (!ts.length) { toast("시야에 닿는 적이 없다.", C.dim); return; }
       closeSub();
-      if (ts.length === 1) { m.mp -= a.mp; hud.redraw(); execAttack(m, a, ts); return; }
+      if (ts.length === 1) { execAttack(m, a, ts); return; }
       pendingMag = a; openTargetMenu(m, ts);
       return;
     }
     if (m.back) { toast("후열에서는 근접 공격을 할 수 없다. (활·마법을 쓰거나 진형을 바꿔라)", C.dim); return; }
     const fe = frontEnemy();
     if (!fe) { toast("정면 칸에 적이 없다. (근접은 바로 앞 칸만)", C.dim); return; }
-    m.mp -= a.mp; hud.redraw(); closeSub();
+    closeSub();
     execAttack(m, a, [fe]);
   }
   /** 이 멤버가 지금 기본 공격을 할 수 있는가 (사거리·진형 고려) */
@@ -614,9 +580,9 @@ export function exploreScene(): SceneHandle {
     {
       label: "방어",
       fn: (m) => {
-        guardSet.add(m.id);
-        m.mp = Math.min(m.maxMp, m.mp + 3);
-        log(`${m.name}, 방어 태세. (받는 피해 감소, MP 소량 회복)`);
+        const events = combat?.gridGuard(m.id) ?? [];
+        const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
+        if (line) log(line.text);
         hud.redraw();
         endMemberAction();
       },
@@ -664,13 +630,23 @@ export function exploreScene(): SceneHandle {
         if (a.kind === "heal") {
           closeSub();
           pickMember(`${a.name} — 회복할 아군`, (t2) => {
-            m.mp -= a.mp;
-            const amt = healAmount(memberStats(m), a, rankMult(a.rank));
-            t2.hp = Math.min(t2.maxHp, t2.hp + amt);
-            log(`${m.name}의 ${a.name}! ${t2.name} HP ${amt} 회복.`);
+            const events = combat?.gridHeal(m.id, a, t2.id) ?? [];
+            const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
+            if (line) log(line.text);
             hud.redraw();
             endMemberAction();
           }, { filter: (t2) => t2.hp > 0, note: (t2) => `HP ${t2.hp}/${t2.maxHp}` });
+          return;
+        }
+        if (a.cover) {
+          closeSub();
+          pickMember(`${a.name} — 보호할 아군`, (t2) => {
+            const events = combat?.gridCover(m.id, a, t2.id) ?? [];
+            const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
+            if (line) log(line.text);
+            hud.redraw();
+            endMemberAction();
+          }, { filter: (t2) => t2.hp > 0 && t2.id !== m.id, note: (t2) => `HP ${t2.hp}/${t2.maxHp}` });
           return;
         }
         if (a.kind === "phys") {
@@ -681,8 +657,8 @@ export function exploreScene(): SceneHandle {
         const ts = magTargets();
         if (!ts.length) { toast("시야에 닿는 적이 없다.", C.dim); return; }
         closeSub();
-        if (a.all) { m.mp -= a.mp; hud.redraw(); execAttack(m, a, ts); return; }
-        if (ts.length === 1) { m.mp -= a.mp; hud.redraw(); execAttack(m, a, ts); return; }
+        if (a.all) { execAttack(m, a, ts); return; }
+        if (ts.length === 1) { execAttack(m, a, ts); return; }
         pendingMag = a;
         openTargetMenu(m, ts);
       }, { size: 13 });
@@ -718,7 +694,6 @@ export function exploreScene(): SceneHandle {
       if (chebyshev(E.x, E.y, e.x, e.y) > MAG_RANGE || !hasLOS(map, E.x, E.y, e.x, e.y)) {
         toast("시야가 닿지 않는다.", C.dim); pendingMag = a; return;
       }
-      m.mp -= a.mp; hud.redraw();
       closeSub();
       execAttack(m, a, [e]);
       return;
@@ -748,16 +723,15 @@ export function exploreScene(): SceneHandle {
       b.x = p.x + 16; b.y = y; subRoot!.addChild(b);
     };
     mk("치유 물약 (HP 60)", G.items.potion, p.y + 44, (t) => {
-      G.items.potion--;
-      const revived = t.hp <= 0;
-      t.hp = Math.min(t.maxHp, Math.max(0, t.hp) + 60);
-      log(revived ? `${t.name}(이)가 일어났다! HP 60 회복.` : `${t.name} HP 60 회복.`);
+      const events = combat?.gridItem("potion", t.id) ?? [];
+      const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
+      if (line) log(line.text);
       hud.redraw();
     });
     mk("마나 물약 (MP 25)", G.items.mpotion, p.y + 94, (t) => {
-      G.items.mpotion--;
-      t.mp = Math.min(t.maxMp, t.mp + 25);
-      log(`${t.name} MP 25 회복.`);
+      const events = combat?.gridItem("mpotion", t.id) ?? [];
+      const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
+      if (line) log(line.text);
       hud.redraw();
     });
     const cb = button("닫기", 76, 32, closeSub, { size: 13 });
@@ -788,79 +762,39 @@ export function exploreScene(): SceneHandle {
   }
 
   function execAttack(m: Member, a: BattleAbility, targets: GridEnemy[]): void {
+    if (!combat) return;
     phase = "anim";
     hideCmds();
-    const s = memberStats(m);
-    const mult = a.id ? rankMult(a.rank) : 1;
-    const dtype = attackDamageType(a, equippedWeapon(m).wtype);
-    const adv: -1 | 0 | 1 = isFeared(aStat(m)) ? -1 : 0; // 공포 — 아군 공격 불리
-    log(`${m.name}의 ${a.name}!${a.id ? ` [${RANK_NAME[a.rank]}]` : ""}`);
-    let hitIdx = 0;
-    const doHit = () => {
-      if (hitIdx >= a.hits || targets.every((e) => !e.alive)) {
-        redrawEnemyInfo();
-        refresh();
-        wait(240, () => {
-          if (phase === "end") return;
-          phase = "party";
-          endMemberAction();
-        });
-        return;
+    const events = combat.gridOffense(m.id, a, targets.map((e) => e.id));
+    const actionLog = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> =>
+      ev.t === "log" && ev.text.startsWith(`${m.name}의`));
+    if (actionLog) log(actionLog.text);
+    for (const ev of events) {
+      const enemy = "target" in ev ? E.enemies.find((e) => e.id === ev.target) : undefined;
+      if (ev.t === "miss" && enemy) popDmg(enemy, "빗나감!", C.dim);
+      else if (ev.t === "hit" && enemy) {
+        if (ev.crit) popDmg(enemy, "치명타!", C.border);
+        if (ev.resist === "weak") popDmg(enemy, "약점!", 0xff8a3c);
+        else if (ev.resist === "resist") popDmg(enemy, "저항", C.mp);
+        else if (ev.resist === "immune") popDmg(enemy, "무효!", C.dim);
+        popDmg(enemy, ev.amount, ev.resist === "immune" ? C.dim : ev.mag ? 0xb99cff : 0xffffff);
+        flashEnemy(enemy);
+      } else if (ev.t === "save" && enemy) popDmg(enemy, "내성!", C.epic);
+      else if (ev.t === "status" && enemy) {
+        popDmg(enemy, ev.on ? STATUS_NAME[ev.status] : `${STATUS_NAME[ev.status]} 해제`, STATUS_COLOR[ev.status] ?? C.epic);
+      } else if (ev.t === "death") {
+        const dead = E.enemies.find((e) => e.id === ev.unit);
+        if (dead) killEnemy(dead);
       }
-      hitIdx++;
-      let totalDealt = 0;
-      for (const e of targets) {
-        if (!e.alive) continue;
-        const def = ENEMY_DEFS[e.defId];
-        const roll = rollAllyHit(s, a, {
-          mult, bless: blessMult, enemyDef: def.def,
-          acc: allyAccuracy(s, a.rank), targetAC: enemyAC(def),
-          adv, dtype, res: def.res,
-        });
-        if (!roll.hit) { popDmg(e, "빗나감!", C.dim); continue; }
-        if (roll.crit) popDmg(e, "치명타!", C.border);
-        if (roll.resist === "weak") { popDmg(e, "약점!", 0xff8a3c); log("약점을 찔렀다!"); }
-        else if (roll.resist === "resist") popDmg(e, "저항", C.mp);
-        else if (roll.resist === "immune") popDmg(e, "무효!", C.dim);
-        const dmg = roll.dmg;
-        e.hp -= dmg; totalDealt += dmg;
-        popDmg(e, dmg, roll.resist === "immune" ? C.dim : a.kind === "mag" ? 0xb99cff : 0xffffff);
-        flashEnemy(e);
-        if (e.hp <= 0) { e.hp = 0; killEnemy(e); continue; }
-        if (hitIdx === 1) {
-          if (wakeOnDamage(e.statuses)) { popDmg(e, "각성!", STATUS_COLOR.sleep ?? 0x7fa8dc); log(`${def.name}이(가) 잠에서 깨어났다!`); }
-          applyAllyInflict(m, a, mult, e, s);
-        }
-      }
-      if (a.drain && totalDealt > 0) {
-        const back = Math.round(totalDealt * a.drain);
-        m.hp = Math.min(m.maxHp, m.hp + back);
-        hud.redraw();
-      }
-      redrawEnemyInfo();
-      wait(200, doHit);
-    };
-    doHit();
-  }
-
-  /** 아군 기술의 상태이상(수면/마비/공포/중독)을 적에게 부여 (내성 성공 시 무효) */
-  function applyAllyInflict(m: Member, a: BattleAbility, mult: number, e: GridEnemy, s: Stats): void {
-    if (!(a.sleep || a.paralyze || a.fear || a.poison)) return;
-    const def = ENEMY_DEFS[e.defId];
-    /* 내성 DC = 8 + 시전 능력치 수정치 + 랭크 (battle-engine.saveDC와 동일) */
-    const key = a.kind === "mag" ? (a.skill === "spirit" ? s.mods.wit : s.mods.int) : s.mods.might;
-    const dc = 8 + key + a.rank;
-    const resisted = !!a.save && rollSave(Math.random, enemySave(def), dc);
-    const apply = (id: "sleep" | "paralyze" | "fear" | "poison", turns: number, power?: number) => {
-      if (resisted) { popDmg(e, "내성!", C.epic); return; }
-      upsertStatus(e.statuses, { id, turns, power });
-      popDmg(e, STATUS_NAME[id], STATUS_COLOR[id] ?? C.epic);
-      log(`${def.name} — ${STATUS_NAME[id]}!`);
-    };
-    if (a.sleep) apply("sleep", a.ctrlTurns ?? 3);
-    else if (a.paralyze) apply("paralyze", a.ctrlTurns ?? 2);
-    else if (a.fear) apply("fear", a.ctrlTurns ?? 3);
-    else if (a.poison) apply("poison", a.ctrlTurns ?? 3, Math.max(1, Math.round(a.poison * mult)));
+    }
+    hud.redraw();
+    redrawEnemyInfo();
+    refresh();
+    wait(Math.max(240, a.hits * 200), () => {
+      if (phase === "end") return;
+      phase = "party";
+      endMemberAction();
+    });
   }
 
   function killEnemy(e: GridEnemy): void {

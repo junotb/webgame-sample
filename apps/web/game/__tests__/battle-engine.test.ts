@@ -4,7 +4,7 @@
  * ===================================================================== */
 import { describe, expect, it } from "vitest";
 import { ABILITIES, ENEMY_DEFS, Rank } from "../defs";
-import { BattleAbility, Member } from "../state";
+import { BattleAbility, GridEnemy, Member } from "../state";
 import { BASIC_ATTACK, BattleEngine, BattleEvent } from "../core/battle-engine";
 
 function mkMember(id: string, over: Partial<Member> = {}): Member {
@@ -44,6 +44,39 @@ const nat = (n: number) => (n - 1) / 20 + 1e-6;
 const hits = (evs: BattleEvent[]) => evs.filter((e) => e.t === "hit");
 
 describe("BattleEngine", () => {
+  it("그리드 어댑터 — 실제 월드 적 객체의 HP·상태를 같은 엔진에서 직접 갱신한다", () => {
+    const A = mkMember("a");
+    const enemy: GridEnemy = {
+      id: "grid:goblin", defId: "goblin", x: 2, y: 3,
+      hp: ENEMY_DEFS.goblin.hp, alive: true, statuses: [],
+    };
+    const engine = new BattleEngine([A], [enemy], { rng: flat(0.5) });
+    engine.gridEnter();
+
+    const events = engine.gridOffense(A.id, ab("armorbreak", 1), [enemy.id]);
+
+    expect(enemy.hp).toBeLessThan(ENEMY_DEFS.goblin.hp);
+    expect(enemy.statuses.some((s) => s.id === "defdown")).toBe(true);
+    expect(events.some((e) => e.t === "status" && e.status === "defdown")).toBe(true);
+  });
+
+  it("그리드 어댑터 — 가로막기와 적 공격도 실제 파티 상태를 사용한다", () => {
+    const A = mkMember("a"), B = mkMember("b");
+    const enemy: GridEnemy = {
+      id: "grid:goblin", defId: "goblin", x: 2, y: 3,
+      hp: ENEMY_DEFS.goblin.hp, alive: true, statuses: [],
+    };
+    const engine = new BattleEngine([A, B], [enemy], { rng: seq(0.9, 0.5) });
+    engine.gridEnter();
+    engine.gridCover(A.id, ab("intervene", 3), B.id);
+
+    const events = engine.gridEnemyAct(enemy.id, [B.id]);
+
+    expect(events.some((e) => e.t === "cover" && e.guard === "ally:a" && e.covered === "ally:b")).toBe(true);
+    expect(A.hp).toBeLessThan(A.maxHp);
+    expect(B.hp).toBe(B.maxHp);
+  });
+
   it("도발 — 내성 실패 시 적의 단일 공격이 시전자에게 강제된다", () => {
     const A = mkMember("a"), B = mkMember("b");
     /* rng 순서: [편차, 치명, 내성 nat3(실패→도발 적중)]  (기술은 명중 굴림 제외 — 자동 명중)

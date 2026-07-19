@@ -7,7 +7,7 @@ import {
   ENEMY_DEFS, EnemyDef, RANK_NAME, ResistBand, Tier,
   attackDamageType, enemyAC, enemyAcc, enemyInflictDC, enemySave,
 } from "../defs";
-import { BattleAbility, Member, Stats, allyAccuracy, equippedWeapon, memberResist, memberStats, rankMult } from "../state";
+import { BattleAbility, GridEnemy, Member, Stats, allyAccuracy, equippedWeapon, memberResist, memberStats, rankMult } from "../state";
 import { rollSave } from "./dice";
 import { healAmount, rollAllyHit, rollEnemyHit } from "./formulas";
 import {
@@ -32,6 +32,8 @@ export interface EngineEnemy {
   atk: number; defv: number; spd: number;
   alive: boolean;
   statuses: StatusInstance[];
+  /** 그리드 전투에서 사용하는 실제 월드 적. 값 변경 후 이 객체로 동기화한다. */
+  source?: GridEnemy;
 }
 export type EngineUnit = EngineAlly | EngineEnemy;
 
@@ -98,19 +100,24 @@ export class BattleEngine {
 
   constructor(
     party: Member[],
-    groupIds: string[],
+    enemies: string[] | GridEnemy[],
     opts: { bless?: boolean; items?: { potion: number; mpotion: number }; rng?: () => number } = {},
   ) {
     this.allies = party.map((m) => ({ kind: "ally", id: `ally:${m.id}`, m, statuses: [] }));
-    this.enemies = groupIds.map((defId, i) => {
+    this.enemies = enemies.map((input, i) => {
+      const source = typeof input === "string" ? undefined : input;
+      const defId = typeof input === "string" ? input : input.defId;
       const d = ENEMY_DEFS[defId];
       return {
-        kind: "enemy" as const, id: `enemy:${i}`, defId, def: d,
-        hp: d.hp, maxHp: d.hp, atk: d.atk, defv: d.def, spd: d.spd,
-        alive: true, statuses: [],
+        kind: "enemy" as const, id: source?.id ?? `enemy:${i}`, defId, def: d,
+        hp: source?.hp ?? d.hp, maxHp: d.hp, atk: d.atk, defv: d.def, spd: d.spd,
+        alive: source?.alive ?? true, statuses: source?.statuses ?? [], source,
       };
     });
-    this.tier = ENEMY_DEFS[groupIds[0]].tier;
+    this.tier = this.enemies.reduce<Tier>((top, e) => {
+      const order: Tier[] = ["일반", "정예", "보스", "에픽"];
+      return order.indexOf(e.def.tier) > order.indexOf(top) ? e.def.tier : top;
+    }, "일반");
     this.blessMult = opts.bless ? 1.25 : 1;
     this.items = opts.items ?? { potion: 0, mpotion: 0 };
     this.rng = opts.rng ?? Math.random;
@@ -129,6 +136,104 @@ export class BattleEngine {
   }
   get canFlee(): boolean { return this.tier === "일반"; }
   get result(): BattleResult | null { return this.ended; }
+
+  /* ---- 그리드 탐험 어댑터 -------------------------------------------------
+   * explore.ts는 이동·어그로·연출만 소유하고, 실제 전투 판정은 아래 API를
+   * 통해 이 엔진 하나를 사용한다. 기존 next/act API도 같은 내부 메서드를
+   * 호출하므로 독립 전투와 그리드 전투의 규칙이 갈라지지 않는다. */
+
+  gridAllyStatuses(memberId: string): StatusInstance[] {
+    return this.allies.find((u) => u.m.id === memberId)?.statuses ?? [];
+  }
+
+  gridBeginAllyTurn(memberId: string): BattleStatusId | null {
+    const ally = this.allies.find((u) => u.m.id === memberId);
+    if (!ally) return null;
+    removeStatus(ally.statuses, "guard");
+    return incapacitatedBy(ally.statuses);
+  }
+
+  gridEnter(): void {
+    this.allies.forEach((u) => { u.statuses.length = 0; });
+    this.enemies.forEach((e) => { e.statuses.length = 0; this.syncEnemy(e); });
+  }
+
+  gridExit(): void {
+    this.allies.forEach((u) => { u.statuses.length = 0; });
+    this.enemies.forEach((e) => { e.statuses.length = 0; this.syncEnemy(e); });
+  }
+
+  /** 세계 턴 단위 상태 처리. 사망 보상·연출은 반환 이벤트를 장면이 처리한다. */
+  gridUpkeep(): BattleEvent[] {
+    const ev: BattleEvent[] = [];
+    for (const u of [...this.allies, ...this.enemies] as EngineUnit[]) {
+      if (u.kind === "ally" ? this.isDown(u) : !u.alive) continue;
+      const pp = poisonPower(u.statuses);
+      if (pp > 0) {
+        ev.push({ t: "tick", unit: u.id, amount: pp, status: "poison" });
+        ev.push({ t: "log", text: `${this.uname(u)}이(가) 중독으로 ${pp} 피해!` });
+        this.applyTrueDamage(u, pp, ev);
+      }
+      for (const id of tickDurations(u.statuses))
+        ev.push({ t: "status", target: u.id, status: id, on: false });
+      if (u.kind === "enemy") this.syncEnemy(u);
+    }
+    return ev;
+  }
+
+  gridGuard(memberId: string): BattleEvent[] {
+    const actor = this.gridAlly(memberId);
+    const ev: BattleEvent[] = [];
+    upsertStatus(actor.statuses, { id: "guard", turns: -1 });
+    actor.m.mp = Math.min(actor.m.maxMp, actor.m.mp + 3);
+    ev.push({ t: "guard", unit: actor.id });
+    ev.push({ t: "log", text: `${actor.m.name}, 방어 태세. (받는 피해 감소, MP 소량 회복)` });
+    return ev;
+  }
+
+  gridOffense(memberId: string, ability: BattleAbility, enemyIds: string[]): BattleEvent[] {
+    const actor = this.gridAlly(memberId);
+    const targets = enemyIds.map((id) => this.enemyOf(id));
+    const ev: BattleEvent[] = [];
+    const spent = this.payMp(actor, ability);
+    this.execOffense(actor, ability, targets, spent, ev);
+    targets.forEach((e) => this.syncEnemy(e));
+    return ev;
+  }
+
+  gridHeal(memberId: string, ability: BattleAbility, targetMemberId: string): BattleEvent[] {
+    const actor = this.gridAlly(memberId);
+    const target = this.gridAlly(targetMemberId);
+    const ev: BattleEvent[] = [];
+    this.payMp(actor, ability);
+    this.execHeal(actor, ability, target, ev);
+    return ev;
+  }
+
+  gridCover(memberId: string, ability: BattleAbility, targetMemberId: string): BattleEvent[] {
+    const actor = this.gridAlly(memberId);
+    const target = this.gridAlly(targetMemberId);
+    const ev: BattleEvent[] = [];
+    this.payMp(actor, ability);
+    this.execCover(actor, ability, target, ev);
+    return ev;
+  }
+
+  gridItem(item: "potion" | "mpotion", targetMemberId: string): BattleEvent[] {
+    const ev: BattleEvent[] = [];
+    this.execItem(item, this.gridAlly(targetMemberId), ev);
+    return ev;
+  }
+
+  /** 적의 이동/사거리 판정 후 호출. singleTargetIds는 진형을 반영한 단일공격 후보군이다. */
+  gridEnemyAct(enemyId: string, singleTargetIds: string[]): BattleEvent[] {
+    const ev: BattleEvent[] = [];
+    const enemy = this.enemyOf(enemyId);
+    const candidates = singleTargetIds.map((id) => this.gridAlly(id)).filter((u) => !this.isDown(u));
+    this.enemyAct(enemy, ev, candidates);
+    this.syncEnemy(enemy);
+    return ev;
+  }
 
   /* ---- 진행: 다음 아군 턴까지 자동 진행 (적 턴은 즉시 실행) ---- */
   next(): TurnState {
@@ -257,10 +362,22 @@ export class BattleEngine {
     if (!u || u.kind !== "ally") throw new Error(`아군이 아니다: ${id}`);
     return u;
   }
+  private gridAlly(memberId: string): EngineAlly {
+    const u = this.allies.find((a) => a.m.id === memberId || a.id === memberId);
+    if (!u) throw new Error(`아군이 아니다: ${memberId}`);
+    return u;
+  }
   private enemyOf(id: UnitId): EngineEnemy {
     const u = this.unit(id);
     if (!u || u.kind !== "enemy") throw new Error(`적이 아니다: ${id}`);
     return u;
+  }
+
+  private syncEnemy(e: EngineEnemy): void {
+    if (!e.source) return;
+    e.source.hp = e.hp;
+    e.source.alive = e.alive;
+    e.source.statuses = e.statuses;
   }
 
   /** MP 지불 — manaBurn은 남은 MP 전부. 실제 소모량 반환 */
@@ -432,7 +549,7 @@ export class BattleEngine {
     }
   }
 
-  private enemyAct(e: EngineEnemy, ev: BattleEvent[]): void {
+  private enemyAct(e: EngineEnemy, ev: BattleEvent[], singleTargets?: EngineAlly[]): void {
     const targets = this.livingAllies();
     if (!targets.length) return;
 
@@ -454,7 +571,8 @@ export class BattleEngine {
     ev.push({ t: "lunge", unit: e.id });
 
     const feared = isFeared(e.statuses); // 공포 — 적 공격이 불리하게 굴림
-    const victims = aoe ? targets : [forced ?? targets[(this.rng() * targets.length) | 0]];
+    const pool = singleTargets?.length ? singleTargets : targets;
+    const victims = aoe ? targets : [forced ?? pool[(this.rng() * pool.length) | 0]];
     for (const v of victims) {
       /* 가로막기 — 유효한 보호자가 있으면 1회 대신 맞는다 */
       let t = v;

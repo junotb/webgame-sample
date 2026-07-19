@@ -103,7 +103,7 @@ export function enemySave(d: EnemyDef): number {
 /* 4인 파티 기준으로 스케일 조정 */
 export const ENEMY_DEFS: Record<string, EnemyDef> = {
   slime: {
-    name: "점액 괴물",
+    name: "핏눈 슬라임",
     hp: 46,
     atk: 10,
     def: 1,
@@ -116,7 +116,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     color: 0x6ea86a,
   },
   goblin: {
-    name: "고블린",
+    name: "칼잡이 난쟁이",
     hp: 58,
     atk: 13,
     def: 2,
@@ -126,10 +126,10 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     tier: "일반",
     shape: "goblin",
     img: "Bladedwarf",
-    color: 0x8a9a4a,
+    color: 0xb05a3c,
   },
   wolf: {
-    name: "다이어울프",
+    name: "어금니 멧돼지",
     hp: 72,
     atk: 16,
     def: 2,
@@ -139,10 +139,10 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     tier: "일반",
     shape: "wolf",
     img: "Tuskboar",
-    color: 0x777788,
+    color: 0x8a3a30,
   },
   skeleton: {
-    name: "스켈레톤",
+    name: "냉기 망령",
     hp: 66,
     atk: 14,
     def: 4,
@@ -152,10 +152,10 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     tier: "일반",
     shape: "skel",
     img: "Frostwraith",
-    color: 0xcfc8b0,
+    color: 0x7fc8dc,
   },
   orc: {
-    name: "오크 워로드",
+    name: "집게버섯 우두머리",
     hp: 780,
     atk: 32,
     def: 9,
@@ -165,7 +165,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     tier: "정예",
     shape: "orc",
     img: "Pincercap",
-    color: 0x4f7a3e,
+    color: 0xb83a2e,
     big: 1.35,
   },
   lord: {

@@ -18,7 +18,7 @@ import {
 import { G } from "../state";
 import { acceptQuest, questList, questStatus, reportQuest } from "../core/quests";
 import { DIR, FACING_NAME, Facing, GridMap, RelativeMove, cellAt, moveTarget, passable, rotateFacing } from "../grid";
-import { TownDecoDef, TownFacilityDef, TownGateDef, TownSpawn } from "../townmap";
+import type { TownDecoDef, TownFacilityDef, TownGateDef, TownSpawn } from "../town/types";
 import { CARRIAGE_FARE, TOWNS, otherTown } from "../towns";
 import { FPEntity, FPTheme, SurfacePick, createFPView } from "../fpview";
 import { TileName, tileSprite } from "../tiles";

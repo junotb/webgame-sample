@@ -4,7 +4,7 @@
 import * as PIXI from "pixi.js";
 import { TweenQueue } from "./core/tween-queue";
 import type { FieldId } from "./fieldmaps";
-import type { TownSpawn } from "./townmap";
+import type { TownSpawn } from "./town/types";
 
 export const W = 1280;
 export const H = 720;

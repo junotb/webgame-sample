@@ -17,7 +17,7 @@ import { exploreScene } from "./scenes/explore";
 import { fieldScene } from "./scenes/field";
 import { FieldId } from "./fieldmaps";
 import { endingEvent, epicClearEvent, letterEvent, prologueEvent } from "./scenes/story";
-import { TownSpawn } from "./townmap";
+import type { TownSpawn } from "./town/types";
 
 export async function boot(
   el: HTMLElement,

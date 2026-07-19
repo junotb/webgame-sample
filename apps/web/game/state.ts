@@ -11,7 +11,7 @@ import { abilityMod } from "./core/dice";
 import { Store } from "./core/store";
 import { StatusInstance } from "./core/statuses";
 import { NORMAL_SPAWNS, START, SYMBOL_SPAWNS, dungeonMap } from "./dungeon";
-import { TownId } from "./towns";
+import type { TownId } from "./town/types";
 
 export interface Member {
   id: string; name: string;

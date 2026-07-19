@@ -1,8 +1,7 @@
 /* =====================================================================
  * fieldmaps.ts — 크로스베일 주변 필드 맵과 연결점
  * ===================================================================== */
-import type { TownId } from "./towns";
-import type { TownSpawn } from "./townmap";
+import type { TownId, TownSpawn } from "./town/types";
 import { Facing, GridMap, parseMap } from "./grid";
 import type { TileName } from "./tiles";
 

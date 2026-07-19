@@ -1,5 +1,5 @@
 /* =====================================================================
- * evermoremap.ts — 에버모어 성(Castle Evermore) 맵 데이터 (28×24 그리드)
+ * town/evermore.ts — 에버모어 성 정의
  *  연방(3성·1탑·1신전·2숲)의 수도. 북단 알현실에 연방 군주가 있고,
  *  남단 마굿간의 역마차로 크로스베일과 오간다.
  *  중앙 대분수 광장을 축으로 대성당·왕도 시장·여관이 좌우에 늘어선다.
@@ -7,10 +7,8 @@
  *  구역: 북단 알현실(연방 군주) / W 대성당 · E 왕도 시장
  *        W 여관 · E 마굿간 / 중앙 대분수 · 석상 / 남단 마차 광장
  * ===================================================================== */
-import { GridMap, parseMap } from "./grid";
-import {
-  TownDecoDef, TownFacilityDef, TownSpawnPos,
-} from "./townmap";
+import { parseMap } from "../grid";
+import type { TownData, TownDecoDef, TownFacilityDef, TownGateDef, TownSpawnPos } from "./types";
 
 export const EVERMORE_ROWS = [
   "############################",
@@ -39,7 +37,7 @@ export const EVERMORE_ROWS = [
   "############################",
 ] as const;
 
-export const evermoreMap: GridMap = parseMap([...EVERMORE_ROWS]);
+export const EVERMORE_MAP = parseMap([...EVERMORE_ROWS]);
 
 /* ---- 진입 지점 ----
  *  carriage: 크로스베일에서 역마차로 도착 — 남단 마차 광장(북향)
@@ -74,4 +72,16 @@ export const EVERMORE_DECOS: TownDecoDef[] = [
 ];
 
 /** 에버모어 성에는 던전으로 나가는 성문이 없다 */
-export const EVERMORE_GATES: import("./townmap").TownGateDef[] = [];
+export const EVERMORE_GATES: TownGateDef[] = [];
+
+/** 레지스트리에 바로 등록할 수 있는 완전한 에버모어 정의. */
+export const EVERMORE_TOWN: TownData = {
+  id: "evermore",
+  name: "에버모어 성",
+  badge: "성 안 — 에버모어",
+  map: EVERMORE_MAP,
+  starts: EVERMORE_STARTS,
+  facilities: EVERMORE_FACILITIES,
+  decos: EVERMORE_DECOS,
+  gates: EVERMORE_GATES,
+};

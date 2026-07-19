@@ -1,0 +1,63 @@
+import type { ClassId, SkillId } from "../defs";
+import type { FieldId } from "../fieldmaps";
+import type { Facing, GridMap } from "../grid";
+
+export type TownId = "crossvale" | "evermore";
+export type TownSpawn = "fountain" | "gate" | "carriage" | "throne" | "westGate" | "eastGate";
+
+export interface TownSpawnPos {
+  x: number;
+  y: number;
+  facing: Facing;
+}
+
+export type TownFacilityId =
+  | "temple" | "spiritGuild" | "elementsGuild" | "bountyGuild"
+  | "weapon" | "armor" | "item" | "inn" | "stable" | "throne";
+
+export interface TownFacilityDef {
+  id: TownFacilityId;
+  name: string;
+  /** 시설 오버레이 제목(생략 시 name) */
+  title?: string;
+  /** 문(+) 칸 좌표 */
+  x: number;
+  y: number;
+  trains?: SkillId[];
+  classes?: ClassId[];
+  /** 이 시설에서 수주·보고하는 의뢰 id */
+  quests?: string[];
+}
+
+export interface TownDecoDef {
+  id: "fountain" | "well" | "barrel" | "crate" | "statue" | "tree" | "bush" | "flower" | "mushroom";
+  name: string;
+  x: number;
+  y: number;
+  text: string;
+  /** 나무·덤불만 통행을 막고, 꽃·버섯은 지나갈 수 있다. */
+  blocking?: boolean;
+}
+
+export interface TownGateDef {
+  id: "west" | "south" | "east";
+  x: number;
+  y: number;
+  label: string;
+  prompt: string;
+  target: FieldId;
+}
+
+/** 렌더링과 상호작용에 필요한 한 마을의 완전한 정적 정의. */
+export interface TownData {
+  id: TownId;
+  /** 표시명 (로그·안내문에 사용) */
+  name: string;
+  /** 상단 모드 뱃지 문구 */
+  badge: string;
+  map: GridMap;
+  starts: Partial<Record<TownSpawn, TownSpawnPos>>;
+  facilities: TownFacilityDef[];
+  decos: TownDecoDef[];
+  gates: TownGateDef[];
+}

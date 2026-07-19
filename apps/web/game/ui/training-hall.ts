@@ -2,7 +2,8 @@ import * as PIXI from "pixi.js";
 import { CLASSES, ClassId, RANK_NAME, SHOP_ARMORS, SHOP_WEAPONS, SKILLS } from "../defs";
 import { C, H, W, button, overlayRoot, panel, toast, txt } from "../core";
 import { G, Member, canClassChange, classOptions, doClassChange, memberRanks } from "../state";
-import { SKILL_PRICE, TownFacilityDef } from "../townmap";
+import type { TownFacilityDef } from "../town/types";
+import { SKILL_PRICE } from "../towns";
 import { pickMember } from "./member-picker";
 import { openShopMenu } from "./shop-menu";
 

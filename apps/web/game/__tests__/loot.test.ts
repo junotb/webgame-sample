@@ -3,7 +3,7 @@
  * ===================================================================== */
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  PARTY_SLOTS, RARITIES, RARITY_META, SHOP_ARMORS, SHOP_WEAPONS, SkillId,
+  PARTY_SLOTS, RARITIES, SHOP_ARMORS, SHOP_WEAPONS, SkillId,
   _resetUid, basePool, generateGear, rollDrop, rollRarity,
 } from "../defs";
 import {

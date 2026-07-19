@@ -95,7 +95,7 @@ guardCut = 0.06 × 방패랭크           (받는 피해 상시 감소, 최대 1
 
 ## 4. 전투 규칙
 
-> **실제 게임 전투는 `scenes/explore.ts`의 1인칭 그리드 인라인 전투 하나뿐이다.** (2.5D `scenes/battle.ts`는 제거됨.) `core/battle-engine.ts`는 동일 공식·상태 로직을 큐 기반으로 감싼 **순수 참조 구현이자 유닛 테스트 대상**으로 유지된다. 두 곳은 `core/{formulas,dice,statuses}`를 공유한다.
+> **실제 게임 전투는 `scenes/explore.ts`의 1인칭 그리드 전투 하나뿐이다.** 장면은 이동·어그로·입력·연출을 담당하고, 공격·방어·회복·아이템·상태이상 판정은 `core/battle-engine.ts`의 그리드 어댑터를 사용한다. 독립 전투 테스트와 실제 플레이가 같은 내부 판정 메서드를 공유한다.
 
 ### 명중 굴림 (`core/dice`, `core/formulas`)
 - **기술·마법(어빌리티, `a.id !== ""`)은 명중 굴림에서 제외 — 항상 명중한다.** 오직 **기본 공격**(`BASIC_ATTACK`)만 d20 명중 굴림(d20+명중보정 vs 적 회피도, 자연20 치명·자연1 자동 실패)을 한다.
@@ -146,7 +146,7 @@ dmg  = round(base × pow × rankMult × blessMult × rand(0.9~1.1)) − 적def
 
 ### 상태이상 (`core/statuses.ts`)
 
-기존 `guard·cover·taunt·defdown·silence`에 더해 **4종 제어기**를 추가. 두 전투 경로(`core/battle-engine`·`scenes/explore` 인라인)가 순수 헬퍼를 공유한다.
+기존 `guard·cover·taunt·defdown·silence`에 더해 **4종 제어기**를 제공한다. 모든 전투 상태 판정은 `core/battle-engine.ts`와 `core/statuses.ts`를 통해 처리한다.
 
 | 상태 | 효과 | 부여 예 |
 |---|---|---|
@@ -158,7 +158,7 @@ dmg  = round(base × pow × rankMult × blessMult × rand(0.9~1.1)) − 적def
 - 지속시간 — `StatusInstance.turns`. 배틀엔진은 유닛 턴 단위, 탐험은 **세계 턴 단위**(`statusUpkeep`)로 감소(`tickDurations`).
 - 부여 — 아군 기술은 `applyOnHitStatuses`(엔진)/`applyAllyInflict`(탐험)에서 **내성 DC = 8 + 시전 능력치 수정치 + 랭크**로 판정. 적은 `EnemyDef.inflict{status,chance,save,turns,power?}`로 명중 시 확률 부여, 아군이 `enemyInflictDC = 11 + tier`를 굴려 저항.
 - 헬퍼: `poisonPower·incapacitatedBy·isFeared·wakeOnDamage·tickDurations`. 배너/색은 `STATUS_NAME·STATUS_COLOR`, 탐험은 적 정보 패널에 `[중독·수면]` 태그로 상시 표시.
-- 두 전투 경로 모두 배선: `core/battle-engine`(참조·테스트 대상) + `explore` 인라인(실제 gameplay, `statusUpkeep`이 세계 턴마다 중독 틱·지속시간 감소).
+- 그리드 전투는 `BattleEngine.gridUpkeep/gridOffense/gridEnemyAct`를 사용한다. `explore` 장면은 반환된 이벤트를 피해 숫자·로그·보상 연출로 변환한다.
 
 ### 치유 — `onAllyTap` (pendingHeal 분기)
 ```

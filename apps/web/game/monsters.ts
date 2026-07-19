@@ -4,7 +4,6 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import { EnemyDef, MONSTER_ICONS } from "./defs";
-import { C } from "./core";
 
 /* ---- 몬스터 아이콘 (32×32 픽셀아트, nearest 스케일) ---- */
 const alias = (img: string) => `monster-${img}`;

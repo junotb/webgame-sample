@@ -5,6 +5,7 @@
 import { AbilityDef, DamageType, ResistBand, ResistTable, resistBand, resistMult } from "../defs";
 import { Stats, magicBase } from "../state";
 import { rollAttack } from "./dice";
+import { gameplayRandom } from "./random";
 
 export interface HitRoll {
   /** 명중 굴림 성공 여부 (false면 dmg 0) */
@@ -29,7 +30,7 @@ export function rollAllyHit(
     acc: number; targetAC: number; adv?: -1 | 0 | 1;
     dtype: DamageType; res?: ResistTable;
   },
-  rng: () => number = Math.random,
+  rng: () => number = gameplayRandom,
 ): HitRoll {
   /* 명중 판정 — sureCrit(완벽한 일격)은 자동 명중+치명. 기술·마법은 명중 굴림 없이 자동 명중.
    *  오직 기본 공격(a.id === "")만 d20 명중 굴림을 한다. */
@@ -78,7 +79,7 @@ export function rollEnemyHit(
     /** 공포 상태의 적 — 명중을 불리하게 굴린다 */
     attackerFeared?: boolean;
   },
-  rng: () => number = Math.random,
+  rng: () => number = gameplayRandom,
 ): { hit: boolean; dmg: number; resist: ResistBand } {
   /* 방어 태세(대상)나 공포(공격자) 어느 쪽이든 불리 */
   const adv: -1 | 0 | 1 = opts.guarding || opts.attackerFeared ? -1 : 0;

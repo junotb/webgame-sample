@@ -14,6 +14,7 @@ import {
 } from "../core";
 import { CreationConfig, G, maxHpOf, maxMpOf, newGame } from "../state";
 import { PORTRAIT_COUNT, portraitTexture } from "../portraits";
+import { visualRandom } from "../core/random";
 
 const NAME_MAX = 6;
 
@@ -63,8 +64,8 @@ export function createScene(): SceneHandle {
   const bg = new PIXI.Graphics();
   bg.rect(0, 0, W, H).fill(0x100d1e);
   for (let i = 0; i < 90; i++)
-    bg.circle(Math.random() * W, Math.random() * H, Math.random() * 1.5)
-      .fill({ color: 0xffffff, alpha: 0.1 + Math.random() * 0.4 });
+    bg.circle(visualRandom() * W, visualRandom() * H, visualRandom() * 1.5)
+      .fill({ color: 0xffffff, alpha: 0.1 + visualRandom() * 0.4 });
   root.addChild(bg);
 
   const title = txt("헤르만의 제자들", 34, C.border, { serif: true, shadow: true });

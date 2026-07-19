@@ -5,6 +5,7 @@ import * as PIXI from "pixi.js";
 import {
   C, H, SceneHandle, W, button, fullFlash, nav, sceneRoot, setModeBadge, tween, txt,
 } from "../core";
+import { visualRandom } from "../core/random";
 
 export function titleScene(): SceneHandle {
   setModeBadge(null);
@@ -14,8 +15,8 @@ export function titleScene(): SceneHandle {
   const bg = new PIXI.Graphics();
   bg.rect(0, 0, W, H).fill(0x0d0a18);
   for (let i = 0; i < 130; i++)
-    bg.circle(Math.random() * W, Math.random() * H * 0.7, Math.random() * 1.7)
-      .fill({ color: 0xffffff, alpha: 0.15 + Math.random() * 0.6 });
+    bg.circle(visualRandom() * W, visualRandom() * H * 0.7, visualRandom() * 1.7)
+      .fill({ color: 0xffffff, alpha: 0.15 + visualRandom() * 0.6 });
   bg.circle(1020, 130, 52).fill({ color: 0xd8cba0, alpha: 0.9 });
   bg.circle(998, 116, 44).fill(0x0d0a18);
   /* 부서진 성 */

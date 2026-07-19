@@ -18,6 +18,7 @@ import {
   partyRank, respawnEnemies, rollDropToBag,
 } from "../state";
 import { BASIC_ATTACK, BattleEngine, BattleEvent } from "../core/battle-engine";
+import { gameplayRandom, visualRandom } from "../core/random";
 import {
   STATUS_COLOR, STATUS_NAME, incapacitatedBy,
 } from "../core/statuses";
@@ -741,7 +742,7 @@ export function exploreScene(): SceneHandle {
   function popDmg(e: GridEnemy, s: string | number, color = 0xffffff): void {
     const v = enemyVis.get(e.id);
     const onScreen = v && v.node.parent;
-    const x = onScreen ? v.node.x + (Math.random() * 26 - 13) : W / 2;
+    const x = onScreen ? v.node.x + (visualRandom() * 26 - 13) : W / 2;
     const y = onScreen ? v.node.y - 130 * v.node.scale.y : 200;
     const t = txt(String(s), 26, color, { weight: "900", shadow: true });
     t.anchor.set(0.5); t.x = x; t.y = y; root.addChild(t);
@@ -801,8 +802,8 @@ export function exploreScene(): SceneHandle {
     const def = ENEMY_DEFS[e.defId];
     G.gold += def.gold;
     let line = `${def.name}을(를) 쓰러뜨렸다! 경험치 +${def.exp}, ${def.gold} G`;
-    if (Math.random() < partyFortune() * 0.012) {
-      if (Math.random() < 0.5) { G.items.potion++; line += " · 행운! 치유 물약 획득"; }
+    if (gameplayRandom() < partyFortune() * 0.012) {
+      if (gameplayRandom() < 0.5) { G.items.potion++; line += " · 행운! 치유 물약 획득"; }
       else { G.items.mpotion++; line += " · 행운! 마나 물약 획득"; }
     }
     const ups = gainExpParty(def.exp);

@@ -10,6 +10,7 @@ import { EquipSlot } from "./equip";
 import { GearDef, SHOP_ARMORS, SHOP_WEAPONS } from "./shop";
 import { Rank } from "./skills";
 import { Tier } from "./enemies";
+import { gameplayRandom } from "../core/random";
 
 export type Rarity = "common" | "magic" | "rare" | "epic";
 export interface RarityMeta {
@@ -111,7 +112,7 @@ export function _resetUid(): void { uidSeq = 0; }
 function pick<T>(arr: T[], rng: () => number): T { return arr[Math.min(arr.length - 1, Math.floor(rng() * arr.length))]; }
 
 /** 기반 아이템 + 희귀도로 개체 장비를 생성한다. 접사는 희귀도만큼 서로 다른 것을 뽑아 적용. */
-export function generateGear(base: GearDef, rarity: Rarity, rng: () => number = Math.random): OwnedGear {
+export function generateGear(base: GearDef, rarity: Rarity, rng: () => number = gameplayRandom): OwnedGear {
   const mut: MutGear = { atk: base.atk, def: base.def, attrs: { ...(base.attrs ?? {}) }, res: { ...(base.res ?? {}) } };
   const names: string[] = [];
   let addedValue = 0;
@@ -162,7 +163,7 @@ const RARITY_WEIGHT: Record<Tier, number[]> = {
   "보스": [0, 40, 45, 15],
   "에픽": [0, 20, 50, 30],
 };
-export function rollRarity(tier: Tier, rng: () => number = Math.random): Rarity {
+export function rollRarity(tier: Tier, rng: () => number = gameplayRandom): Rarity {
   const w = RARITY_WEIGHT[tier];
   const total = w.reduce((a, b) => a + b, 0);
   let t = rng() * total;
@@ -171,7 +172,7 @@ export function rollRarity(tier: Tier, rng: () => number = Math.random): Rarity 
 }
 
 /** 적 처치 드랍 판정 — 드랍하면 생성된 개체, 아니면 null. fortune는 파티 평균 운. */
-export function rollDrop(tier: Tier, fortune: number, rng: () => number = Math.random): OwnedGear | null {
+export function rollDrop(tier: Tier, fortune: number, rng: () => number = gameplayRandom): OwnedGear | null {
   const chance = Math.min(1, DROP_CHANCE[tier] + fortune * 0.01);
   if (rng() >= chance) return null;
   const pool = basePool(tier);

@@ -10,6 +10,7 @@ import {
 import { BattleAbility, GridEnemy, Member, Stats, allyAccuracy, equippedWeapon, memberResist, memberStats, rankMult } from "../state";
 import { rollSave } from "./dice";
 import { healAmount, rollAllyHit, rollEnemyHit } from "./formulas";
+import { gameplayRandom } from "./random";
 import {
   BattleStatusId, STATUS_NAME, StatusInstance, findStatus, incapacitatedBy, isFeared,
   poisonPower, removeStatus, tickDurations, upsertStatus, wakeOnDamage,
@@ -120,7 +121,7 @@ export class BattleEngine {
     }, "일반");
     this.blessMult = opts.bless ? 1.25 : 1;
     this.items = opts.items ?? { potion: 0, mpotion: 0 };
-    this.rng = opts.rng ?? Math.random;
+    this.rng = opts.rng ?? gameplayRandom;
   }
 
   /* ---- 조회 ---- */

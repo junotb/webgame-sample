@@ -84,4 +84,9 @@ export const EVERMORE_TOWN: TownData = {
   facilities: EVERMORE_FACILITIES,
   decos: EVERMORE_DECOS,
   gates: EVERMORE_GATES,
+  districts: [
+    { id: "court", name: "북부 궁정 거리", x1: 1, y1: 1, x2: 26, y2: 8 },
+    { id: "fountain", name: "왕도 대분수 광장", x1: 1, y1: 9, x2: 26, y2: 16 },
+    { id: "carriage", name: "남부 마차 광장", x1: 1, y1: 17, x2: 26, y2: 22 },
+  ],
 };

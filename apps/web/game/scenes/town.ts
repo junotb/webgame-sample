@@ -99,7 +99,11 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     if (busy()) return;
     const target = movement.interaction();
     if (target.kind === "gate") enterGate(target.value);
-    else if (target.kind === "facility") openFacility(target.value);
+    else if (target.kind === "facility") {
+      presentation.visitFacility(target.value.id);
+      presentation.render(movement.pose);
+      openFacility(target.value);
+    }
     else if (target.kind === "npc") openNpc(target.value);
     else if (target.kind === "deco") log(target.value.text);
     else log("아무것도 없다.");

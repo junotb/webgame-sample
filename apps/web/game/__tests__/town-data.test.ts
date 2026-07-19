@@ -39,6 +39,8 @@ describe.each(townIds)("마을 맵 규칙 — %s", (id) => {
       expect(compiled.gateAt(gate.x, gate.y)).toBe(gate);
     for (const npc of npcsOf(id))
       expect(compiled.npcAt(npc.gx, npc.gy)).toBe(npc);
+    for (const district of t.districts)
+      expect(compiled.districtAt(district.x1, district.y1)).toBe(district);
   });
 
   it("시설 위치는 문(+) 칸이고, 접근 가능한 정면 칸이 있다", () => {

@@ -39,4 +39,13 @@ describe("compileTown", () => {
 
     expect(() => compileTown(withChanges({ map }), [])).toThrow(/도달할 수 없는 통행 칸 \(0,0\)/);
   });
+
+  it("서로 겹치는 구역을 거부한다", () => {
+    const districts = [
+      { id: "one", name: "첫 구역", x1: 1, y1: 1, x2: 4, y2: 4 },
+      { id: "two", name: "둘째 구역", x1: 4, y1: 4, x2: 6, y2: 6 },
+    ];
+
+    expect(() => compileTown(withChanges({ districts }), [])).toThrow(/구역 좌표 중복 \(4,4\)/);
+  });
 });

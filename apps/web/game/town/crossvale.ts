@@ -134,4 +134,9 @@ export const CROSSVALE_TOWN: TownData = {
   facilities: CROSSVALE_FACILITIES,
   decos: CROSSVALE_DECOS,
   gates: CROSSVALE_GATES,
+  districts: [
+    { id: "north", name: "북부 길드 거리", x1: 1, y1: 1, x2: 26, y2: 8 },
+    { id: "square", name: "중앙 분수 광장", x1: 1, y1: 9, x2: 26, y2: 15 },
+    { id: "south", name: "남부 상업 거리", x1: 1, y1: 16, x2: 26, y2: 22 },
+  ],
 };

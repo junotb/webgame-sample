@@ -11,13 +11,14 @@ import { tileSprite } from "../tiles";
 import type { TileName } from "../tiles";
 import type { CompiledTown } from "./compile";
 import type { TownPose } from "./navigation";
-import type { TownData } from "./types";
+import type { TownData, TownFacilityId } from "./types";
 
 export interface TownPresentation {
   viewRoot: PIXI.Container;
   render(pose: TownPose): void;
   tick(deltaMS: number): void;
   refreshNpcMarks(): void;
+  visitFacility(id: TownFacilityId): void;
 }
 
 const hash01 = (x: number, y: number, a: number, b: number): number => {
@@ -171,7 +172,12 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
   return { entities, refreshNpcMarks: () => npcMarks.forEach((refresh) => refresh()) };
 }
 
-function createMinimap(root: PIXI.Container, town: TownData, npcs: readonly NpcDef[]) {
+function createMinimap(
+  root: PIXI.Container,
+  town: TownData,
+  npcs: readonly NpcDef[],
+  visitedFacilities: ReadonlySet<TownFacilityId>,
+) {
   const map = town.map;
   const cellSize = 6;
   const minimap = new PIXI.Container(); minimap.x = 16; minimap.y = 54; root.addChild(minimap);
@@ -179,6 +185,8 @@ function createMinimap(root: PIXI.Container, town: TownData, npcs: readonly NpcD
   const graphics = new PIXI.Graphics(); graphics.x = 8; graphics.y = 8; minimap.addChild(graphics);
   const compass = txt("", 14, C.border, { weight: "700" });
   compass.x = 16; compass.y = minimap.y + map.h * cellSize + 22; root.addChild(compass);
+  const legend = txt("◆ 시설  ● NPC  ? 의뢰", 11, C.dim);
+  legend.x = 16; legend.y = compass.y + 22; root.addChild(legend);
 
   return (pose: TownPose): void => {
     graphics.clear();
@@ -189,8 +197,16 @@ function createMinimap(root: PIXI.Container, town: TownData, npcs: readonly NpcD
           : kind === "door" ? 0x7a5a34 : 0x6e6552;
       graphics.rect(x * cellSize, y * cellSize, cellSize - 1, cellSize - 1).fill(color);
     }
-    for (const facility of town.facilities)
-      graphics.rect(facility.x * cellSize, facility.y * cellSize, cellSize - 1, cellSize - 1).fill(C.border);
+    for (const facility of town.facilities) {
+      const visited = visitedFacilities.has(facility.id);
+      graphics.rect(facility.x * cellSize, facility.y * cellSize, cellSize - 1, cellSize - 1)
+        .fill(visited ? C.border : 0x655a42);
+      const statuses = (facility.quests ?? []).map((quest) => questStatus(quest));
+      if (statuses.includes("available") || statuses.includes("done")) {
+        graphics.circle(facility.x * cellSize + cellSize / 2, facility.y * cellSize + cellSize / 2, 2.2)
+          .fill(statuses.includes("done") ? C.elite : 0xffffff);
+      }
+    }
     for (const deco of town.decos)
       graphics.rect(deco.x * cellSize + 1, deco.y * cellSize + 1, cellSize - 3, cellSize - 3)
         .fill(deco.id === "fountain" ? 0x4f9fd0 : deco.id === "statue" ? 0x9a96b0 : 0x8a7430);
@@ -228,15 +244,20 @@ export function createTownPresentation(
   const view = createFPView(createTheme(spatial));
   root.addChild(view.root);
   const { entities, refreshNpcMarks } = createEntities(town, npcs);
-  const redrawMinimap = createMinimap(root, town, npcs);
+  const visitedFacilities = new Set<TownFacilityId>();
+  const redrawMinimap = createMinimap(root, town, npcs, visitedFacilities);
+  const districtLabel = txt("", 16, C.border, { serif: true, weight: "700", shadow: true });
+  districtLabel.anchor.set(0.5, 0); districtLabel.x = W / 2; districtLabel.y = 64; root.addChild(districtLabel);
 
   return {
     viewRoot: view.root,
     render(pose) {
       view.render(visualMap, pose.x, pose.y, pose.facing, entities);
       redrawMinimap(pose);
+      districtLabel.text = spatial.districtAt(pose.x, pose.y)?.name ?? town.name;
     },
     tick: (deltaMS) => view.tick(deltaMS),
     refreshNpcMarks,
+    visitFacility(id) { visitedFacilities.add(id); },
   };
 }

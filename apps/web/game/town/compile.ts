@@ -1,5 +1,5 @@
 import { cellAt, passable } from "../grid";
-import type { TownData, TownDecoDef, TownFacilityDef, TownGateDef } from "./types";
+import type { TownData, TownDecoDef, TownDistrictDef, TownFacilityDef, TownGateDef } from "./types";
 
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]] as const;
 
@@ -15,11 +15,13 @@ export interface CompiledTown<TNpc extends TownNpcPosition> {
   gateByPosition: ReadonlyMap<string, TownGateDef>;
   npcByPosition: ReadonlyMap<string, TNpc>;
   blockedPositions: ReadonlySet<string>;
+  districtByPosition: ReadonlyMap<string, TownDistrictDef>;
   facilityAt(x: number, y: number): TownFacilityDef | undefined;
   decoAt(x: number, y: number): TownDecoDef | undefined;
   gateAt(x: number, y: number): TownGateDef | undefined;
   npcAt(x: number, y: number): TNpc | undefined;
   blockedAt(x: number, y: number): boolean;
+  districtAt(x: number, y: number): TownDistrictDef | undefined;
 }
 
 export const townPositionKey = (x: number, y: number): string => `${x},${y}`;
@@ -55,6 +57,7 @@ export function compileTown<TNpc extends TownNpcPosition>(
   const npcByPosition = new Map<string, TNpc>();
   const floorOccupants = new Map<string, string>();
   const blockedPositions = new Set<string>();
+  const districtByPosition = new Map<string, TownDistrictDef>();
 
   const occupyFloor = (x: number, y: number, label: string): void => {
     const key = townPositionKey(x, y);
@@ -100,6 +103,16 @@ export function compileTown<TNpc extends TownNpcPosition>(
     blockedPositions.add(townPositionKey(npc.gx, npc.gy));
   }
 
+  for (const district of town.districts) {
+    if (district.x1 > district.x2 || district.y1 > district.y2
+      || district.x1 < 0 || district.y1 < 0 || district.x2 >= town.map.w || district.y2 >= town.map.h) {
+      fail(town, `구역 '${district.name}'의 범위가 잘못됨`);
+    }
+    for (let y = district.y1; y <= district.y2; y++) for (let x = district.x1; x <= district.x2; x++) {
+      addUnique(town, districtByPosition, district, x, y, "구역");
+    }
+  }
+
   const starts = Object.entries(town.starts);
   if (!starts.length) fail(town, "진입 지점이 하나도 없음");
   for (const [name, start] of starts) {
@@ -138,10 +151,12 @@ export function compileTown<TNpc extends TownNpcPosition>(
     gateByPosition,
     npcByPosition,
     blockedPositions,
+    districtByPosition,
     facilityAt: (x, y) => facilityByPosition.get(townPositionKey(x, y)),
     decoAt: (x, y) => decoByPosition.get(townPositionKey(x, y)),
     gateAt: (x, y) => gateByPosition.get(townPositionKey(x, y)),
     npcAt: (x, y) => npcByPosition.get(townPositionKey(x, y)),
     blockedAt: (x, y) => blockedPositions.has(townPositionKey(x, y)),
+    districtAt: (x, y) => districtByPosition.get(townPositionKey(x, y)),
   };
 }

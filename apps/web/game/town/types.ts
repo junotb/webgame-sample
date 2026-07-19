@@ -48,6 +48,16 @@ export interface TownGateDef {
   target: FieldId;
 }
 
+export interface TownDistrictDef {
+  id: string;
+  name: string;
+  /** 구역을 이루는 직사각형 범위(양 끝 포함) */
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
 /** 렌더링과 상호작용에 필요한 한 마을의 완전한 정적 정의. */
 export interface TownData {
   id: TownId;
@@ -60,4 +70,5 @@ export interface TownData {
   facilities: TownFacilityDef[];
   decos: TownDecoDef[];
   gates: TownGateDef[];
+  districts: TownDistrictDef[];
 }

@@ -67,9 +67,9 @@ export function createScene(): SceneHandle {
       .fill({ color: 0xffffff, alpha: 0.1 + Math.random() * 0.4 });
   root.addChild(bg);
 
-  const title = txt("모험단 결성", 34, C.border, { serif: true, shadow: true });
+  const title = txt("헤르만의 제자들", 34, C.border, { serif: true, shadow: true });
   title.x = 44; title.y = 26; root.addChild(title);
-  const sub = txt("네 명의 모험가를 준비하세요 — 이름 · 초상화 · 직업 · 추가 기술 · 능력치", 14, C.dim);
+  const sub = txt("대스승의 제자 네 명을 준비하세요 — 이름 · 초상화 · 직업 · 추가 기술 · 능력치", 14, C.dim);
   sub.x = 46; sub.y = 74; root.addChild(sub);
 
   const drafts: Draft[] = PARTY_SLOTS.map((s) => makeDraft(s));
@@ -139,7 +139,7 @@ export function createScene(): SceneHandle {
     const ok = drafts.every(draftReady);
     startBtn.setDisabled(!ok);
     hintT.text = ok
-      ? "준비 완료 — 황혼의 숲이 기다린다."
+      ? "준비 완료 — 크로스베일로 가는 길이 열렸다."
       : "모든 멤버의 추가 기술 2개 선택과 능력치 분배(남은 포인트 0)를 마치면 출발할 수 있다.";
   }
 
@@ -330,9 +330,9 @@ export function createScene(): SceneHandle {
       attrs: { ...d.attrs },
     }));
     newGame(configs);
-    /* 인트로 이벤트 없이 곧장 마을 — 중앙 분수 앞에서 시작 (장로 카엘이 곁에) */
+    /* 서장(헤르만의 편지) → 크로스베일 분수 앞에서 시작 (장로 카엘이 곁에) */
     G.flags.intro = true;
-    fullFlash(0x000000, 600, () => nav.town("fountain"));
+    fullFlash(0x000000, 600, () => nav.prologue());
   }
 
   return {

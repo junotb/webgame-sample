@@ -4,9 +4,10 @@
 import { describe, expect, it } from "vitest";
 import { NPCS, QUESTS } from "../defs";
 import { passable } from "../grid";
-import { TOWN_DECOS, TOWN_FACILITIES, townMap } from "../townmap";
+import { TOWNS, TownId } from "../towns";
 
 const questIds = new Set(QUESTS.map((q) => q.id));
+const townOf = (t?: TownId): TownId => t ?? "crossvale";
 
 describe("NPC 데이터 규칙", () => {
   it("NPC가 주는 퀘스트 id는 실재하고, giver와 상호 일치한다", () => {
@@ -41,16 +42,24 @@ describe("NPC 데이터 규칙", () => {
           expect(questIds.has(qid), `${n.id}/${t.id}: 없는 퀘스트 ${qid}`).toBe(true);
   });
 
-  it("NPC는 마을 그리드의 통행 가능한 칸에 서 있고, POI·다른 NPC와 겹치지 않는다", () => {
-    const occupied = new Set<string>([
-      ...TOWN_DECOS.map((d) => `${d.x},${d.y}`),
-      ...TOWN_FACILITIES.map((f) => `${f.x},${f.y}`),
-    ]);
+  it("NPC는 소속 마을 그리드의 통행 칸에 서 있고, POI·같은 마을 NPC와 겹치지 않는다", () => {
+    /* 마을별 점유 칸 집합 (데코·시설) */
+    const occupied = new Map<TownId, Set<string>>();
+    for (const id of Object.keys(TOWNS) as TownId[]) {
+      const t = TOWNS[id];
+      occupied.set(id, new Set<string>([
+        ...t.decos.map((d) => `${d.x},${d.y}`),
+        ...t.facilities.map((f) => `${f.x},${f.y}`),
+      ]));
+    }
     for (const n of NPCS) {
-      expect(passable(townMap, n.gx, n.gy), `${n.id}: (${n.gx},${n.gy}) 통행 불가 칸`).toBe(true);
+      const id = townOf(n.town);
+      const map = TOWNS[id].map;
+      const occ = occupied.get(id)!;
+      expect(passable(map, n.gx, n.gy), `${n.id}@${id}: (${n.gx},${n.gy}) 통행 불가 칸`).toBe(true);
       const key = `${n.gx},${n.gy}`;
-      expect(occupied.has(key), `${n.id}: (${key}) 점유 충돌`).toBe(false);
-      occupied.add(key);
+      expect(occ.has(key), `${n.id}@${id}: (${key}) 점유 충돌`).toBe(false);
+      occ.add(key);
     }
   });
 });

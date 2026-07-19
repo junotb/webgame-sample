@@ -46,7 +46,7 @@ describe("퀘스트 진행", () => {
   beforeEach(freshGame);
 
   it("첫 메인 퀘스트는 자동 수주된다", () => {
-    expect(trackerLines().some((l) => l.text.includes("숲의 이변"))).toBe(true);
+    expect(trackerLines().some((l) => l.text.includes("계곡의 이변"))).toBe(true);
     expect(questStatus("m1")).toBe("active");
     expect(questStatus("m2")).toBe("locked"); // 선행 미완
   });
@@ -111,6 +111,6 @@ describe("퀘스트 진행", () => {
     kill("goblin", 3);
     const lines = trackerLines();
     expect(lines[0].done).toBe(true);
-    expect(lines[0].text).toContain("숲의 이변");
+    expect(lines[0].text).toContain("계곡의 이변");
   });
 });

@@ -7,6 +7,7 @@ import {
 } from "./defs";
 import { abilityMod } from "./core/dice";
 import { NORMAL_SPAWNS, START, SYMBOL_SPAWNS, dungeonMap } from "./dungeon";
+import { TownId } from "./towns";
 
 export interface Member {
   id: string; name: string;
@@ -70,8 +71,10 @@ export interface GameState {
   items: { potion: number; mpotion: number };
   gold: number;
   blessedNext: boolean;
+  /** 현재 머무는 마을 (townScene이 참조) */
+  town: TownId;
   explore: ExploreState;
-  flags: { intro: boolean; ending: boolean };
+  flags: { intro: boolean; ending: boolean; letter: boolean };
   quests: Record<string, QuestProgress>;
   _fled?: boolean;
 }
@@ -104,6 +107,7 @@ export function newGame(configs: CreationConfig[]): void {
     items: { potion: 3, mpotion: 2 },
     gold: 120,
     blessedNext: false,
+    town: "crossvale",
     explore: {
       x: START.x, y: START.y, facing: START.facing,
       explored: new Array(dungeonMap.w * dungeonMap.h).fill(false),
@@ -114,7 +118,7 @@ export function newGame(configs: CreationConfig[]): void {
       lordIntroSeen: false,
       veil: 0,
     },
-    flags: { intro: false, ending: false },
+    flags: { intro: false, ending: false, letter: false },
     quests: {},
   };
 }

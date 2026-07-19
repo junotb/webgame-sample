@@ -40,7 +40,7 @@ const VEIL_TURNS = 30;           // 어둠의 장막 지속 턴
 let suppressRespawn = false;
 
 export function exploreScene(): SceneHandle {
-  setModeBadge("탐험 모드 — 황혼의 숲 지하미궁", C.green);
+  setModeBadge("탐험 모드 — 할로우베일 계곡", C.green);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
   const map = dungeonMap;
   const E = G.explore;
@@ -432,7 +432,7 @@ export function exploreScene(): SceneHandle {
     inCombat = false;
     blessMult = 1;
     guardSet.clear();
-    setModeBadge("탐험 모드 — 황혼의 숲 지하미궁", C.green);
+    setModeBadge("탐험 모드 — 할로우베일 계곡", C.green);
     const revived = G.party.filter((m) => m.hp <= 0);
     if (revived.length) {
       revived.forEach((m) => { m.hp = 1; });
@@ -771,7 +771,7 @@ export function exploreScene(): SceneHandle {
           { label: "물러난다", effect: () => { G._fled = true; }, goto: "end" },
         ],
       },
-      { name: "숲의 군주 그림바크", portrait: "dark", text: "좋다… 부서진 왕국의 마지막 불꽃들이 어디까지 타오르는지 보여다오!" },
+      { name: "숲의 군주 그림바크", portrait: "dark", text: "좋다… 계곡에 발 들인 작은 불꽃들이 어디까지 타오르는지 보여다오!" },
     ];
     wait(350, () => switchScene(() => eventScene(nodes, () => {
       suppressRespawn = true;

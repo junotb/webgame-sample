@@ -35,7 +35,7 @@ export interface FPTheme {
   stairs: SurfacePick;
 }
 
-/** 기본 테마 — 황혼의 숲 지하미궁 (dungeon.ts의 결정적 변형 함수 사용) */
+/** 기본 테마 — 할로우베일 계곡 지하미궁 (dungeon.ts의 결정적 변형 함수 사용) */
 export function dungeonTheme(): FPTheme {
   return {
     floorAt: (x, y) => ({ base: floorVariant(x, y) }),

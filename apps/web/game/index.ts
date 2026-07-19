@@ -15,7 +15,7 @@ import { createScene } from "./scenes/create";
 import { townScene } from "./scenes/town";
 import { exploreScene } from "./scenes/explore";
 import { battleScene, BattleOpts } from "./scenes/battle";
-import { endingEvent, epicClearEvent } from "./scenes/story";
+import { endingEvent, epicClearEvent, letterEvent, prologueEvent } from "./scenes/story";
 import { TownSpawn } from "./townmap";
 
 export async function boot(
@@ -29,7 +29,9 @@ export async function boot(
   /* nav 배선 — 씬 간 순환 import 방지 라우터 */
   nav.title = () => switchScene(titleScene);
   nav.create = () => switchScene(createScene);
+  nav.prologue = () => switchScene(prologueEvent);
   nav.town = (spawn?: TownSpawn) => switchScene(() => townScene(spawn));
+  nav.letter = () => switchScene(letterEvent);
   nav.explore = () => switchScene(exploreScene);
   nav.battle = (groupIds: string[], opts: BattleOpts = {}) =>
     fullFlash(0xffffff, 350, () => switchScene(() => battleScene(groupIds, opts)));

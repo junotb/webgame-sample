@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { NPCS, QUESTS } from "../defs";
 import { cellAt, passable } from "../grid";
+import { compileTown } from "../town/compile";
 import { TOWNS, TownData, TownId } from "../towns";
 
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]] as const;
@@ -15,6 +16,7 @@ const bfsStart = (t: TownData) => t.starts.gate ?? t.starts.carriage ?? t.starts
 
 describe.each(townIds)("마을 맵 규칙 — %s", (id) => {
   const t = TOWNS[id];
+  const compiled = compileTown(t, npcsOf(id));
   const blocked = () => new Set([
     ...t.decos.map((d) => `${d.x},${d.y}`),
     ...npcsOf(id).map((n) => `${n.gx},${n.gy}`),
@@ -26,6 +28,17 @@ describe.each(townIds)("마을 맵 규칙 — %s", (id) => {
       expect(passable(t.map, s.x, s.y)).toBe(true);
       expect(b.has(`${s.x},${s.y}`)).toBe(false);
     }
+  });
+
+  it("모든 배치를 좌표 인덱스로 같은 객체에 연결한다", () => {
+    for (const facility of t.facilities)
+      expect(compiled.facilityAt(facility.x, facility.y)).toBe(facility);
+    for (const deco of t.decos)
+      expect(compiled.decoAt(deco.x, deco.y)).toBe(deco);
+    for (const gate of t.gates)
+      expect(compiled.gateAt(gate.x, gate.y)).toBe(gate);
+    for (const npc of npcsOf(id))
+      expect(compiled.npcAt(npc.gx, npc.gy)).toBe(npc);
   });
 
   it("시설 위치는 문(+) 칸이고, 접근 가능한 정면 칸이 있다", () => {

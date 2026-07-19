@@ -18,7 +18,8 @@ import {
 import { G } from "../state";
 import { acceptQuest, questList, questStatus, reportQuest } from "../core/quests";
 import { DIR, FACING_NAME, Facing, GridMap, RelativeMove, cellAt, moveTarget, passable, rotateFacing } from "../grid";
-import type { TownDecoDef, TownFacilityDef, TownGateDef, TownSpawn } from "../town/types";
+import { compileTown } from "../town/compile";
+import type { TownFacilityDef, TownGateDef, TownSpawn } from "../town/types";
 import { CARRIAGE_FARE, TOWNS, otherTown } from "../towns";
 import { FPEntity, FPTheme, SurfacePick, createFPView } from "../fpview";
 import { TileName, tileSprite } from "../tiles";
@@ -37,6 +38,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   /* 시설 문은 논리적으로는 상호작용 지점(door)이지만, 화면·시야에서는 닫힌 벽면이다. */
   const visualMap: GridMap = { ...map, cells: map.cells.map((cell) => cell === "door" ? "wall" : cell) };
   const npcs = NPCS.filter((n) => (n.town ?? "crossvale") === G.town);
+  const spatial = compileTown(T, npcs);
   const start = T.starts[spawn] ?? T.starts.carriage ?? T.starts.gate
     ?? T.starts.fountain ?? T.starts.throne!;
   let px = start.x, py = start.y;
@@ -54,14 +56,14 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   };
   /** 시설 문 좌우 벽 — 횃불을 걸고 창문은 내지 않는다 */
   const besideDoor = (x: number, y: number): boolean =>
-    T.facilities.some((f) => f.y === y && Math.abs(f.x - x) === 1);
+    !!spatial.facilityAt(x - 1, y) || !!spatial.facilityAt(x + 1, y);
   const townTheme: FPTheme = {
     /* 거리 바닥은 포장 데칼 2종을 섞는다 */
     floorAt: (x, y): SurfacePick =>
       ({ base: "floor", decal: hash01(x, y, 91.7, 53.3) < 0.5 ? "pave_decal" : "pave2_decal" }),
     /* 건물 벽 — 창문·풍화 벽을 드문드문 */
     wallAt: (x, y): SurfacePick => {
-      if (facilityAt(x, y)) return { base: "wall", decal: "door_closed_obj" };
+      if (spatial.facilityAt(x, y)) return { base: "wall", decal: "door_closed_obj" };
       if (besideDoor(x, y)) return { base: "wall" };
       const h = hash01(x, y, 17.3, 71.9);
       if (h < 0.16) return { base: "wall", decal: "wall_window_decal" };
@@ -79,19 +81,8 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   const fp = createFPView(townTheme);
   root.addChild(fp.root);
 
-  /* ---- 칸 점유 판정 ---- */
-  const facilityAt = (x: number, y: number): TownFacilityDef | undefined =>
-    T.facilities.find((f) => f.x === x && f.y === y);
-  const decoAt = (x: number, y: number): TownDecoDef | undefined =>
-    T.decos.find((d) => d.x === x && d.y === y);
-  const blockingDecoAt = (x: number, y: number): TownDecoDef | undefined => {
-    const d = decoAt(x, y);
-    return d?.blocking === false ? undefined : d;
-  };
-  const npcAt = (x: number, y: number): NpcDef | undefined =>
-    npcs.find((n) => n.gx === x && n.gy === y);
-  const gateAt = (x: number, y: number): TownGateDef | undefined =>
-    T.gates.find((g) => g.x === x && g.y === y);
+  /* ---- 컴파일된 O(1) 좌표 조회 ---- */
+  const { facilityAt, decoAt, npcAt, gateAt } = spatial;
 
   /* =====================================================================
    * 엔티티 노드 (문·간판, 분수·우물, 성문, NPC)
@@ -99,14 +90,18 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   const ents: FPEntity[] = [];
 
   /* 문(+) — 문 그림은 벽면에 원근 렌더링, 여기서는 시설 간판만 남긴다. */
-  for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
-    if (cellAt(map, x, y) !== "door") continue;
-    const fac = facilityAt(x, y);
-    if (!fac) continue;
+  for (const fac of T.facilities) {
     const node = new PIXI.Container();
     const lb = txt(fac.name, 12, C.border, { weight: "700", shadow: true });
     lb.anchor.set(0.5, 1); lb.y = -134; node.addChild(lb);
-    ents.push({ id: `door-label:${x},${y}`, x, y, node, worldH: 0.92, baseH: 128 });
+    ents.push({
+      id: `door-label:${fac.x},${fac.y}`,
+      x: fac.x,
+      y: fac.y,
+      node,
+      worldH: 0.92,
+      baseH: 128,
+    });
   }
 
   /* 분수 — 광장의 심장 (마을에 분수가 있을 때만) */
@@ -290,7 +285,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   function tryMove(rel: RelativeMove): void {
     if (busy()) return;
     const { x: nx, y: ny } = moveTarget({ x: px, y: py, facing }, rel);
-    if (!passable(map, nx, ny) || facilityAt(nx, ny) || npcAt(nx, ny) || blockingDecoAt(nx, ny)) { bump(); return; }
+    if (!passable(map, nx, ny) || spatial.blockedAt(nx, ny)) { bump(); return; }
     px = nx; py = ny;
     stepBob();
     refresh();

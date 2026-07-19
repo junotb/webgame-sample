@@ -1,7 +1,17 @@
+import { visualRandom } from "../core/random";
 import type { TownContentRequirement, TownKeeperDef } from "./types";
 
 export const keeperSays = (keeper: TownKeeperDef, text: string): string =>
   `${keeper.name}  “${text}”`;
+
+/** 시설에 들어올 때 담당자의 인사 3종 중 하나를 고른다. */
+export function pickKeeperGreeting(
+  keeper: TownKeeperDef,
+  rng: () => number = visualRandom,
+): string {
+  const index = Math.min(keeper.greetings.length - 1, Math.floor(rng() * keeper.greetings.length));
+  return keeper.greetings[index];
+}
 
 export interface TownContentContext {
   questCompleted(id: string): boolean;

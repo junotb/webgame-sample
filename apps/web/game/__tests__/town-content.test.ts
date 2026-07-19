@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keeperSays, townContentUnlocked } from "../town/content";
+import { keeperSays, pickKeeperGreeting, townContentUnlocked } from "../town/content";
 
 const context = {
   questCompleted: (id: string) => id === "done",
@@ -18,7 +18,23 @@ describe("townContentUnlocked", () => {
 
 describe("keeperSays", () => {
   it("시설 담당자 이름과 구어체 대사를 한 줄로 표시한다", () => {
-    const keeper = { name: "미리", role: "상인", portrait: 1, greeting: "어서 와요." };
+    const keeper = {
+      name: "미리", role: "상인", portrait: 1,
+      greetings: ["첫 인사", "둘째 인사", "셋째 인사"],
+    } as const;
     expect(keeperSays(keeper, "필요한 걸 골라 봐요.")).toBe("미리  “필요한 걸 골라 봐요.”");
+  });
+});
+
+describe("pickKeeperGreeting", () => {
+  const keeper = {
+    name: "미리", role: "상인", portrait: 1,
+    greetings: ["첫 인사", "둘째 인사", "셋째 인사"],
+  } as const;
+
+  it("난수 구간에 따라 세 인사를 고르게 선택한다", () => {
+    expect(pickKeeperGreeting(keeper, () => 0)).toBe("첫 인사");
+    expect(pickKeeperGreeting(keeper, () => 1 / 3)).toBe("둘째 인사");
+    expect(pickKeeperGreeting(keeper, () => 0.999)).toBe("셋째 인사");
   });
 });

@@ -64,8 +64,12 @@ describe.each(townIds)("마을 맵 규칙 — %s", (id) => {
     const names = new Set<string>();
     for (const facility of t.facilities) {
       expect(facility.keeper.name, `${facility.name}: 담당자 이름 누락`).not.toBe("");
-      expect(facility.keeper.greeting.length, `${facility.name}: 인사말이 너무 짧음`).toBeGreaterThan(15);
-      expect(facility.keeper.greeting, `${facility.name}: 기능 키워드 인사말 누락`).toMatch(/^[^!]{1,8}! /);
+      expect(facility.keeper.greetings, `${facility.name}: 인사말은 정확히 3개`).toHaveLength(3);
+      expect(new Set(facility.keeper.greetings).size, `${facility.name}: 인사말 중복`).toBe(3);
+      for (const greeting of facility.keeper.greetings) {
+        expect(greeting.length, `${facility.name}: 인사말이 너무 짧음`).toBeGreaterThan(15);
+        expect(greeting, `${facility.name}: 기능 키워드 인사말 누락`).toMatch(/^[^!]{1,8}! /);
+      }
       expect(facility.keeper.portrait, `${facility.name}: 초상화 범위`).toBeGreaterThanOrEqual(1);
       expect(facility.keeper.portrait, `${facility.name}: 초상화 범위`).toBeLessThanOrEqual(48);
       expect(names.has(facility.keeper.name), `${facility.name}: 담당자 이름 중복`).toBe(false);

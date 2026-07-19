@@ -1,6 +1,7 @@
 import * as PIXI from "pixi.js";
 import { C, H, W, button, overlayRoot, panel, txt } from "../core";
 import { portraitTexture } from "../portraits";
+import { pickKeeperGreeting } from "../town/content";
 import type { TownFacilityDef } from "../town/types";
 
 export function openFacilityWelcome(
@@ -27,7 +28,7 @@ export function openFacilityWelcome(
   const name = txt(keeper.name, 20, C.border, { serif: true, weight: "700" });
   name.x = box.x + 32; name.y = box.y + 252; root.addChild(name);
   const role = txt(keeper.role, 13, C.dim); role.x = box.x + 32; role.y = box.y + 284; root.addChild(role);
-  const speech = txt(`“${keeper.greeting}”`, 17, C.text, { wrap: 480, lh: 28 });
+  const speech = txt(`“${pickKeeperGreeting(keeper)}”`, 17, C.text, { wrap: 480, lh: 28 });
   speech.x = box.x + 230; speech.y = box.y + 92; root.addChild(speech);
 
   const enter = button("용무를 본다", 180, 46, () => {

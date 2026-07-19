@@ -39,7 +39,8 @@ export interface TownKeeperDef {
   name: string;
   role: string;
   portrait: number;
-  greeting: string;
+  /** 시설 입장 때 무작위로 고르는 컨셉 인사 3종 */
+  greetings: readonly [string, string, string];
 }
 
 export interface TownContentRequirement {

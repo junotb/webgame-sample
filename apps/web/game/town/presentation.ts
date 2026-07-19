@@ -12,6 +12,7 @@ import type { TileName } from "../tiles";
 import type { CompiledTown } from "./compile";
 import type { TownPose } from "./navigation";
 import type { TownData, TownFacilityId } from "./types";
+import type { TownTimePhase } from "./world-state";
 
 export interface TownPresentation {
   viewRoot: PIXI.Container;
@@ -19,6 +20,7 @@ export interface TownPresentation {
   tick(deltaMS: number): void;
   refreshNpcMarks(): void;
   visitFacility(id: TownFacilityId): void;
+  setTime(time: { phase: TownTimePhase; label: string }): void;
 }
 
 const hash01 = (x: number, y: number, a: number, b: number): number => {
@@ -232,6 +234,7 @@ export function createTownPresentation(
   town: TownData,
   npcs: readonly NpcDef[],
   spatial: CompiledTown<NpcDef>,
+  initialTime: { phase: TownTimePhase; label: string },
 ): TownPresentation {
   const background = new PIXI.Graphics();
   background.rect(0, 0, W, H).fill(C.night);
@@ -243,21 +246,28 @@ export function createTownPresentation(
   };
   const view = createFPView(createTheme(spatial));
   root.addChild(view.root);
+  const lighting = new PIXI.Graphics();
+  lighting.rect(0, 0, W, H).fill({ color: 0x17102d, alpha: 1 });
+  root.addChild(lighting);
   const { entities, refreshNpcMarks } = createEntities(town, npcs);
   const visitedFacilities = new Set<TownFacilityId>();
   const redrawMinimap = createMinimap(root, town, npcs, visitedFacilities);
   const districtLabel = txt("", 16, C.border, { serif: true, weight: "700", shadow: true });
   districtLabel.anchor.set(0.5, 0); districtLabel.x = W / 2; districtLabel.y = 64; root.addChild(districtLabel);
+  let time = initialTime;
+  const applyTime = () => { lighting.alpha = time.phase === "night" ? 0.32 : time.phase === "evening" ? 0.14 : 0; };
+  applyTime();
 
   return {
     viewRoot: view.root,
     render(pose) {
       view.render(visualMap, pose.x, pose.y, pose.facing, entities);
       redrawMinimap(pose);
-      districtLabel.text = spatial.districtAt(pose.x, pose.y)?.name ?? town.name;
+      districtLabel.text = `${spatial.districtAt(pose.x, pose.y)?.name ?? town.name} · ${time.label}`;
     },
     tick: (deltaMS) => view.tick(deltaMS),
     refreshNpcMarks,
     visitFacility(id) { visitedFacilities.add(id); },
+    setTime(next) { time = next; applyTime(); },
   };
 }

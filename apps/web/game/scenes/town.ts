@@ -23,6 +23,7 @@ import { townContentUnlocked } from "../town/content";
 import { openTownFacility, type TownFacilityHandlers } from "../town/facilities";
 import { TownNavigation } from "../town/navigation";
 import { createTownPresentation } from "../town/presentation";
+import { advanceTownTime, enterTown, townTime } from "../town/world-state";
 import type { TownFacilityDef, TownGateDef, TownSpawn } from "../town/types";
 import { CARRIAGE_FARE, TOWNS, otherTown } from "../towns";
 import { portraitTexture } from "../portraits";
@@ -33,6 +34,7 @@ import { openTrainingHall } from "../ui/training-hall";
 export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   const scope = new SceneScope();
   const T = TOWNS[G.town];
+  enterTown(G, G.town);
   setModeBadge(T.badge, C.border);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
   const npcs = NPCS.filter((n) => (n.town ?? "crossvale") === G.town);
@@ -40,7 +42,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   const start = T.starts[spawn] ?? T.starts.carriage ?? T.starts.gate
     ?? T.starts.fountain ?? T.starts.throne!;
   const movement = new TownNavigation(T.map, spatial, start);
-  const presentation = createTownPresentation(root, T, npcs, spatial);
+  const presentation = createTownPresentation(root, T, npcs, spatial, townTime(G));
   const contentContext = () => ({
     questCompleted: (id: string) => questStatus(id) === "rewarded",
     flagEnabled: (id: "intro" | "ending" | "letter") => G.flags[id],
@@ -260,6 +262,9 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         if (G.gold < 30) return toast("숙박비 30 G가 부족하다.", C.dim);
         G.gold -= 30;
         G.party.forEach((m) => { m.hp = m.maxHp; m.mp = m.maxMp; });
+        advanceTownTime(G, 8 * 60);
+        presentation.setTime(townTime(G));
+        presentation.render(movement.pose);
         hud.redraw();
         say("푹신한 침대와 잔잔한 난롯불 아래에서 파티가 푹 쉬었다.\n\n전원 HP/MP가 회복되었다.");
         fullFlash(0x000000, 900, () => toast("파티가 푹 쉬었다. 전원 HP/MP 회복!", C.text));

@@ -90,6 +90,8 @@ export interface GameState {
   blessedNext: boolean;
   /** 현재 머무는 마을 (townScene이 참조) */
   town: TownId;
+  /** 마을 방문과 휴식으로 흐르는 월드 시계 (구버전 세이브는 최초 접근 시 생성) */
+  townWorld?: { day: number; minuteOfDay: number; visits: Partial<Record<TownId, number>> };
   explore: ExploreState;
   flags: { intro: boolean; ending: boolean; letter: boolean };
   quests: Record<string, QuestProgress>;
@@ -145,6 +147,7 @@ export function newGame(configs: CreationConfig[]): void {
     gold: 120,
     blessedNext: false,
     town: "crossvale",
+    townWorld: { day: 1, minuteOfDay: 8 * 60, visits: {} },
     explore: {
       x: START.x, y: START.y, facing: START.facing,
       explored: new Array(dungeonMap.w * dungeonMap.h).fill(false),

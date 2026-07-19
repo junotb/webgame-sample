@@ -14,8 +14,10 @@ describe("버전 세이브", () => {
 
   it("현재 상태를 왕복 직렬화한다", () => {
     G.gold = 777;
+    G.townWorld!.day = 3;
     const parsed = parseSave(serializeGame());
     expect(parsed.gold).toBe(777);
+    expect(parsed.townWorld?.day).toBe(3);
     expect(parsed.party.map((m) => m.id)).toEqual(PARTY_SLOTS.map((slot) => slot.id));
     expect(parsed).not.toBe(G);
   });

@@ -17,14 +17,14 @@ import {
 } from "../core";
 import { G } from "../state";
 import { acceptQuest, questList, questStatus, reportQuest } from "../core/quests";
-import { DIR, FACING_NAME, Facing, GridMap, RelativeMove, cellAt, moveTarget, passable, rotateFacing } from "../grid";
+import type { RelativeMove } from "../grid";
 import { compileTown } from "../town/compile";
+import { openTownFacility, type TownFacilityHandlers } from "../town/facilities";
+import { TownNavigation } from "../town/navigation";
+import { createTownPresentation } from "../town/presentation";
 import type { TownFacilityDef, TownGateDef, TownSpawn } from "../town/types";
 import { CARRIAGE_FARE, TOWNS, otherTown } from "../towns";
-import { FPEntity, FPTheme, SurfacePick, createFPView } from "../fpview";
-import { TileName, tileSprite } from "../tiles";
 import { portraitTexture } from "../portraits";
-import { drawAdventurer } from "../monsters";
 import { buildPartyHUD } from "../hud";
 import { openShopMenu, type ShopKind } from "../ui/shop-menu";
 import { openTrainingHall } from "../ui/training-hall";
@@ -34,230 +34,14 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   const T = TOWNS[G.town];
   setModeBadge(T.badge, C.border);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
-  const map = T.map;
-  /* 시설 문은 논리적으로는 상호작용 지점(door)이지만, 화면·시야에서는 닫힌 벽면이다. */
-  const visualMap: GridMap = { ...map, cells: map.cells.map((cell) => cell === "door" ? "wall" : cell) };
   const npcs = NPCS.filter((n) => (n.town ?? "crossvale") === G.town);
   const spatial = compileTown(T, npcs);
   const start = T.starts[spawn] ?? T.starts.carriage ?? T.starts.gate
     ?? T.starts.fountain ?? T.starts.throne!;
-  let px = start.x, py = start.y;
-  let facing: Facing = start.facing;
+  const movement = new TownNavigation(T.map, spatial, start);
+  const presentation = createTownPresentation(root, T, npcs, spatial);
 
-  /* ---- 배경 + 1인칭 뷰 (마을 테마) ---- */
-  const voidG = new PIXI.Graphics();
-  voidG.rect(0, 0, W, H).fill(C.night);
-  root.addChild(voidG);
-
-  /* 결정적 의사난수 — 표면 변형 선택용 */
-  const hash01 = (x: number, y: number, a: number, b: number): number => {
-    const s = Math.sin(x * a + y * b) * 43758.5453;
-    return s - Math.floor(s);
-  };
-  /** 시설 문 좌우 벽 — 횃불을 걸고 창문은 내지 않는다 */
-  const besideDoor = (x: number, y: number): boolean =>
-    !!spatial.facilityAt(x - 1, y) || !!spatial.facilityAt(x + 1, y);
-  const townTheme: FPTheme = {
-    /* 거리 바닥은 포장 데칼 2종을 섞는다 */
-    floorAt: (x, y): SurfacePick =>
-      ({ base: "floor", decal: hash01(x, y, 91.7, 53.3) < 0.5 ? "pave_decal" : "pave2_decal" }),
-    /* 건물 벽 — 창문·풍화 벽을 드문드문 */
-    wallAt: (x, y): SurfacePick => {
-      if (spatial.facilityAt(x, y)) return { base: "wall", decal: "door_closed_obj" };
-      if (besideDoor(x, y)) return { base: "wall" };
-      const h = hash01(x, y, 17.3, 71.9);
-      if (h < 0.16) return { base: "wall", decal: "wall_window_decal" };
-      if (h < 0.34) return { base: "wall", decal: "wall_worn2_decal" };
-      return { base: "wall" };
-    },
-    torchAt: (x, y) => besideDoor(x, y) || hash01(x, y, 29.1, 47.7) < 0.05,
-    ceiling: "ceiling",
-    water: "water",
-    stairs: { base: "floor", decal: "stairs_decal" },
-    floorTint: 0x93a85a,
-    wallTint: 0x9a8062,
-    ceilingTint: 0x73834e,
-  };
-  const fp = createFPView(townTheme);
-  root.addChild(fp.root);
-
-  /* ---- 컴파일된 O(1) 좌표 조회 ---- */
-  const { facilityAt, decoAt, npcAt, gateAt } = spatial;
-
-  /* =====================================================================
-   * 엔티티 노드 (문·간판, 분수·우물, 성문, NPC)
-   * ===================================================================== */
-  const ents: FPEntity[] = [];
-
-  /* 문(+) — 문 그림은 벽면에 원근 렌더링, 여기서는 시설 간판만 남긴다. */
-  for (const fac of T.facilities) {
-    const node = new PIXI.Container();
-    const lb = txt(fac.name, 12, C.border, { weight: "700", shadow: true });
-    lb.anchor.set(0.5, 1); lb.y = -134; node.addChild(lb);
-    ents.push({
-      id: `door-label:${fac.x},${fac.y}`,
-      x: fac.x,
-      y: fac.y,
-      node,
-      worldH: 0.92,
-      baseH: 128,
-    });
-  }
-
-  /* 분수 — 광장의 심장 (마을에 분수가 있을 때만) */
-  {
-    const d = T.decos.find((t) => t.id === "fountain");
-    if (d) {
-      const node = new PIXI.Container();
-      const g = new PIXI.Graphics();
-      g.ellipse(0, 2, 48, 10).fill({ color: 0x000000, alpha: 0.3 });
-      g.roundRect(-44, -24, 88, 24, 6).fill(0x4a4560);
-      g.roundRect(-44, -24, 88, 24, 6).stroke({ width: 2, color: 0x6a657f, alpha: 0.8 });
-      g.ellipse(0, -24, 40, 12).fill(0x3c6e8e);
-      g.rect(-5, -58, 10, 34).fill(0x6a657f);
-      g.ellipse(0, -58, 18, 6).fill(0x5a5570);
-      g.ellipse(0, -60, 14, 4).fill(0x4f9fd0);
-      g.rect(-1.5, -78, 3, 18).fill({ color: 0x9fd0e8, alpha: 0.8 });
-      g.circle(0, -79, 4).fill({ color: 0xcfe8f4, alpha: 0.9 });
-      node.addChild(g);
-      ents.push({ id: "fountain", x: d.x, y: d.y, node, worldH: 0.55, baseH: 84 });
-    }
-  }
-
-  /* 우물 (마을에 우물이 있을 때만) */
-  {
-    const d = T.decos.find((t) => t.id === "well");
-    if (d) {
-      const node = new PIXI.Container();
-      const g = new PIXI.Graphics();
-      g.ellipse(0, 2, 28, 7).fill({ color: 0x000000, alpha: 0.3 });
-      g.roundRect(-24, -26, 48, 26, 5).fill(0x5a5570);
-      g.roundRect(-24, -26, 48, 26, 5).stroke({ width: 2, color: 0x6a657f, alpha: 0.8 });
-      g.ellipse(0, -26, 20, 6).fill(0x14101f);
-      g.rect(-21, -58, 4, 32).rect(17, -58, 4, 32).fill(0x4a3a2a);
-      g.moveTo(-27, -56).lineTo(0, -72).lineTo(27, -56).closePath().fill(0x6a4a3a);
-      node.addChild(g);
-      ents.push({ id: "well", x: d.x, y: d.y, node, worldH: 0.5, baseH: 74 });
-    }
-  }
-
-  /* 석상 — 에버모어 성 광장의 군주·사자상 */
-  for (const d of T.decos) {
-    if (d.id !== "statue") continue;
-    const node = new PIXI.Container();
-    const g = new PIXI.Graphics();
-    g.ellipse(0, 2, 24, 6).fill({ color: 0x000000, alpha: 0.3 });
-    g.roundRect(-20, -22, 40, 22, 4).fill(0x4a4560);
-    g.roundRect(-20, -22, 40, 22, 4).stroke({ width: 2, color: 0x6a657f, alpha: 0.7 });
-    g.roundRect(-10, -76, 20, 54, 8).fill(0x8a86a0);
-    g.circle(0, -86, 11).fill(0x9a96b0);
-    g.roundRect(-13, -60, 26, 8, 3).fill({ color: 0x7a7690, alpha: 0.9 });
-    node.addChild(g);
-    ents.push({ id: `statue:${d.x},${d.y}`, x: d.x, y: d.y, node, worldH: 0.62, baseH: 92 });
-  }
-
-  /* 술통·짐짝 — 타일 팩 소품 스프라이트 */
-  for (const d of T.decos) {
-    if (d.id !== "barrel" && d.id !== "crate") continue;
-    const node = new PIXI.Container();
-    const s = tileSprite(d.id === "barrel" ? "barrel_obj" : "crate_obj", 2);
-    s.anchor.set(0.5, 1); node.addChild(s);
-    ents.push({
-      id: d.id, x: d.x, y: d.y, node,
-      worldH: d.id === "barrel" ? 0.5 : 0.45, baseH: 64,
-    });
-  }
-
-  /* 나무·덤불·꽃·버섯 — 새 자연 타일을 1인칭 빌보드로 배치 */
-  const treeTiles: TileName[] = ["tree_01", "tree_02", "tree_03", "tree_04"];
-  for (const d of T.decos) {
-    if (!["tree", "bush", "flower", "mushroom"].includes(d.id)) continue;
-    const tile: TileName = d.id === "tree"
-      ? treeTiles[(d.x + d.y) % treeTiles.length]
-      : d.id === "bush" ? "bush_01"
-        : d.id === "flower" ? "flower_01" : "mushroom_01";
-    const node = new PIXI.Container();
-    const s = tileSprite(tile); s.anchor.set(0.5, 1); node.addChild(s);
-    const tall = d.id === "tree";
-    ents.push({
-      id: `deco:${d.x},${d.y}`, x: d.x, y: d.y, node,
-      worldH: tall ? 0.98 : d.id === "bush" ? 0.34 : 0.16,
-      baseH: tall ? 112 : d.id === "bush" ? 32 : 16,
-    });
-  }
-
-  /* 성문 — 좌우 석주 한 쌍 (성문이 있는 마을만) */
-  T.gates.forEach((gpos) => {
-    const node = new PIXI.Container();
-    const g = new PIXI.Graphics();
-    g.rect(-34, -116, 18, 116).rect(16, -116, 18, 116).fill(0x5a4939);
-    g.rect(-38, -128, 76, 16).fill(0x3f3329);
-    g.rect(-34, -116, 18, 116).rect(16, -116, 18, 116).stroke({ width: 2, color: C.border, alpha: 0.28 });
-    node.addChild(g);
-    const lb = txt(gpos.label, 12, C.text, { weight: "700", shadow: true });
-    lb.anchor.set(0.5, 1); lb.y = -134; node.addChild(lb);
-    ents.push({ id: `gate:${gpos.id}`, x: gpos.x, y: gpos.y, node, worldH: 1.0, baseH: 120 });
-  });
-
-  /* NPC — 이름표 + 퀘스트 !/? 마커 */
-  const npcMarks: (() => void)[] = [];
-  const refreshNpcMarks = () => npcMarks.forEach((fn) => fn());
-  npcs.forEach((n) => {
-    const node = new PIXI.Container();
-    node.addChild(drawAdventurer(n.color, n.accent, 1.2));
-    const nm = txt(n.name, 12, C.border, { weight: "700", shadow: true });
-    nm.anchor.set(0.5, 0); nm.y = 6; node.addChild(nm);
-    const mark = txt("!", 18, C.elite, { weight: "900", shadow: true });
-    mark.anchor.set(0.5, 1); mark.y = -84; node.addChild(mark);
-    const refreshMark = () => {
-      const st = (n.quests ?? []).map((q) => questStatus(q));
-      mark.text = st.includes("done") ? "!" : st.includes("available") ? "?" : "";
-      mark.style.fill = st.includes("done") ? C.elite : C.dim;
-    };
-    refreshMark();
-    npcMarks.push(refreshMark);
-    ents.push({ id: `npc:${n.id}`, x: n.gx, y: n.gy, node, worldH: 0.62, baseH: 92 });
-  });
-
-  /* =====================================================================
-   * 미니맵 (좌상단, 안개 없음 — 마을은 전부 보인다)
-   * ===================================================================== */
-  const MM_CELL = 6;
-  const mm = new PIXI.Container(); mm.x = 16; mm.y = 54; root.addChild(mm);
-  mm.addChild(panel(map.w * MM_CELL + 16, map.h * MM_CELL + 16, { alpha: 0.88 }));
-  const mmG = new PIXI.Graphics(); mmG.x = 8; mmG.y = 8; mm.addChild(mmG);
-  const compassT = txt("", 14, C.border, { weight: "700" });
-  compassT.x = 16; compassT.y = mm.y + map.h * MM_CELL + 22; root.addChild(compassT);
-
-  function redrawMinimap(): void {
-    mmG.clear();
-    for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
-      const k = cellAt(map, x, y);
-      const col = k === "wall" ? 0x35304a
-        : k === "water" ? 0x2c4a6e
-          : k === "door" ? 0x7a5a34
-            : 0x6e6552;
-      mmG.rect(x * MM_CELL, y * MM_CELL, MM_CELL - 1, MM_CELL - 1).fill(col);
-    }
-    for (const f of T.facilities)
-      mmG.rect(f.x * MM_CELL, f.y * MM_CELL, MM_CELL - 1, MM_CELL - 1).fill(C.border);
-    for (const d of T.decos)
-      mmG.rect(d.x * MM_CELL + 1, d.y * MM_CELL + 1, MM_CELL - 3, MM_CELL - 3)
-        .fill(d.id === "fountain" ? 0x4f9fd0 : d.id === "statue" ? 0x9a96b0 : 0x8a7430);
-    for (const gpos of T.gates)
-      mmG.rect(gpos.x * MM_CELL, gpos.y * MM_CELL, MM_CELL - 1, MM_CELL - 1).fill(0x5ad07a);
-    for (const n of npcs)
-      mmG.circle(n.gx * MM_CELL + MM_CELL / 2, n.gy * MM_CELL + MM_CELL / 2, 2.4).fill(n.accent);
-    /* 파티 화살표 */
-    const cx = px * MM_CELL + MM_CELL / 2 - 0.5, cy = py * MM_CELL + MM_CELL / 2 - 0.5;
-    const a = [[0, -3.6], [3, 2.8], [-3, 2.8]].map(([ax, ay]) => {
-      const r = (facing * Math.PI) / 2;
-      return [cx + ax * Math.cos(r) - ay * Math.sin(r), cy + ax * Math.sin(r) + ay * Math.cos(r)];
-    });
-    mmG.moveTo(a[0][0], a[0][1]).lineTo(a[1][0], a[1][1]).lineTo(a[2][0], a[2][1]).closePath()
-      .fill(0xffffff);
-    compassT.text = `▲ ${FACING_NAME[facing]}쪽을 보는 중`;
-  }
+  const refreshNpcMarks = presentation.refreshNpcMarks;
 
   /* ---- 로그 / 프롬프트 / 힌트 ---- */
   const logP = panel(620, 46, { alpha: 0.82 }); logP.x = (W - 620) / 2; logP.y = 12; root.addChild(logP);
@@ -284,25 +68,25 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
 
   function tryMove(rel: RelativeMove): void {
     if (busy()) return;
-    const { x: nx, y: ny } = moveTarget({ x: px, y: py, facing }, rel);
-    if (!passable(map, nx, ny) || spatial.blockedAt(nx, ny)) { bump(); return; }
-    px = nx; py = ny;
+    if (!movement.move(rel)) { bump(); return; }
     stepBob();
     refresh();
   }
   function rotate(dir: -1 | 1): void {
     if (busy()) return;
-    facing = rotateFacing(facing, dir);
+    movement.rotate(dir);
     refresh();
   }
   function bump(): void {
-    tween(fp.root, { x: 6 }, 45, {
-      onDone: () => tween(fp.root, { x: -5 }, 45, { onDone: () => tween(fp.root, { x: 0 }, 60) }),
+    tween(presentation.viewRoot, { x: 6 }, 45, {
+      onDone: () => tween(presentation.viewRoot, { x: -5 }, 45, {
+        onDone: () => tween(presentation.viewRoot, { x: 0 }, 60),
+      }),
     });
   }
   function stepBob(): void {
-    fp.root.y = 7;
-    tween(fp.root, { y: 0 }, 130);
+    presentation.viewRoot.y = 7;
+    tween(presentation.viewRoot, { y: 0 }, 130);
   }
 
   /* =====================================================================
@@ -313,50 +97,43 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   };
   function interact(): void {
     if (busy()) return;
-    const ownGate = gateAt(px, py);
-    if (ownGate) { enterGate(ownGate); return; }
-    const own = facilityAt(px, py);
-    if (own) { openFacility(own); return; }
-    const fx = px + DIR[facing].dx, fy = py + DIR[facing].dy;
-    const frontGate = gateAt(fx, fy);
-    if (frontGate) { enterGate(frontGate); return; }
-    const npc = npcAt(fx, fy);
-    if (npc) { openNpc(npc); return; }
-    const fac = facilityAt(fx, fy);
-    if (fac) { openFacility(fac); return; }
-    const deco = decoAt(fx, fy);
-    if (deco) { log(deco.text); return; }
-    log("아무것도 없다.");
+    const target = movement.interaction();
+    if (target.kind === "gate") enterGate(target.value);
+    else if (target.kind === "facility") openFacility(target.value);
+    else if (target.kind === "npc") openNpc(target.value);
+    else if (target.kind === "deco") log(target.value.text);
+    else log("아무것도 없다.");
   }
 
   /* ---- 화면 갱신 ---- */
   function refresh(): void {
-    fp.render(visualMap, px, py, facing, ents);
-    redrawMinimap();
-    const fx = px + DIR[facing].dx, fy = py + DIR[facing].dy;
-    const gate = gateAt(px, py) ?? gateAt(fx, fy);
-    if (gate) prompt.text = gate.prompt;
-    else if (facilityAt(px, py)) prompt.text = `[Z] ${facilityAt(px, py)!.name}에 들어간다`;
-    else if (facilityAt(fx, fy)) prompt.text = `[Z] ${facilityAt(fx, fy)!.name}에 들어간다`;
-    else if (npcAt(fx, fy)) prompt.text = `[Z] ${npcAt(fx, fy)!.name}와(과) 대화`;
-    else if (decoAt(fx, fy)) prompt.text = `[Z] ${decoAt(fx, fy)!.name}을(를) 들여다본다`;
+    presentation.render(movement.pose);
+    const target = movement.interaction();
+    if (target.kind === "gate") prompt.text = target.value.prompt;
+    else if (target.kind === "facility") prompt.text = `[Z] ${target.value.name}에 들어간다`;
+    else if (target.kind === "npc") prompt.text = `[Z] ${target.value.name}와(과) 대화`;
+    else if (target.kind === "deco") prompt.text = `[Z] ${target.value.name}을(를) 들여다본다`;
     else prompt.text = "";
   }
 
   /* =====================================================================
    * 시설 라우팅
    * ===================================================================== */
+  const facilityHandlers: TownFacilityHandlers = {
+    item: (facility) => openShop(facility.title ?? facility.name, SHOP_ITEMS, "item"),
+    inn,
+    temple: openTemple,
+    bountyGuild: () => openBountyGuild(),
+    stable: () => openStable(),
+    throne: () => openThrone(),
+    spiritGuild: openHall,
+    elementsGuild: openHall,
+    weapon: openHall,
+    armor: openHall,
+  };
   function openFacility(f: TownFacilityDef): void {
     if (busy()) return;
-    switch (f.id) {
-      case "item": openShop(f.title ?? f.name, SHOP_ITEMS, "item"); break;
-      case "inn": inn(f); break;
-      case "temple": openTemple(f); break;
-      case "bountyGuild": openBountyGuild(); break;
-      case "stable": openStable(); break;
-      case "throne": openThrone(); break;
-      default: openHall(f); break;
-    }
+    openTownFacility(f, facilityHandlers);
   }
 
   /* ---------- 마굿간: 역마차 빠른이동 ---------- */
@@ -721,7 +498,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   mkPad("✦", PX0 + 180, PY0 + 30, () => interact());
 
   /* ---- ticker: 횃불 플리커 ---- */
-  const ticker = (t: PIXI.Ticker) => { fp.tick(t.deltaMS); };
+  const ticker = (t: PIXI.Ticker) => { presentation.tick(t.deltaMS); };
   scope.ticker(ticker);
 
   refresh();

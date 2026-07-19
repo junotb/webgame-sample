@@ -51,25 +51,25 @@ export const EVERMORE_STARTS: Record<"carriage" | "throne" | "gate", TownSpawnPo
 export const EVERMORE_FACILITIES: TownFacilityDef[] = [
   { id: "throne", name: "알현실", title: "알현실 — 연방 군주", x: 13, y: 4,
     keeper: { name: "시종장 펠릭", role: "알현 안내관", portrait: 20,
-      greeting: "군주께 드릴 말씀이 있습니까? 예법은 제가 알려 드릴 테니 너무 굳어 있진 마십시오." } },
+      greeting: "알현! 군주 앞에서는 진실한 말이 화려한 예법보다 중요하지요. 절차는 제가 안내하겠습니다." } },
   { id: "temple", name: "대성당", title: "대성당 — 연방 대성소", x: 6, y: 8,
     description: "높은 천장 아래 연방 각지에서 온 순례자의 기도가 울린다.",
     keeper: { name: "성직자 리네", role: "대성당 치유사", portrait: 44,
-      greeting: "먼 길을 오셨군요. 잠깐 눈을 감고 숨을 고르세요. 상처는 그다음에 살펴볼게요." } },
+      greeting: "축복! 작은 기도 하나도 먼 길을 버티는 힘이 되지요. 상처와 근심을 잠시 내려놓으세요." } },
   { id: "item", name: "왕도 시장", title: "왕도 시장 — 만물상", x: 21, y: 8,
     keeper: { name: "셀윈", role: "왕도 상인", portrait: 12,
-      greeting: "찾는 게 없으면 말만 하세요. 이 시장에 없는 물건도 사흘이면 구해 오는 게 제 장기니까요." } },
+      greeting: "거래! 왕도에서는 없는 물건보다 못 찾는 상인이 더 드물지요. 필요한 걸 말씀만 하세요." } },
   { id: "inn", name: "여관 '왕관과 방패'", x: 6, y: 14,
     description: "왕도 여행객들의 이야기와 따뜻한 빵 냄새가 홀을 채운다.",
     topics: [
       { id: "federation", label: "연방의 소문", text: "세 성의 사절들이 다음 회의를 위해 속속 왕도에 도착하고 있다." },
       { id: "letter", label: "헤르만의 사자", text: "대스승의 편지를 든 젊은 모험가들이 왔다는 이야기가 벌써 퍼졌다.", requires: { flags: ["letter"] } },
     ], keeper: { name: "마르타", role: "여관 주인", portrait: 32,
-      greeting: "왕도 구경도 체력이 있어야 하지. 방부터 잡을래, 아니면 요즘 소문부터 들을래?" } },
+      greeting: "이야기! 왕도의 밤은 침대보다 소문이 먼저 데워 주지. 방과 식사, 재미난 이야기까지 준비됐어." } },
   { id: "stable", name: "마굿간", x: 21, y: 14,
     description: "연방 각지의 문장이 달린 마차들이 가지런히 늘어서 있다.",
     keeper: { name: "가레스", role: "왕도 마차 조합원", portrait: 17,
-      greeting: "크로스베일행은 곧 떠납니다. 짐은 단단히 묶고, 창밖 풍경은 기대하지 마세요. 빨리 달릴 거니까." } },
+      greeting: "속도! 왕도의 역마차는 해가 지기 전에 목적지에 닿습니다. 크로스베일행도 곧 출발해요." } },
 ];
 
 export const EVERMORE_DECOS: TownDecoDef[] = [

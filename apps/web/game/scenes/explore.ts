@@ -18,7 +18,7 @@ import {
   partyRank, respawnEnemies, rollDropToBag,
 } from "../state";
 import { BASIC_ATTACK, BattleEngine, BattleEvent } from "../core/battle-engine";
-import { gameplayRandom, visualRandom } from "../core/random";
+import { gameplayRandom } from "../core/random";
 import {
   STATUS_COLOR, STATUS_NAME, incapacitatedBy,
 } from "../core/statuses";
@@ -33,6 +33,7 @@ import { tileSprite } from "../tiles";
 import { drawMonster } from "../monsters";
 import { buildPartyHUD, pickMember } from "../hud";
 import { EventNode, eventOverlay } from "./event";
+import { createCombatPresenter } from "./explore/combat-presenter";
 
 const ROTATE_COSTS_TURN = false; // 회전도 턴을 소모시키려면 true
 const AGGRO_R = 6;               // 어그로 반경 (체비쇼프 + LOS)
@@ -217,6 +218,10 @@ export function exploreScene(): SceneHandle {
   const logP = panel(620, 46, { alpha: 0.82 }); logP.x = (W - 620) / 2; logP.y = 12; root.addChild(logP);
   const logT = txt("", 15, C.text); logT.x = logP.x + 16; logT.y = 25; root.addChild(logT);
   const log = (s: string) => { logT.text = s; };
+  const combatPresenter = createCombatPresenter({
+    root, enemies: E.enemies, enemyVisuals: enemyVis, party: G.party, log,
+    onEnemyDeath: (enemy) => killEnemy(enemy),
+  });
 
   /* ---- 퀘스트 트래커 (우상단) ---- */
   const qtc = new PIXI.Container(); root.addChild(qtc);
@@ -365,7 +370,7 @@ export function exploreScene(): SceneHandle {
       if (ev.t === "log") log(ev.text);
       else if (ev.t === "tick") {
         const enemy = E.enemies.find((e) => e.id === ev.unit);
-        if (enemy) popDmg(enemy, `-${ev.amount}`, STATUS_COLOR.poison ?? 0x8fbf4a);
+        if (enemy) combatPresenter.popDamage(enemy, `-${ev.amount}`, STATUS_COLOR.poison ?? 0x8fbf4a);
       } else if (ev.t === "status" && !ev.on) {
         const enemy = E.enemies.find((e) => e.id === ev.target);
         const member = G.party.find((m) => `ally:${m.id}` === ev.target);
@@ -409,34 +414,8 @@ export function exploreScene(): SceneHandle {
     const front = alive.filter((m) => !m.back);
     const pool = enemyMelee(def) && front.length ? front : alive;
     const events = combat.gridEnemyAct(e.id, pool.map((m) => m.id));
-    const lines: string[] = [];
-    for (const ev of events) {
-      const member = "target" in ev ? G.party.find((m) => `ally:${m.id}` === ev.target) : undefined;
-      if (ev.t === "hit" && member) {
-        const tag = ev.resist === "weak" ? " 약점!" : ev.resist === "resist" ? " 저항" : ev.resist === "immune" ? " 무효!" : "";
-        lines.push(`${member.name} -${ev.amount}${tag}`);
-      } else if (ev.t === "miss" && member) lines.push(`${member.name} 회피!`);
-      else if (ev.t === "death") {
-        const down = G.party.find((m) => `ally:${m.id}` === ev.unit);
-        if (down) lines.push(`${down.name} 전투불능!`);
-      } else if (ev.t === "status" && ev.on && member) lines.push(`${member.name} ${STATUS_NAME[ev.status]}!`);
-      else if (ev.t === "status" && !ev.on && ev.status === "sleep" && member) lines.push(`${member.name} 각성!`);
-      else if (ev.t === "save" && member) lines.push(`${member.name} 내성!`);
-      else if (ev.t === "cover") {
-        const guard = G.party.find((m) => `ally:${m.id}` === ev.guard);
-        const covered = G.party.find((m) => `ally:${m.id}` === ev.covered);
-        if (guard && covered) lines.push(`${guard.name}(이)가 ${covered.name}을(를) 가로막았다!`);
-      }
-    }
-    const heading = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log")?.text ?? `${def.name}의 공격!`;
-    log(`${heading} ${lines.join("  ")}`);
-    if (events.some((ev) => ev.t === "hit")) hitFlash();
+    combatPresenter.presentEnemy(events, def.name);
     hud.redraw();
-  }
-  function hitFlash(): void {
-    const g = new PIXI.Graphics();
-    g.rect(0, 0, W, H).fill(0xc03030); g.alpha = 0.22; root.addChild(g);
-    tween(g, { alpha: 0 }, 260, { onDone: () => g.destroy() });
   }
 
   function checkDefeat(): boolean {
@@ -739,54 +718,12 @@ export function exploreScene(): SceneHandle {
   }
 
   /* ---- 공격 실행 ---- */
-  function popDmg(e: GridEnemy, s: string | number, color = 0xffffff): void {
-    const v = enemyVis.get(e.id);
-    const onScreen = v && v.node.parent;
-    const x = onScreen ? v.node.x + (visualRandom() * 26 - 13) : W / 2;
-    const y = onScreen ? v.node.y - 130 * v.node.scale.y : 200;
-    const t = txt(String(s), 26, color, { weight: "900", shadow: true });
-    t.anchor.set(0.5); t.x = x; t.y = y; root.addChild(t);
-    tween(t, { y: y - 44, alpha: 0 }, 750, { onDone: () => t.destroy() });
-  }
-  function flashEnemy(e: GridEnemy): void {
-    const v = enemyVis.get(e.id); if (!v) return;
-    /* Graphics(절차적)와 Sprite(이미지) 모두 틴트 — 몬스터 컨테이너 중첩 포함 */
-    const gs: (PIXI.Graphics | PIXI.Sprite)[] = [];
-    const walk = (c: PIXI.Container) => c.children.forEach((ch) => {
-      if (ch instanceof PIXI.Graphics || ch instanceof PIXI.Sprite) gs.push(ch);
-      else if (ch instanceof PIXI.Container) walk(ch);
-    });
-    walk(v.node);
-    gs.forEach((g) => { g.tint = 0xff6666; });
-    wait(130, () => gs.forEach((g) => { if (!g.destroyed) g.tint = 0xffffff; }));
-  }
-
   function execAttack(m: Member, a: BattleAbility, targets: GridEnemy[]): void {
     if (!combat) return;
     phase = "anim";
     hideCmds();
     const events = combat.gridOffense(m.id, a, targets.map((e) => e.id));
-    const actionLog = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> =>
-      ev.t === "log" && ev.text.startsWith(`${m.name}의`));
-    if (actionLog) log(actionLog.text);
-    for (const ev of events) {
-      const enemy = "target" in ev ? E.enemies.find((e) => e.id === ev.target) : undefined;
-      if (ev.t === "miss" && enemy) popDmg(enemy, "빗나감!", C.dim);
-      else if (ev.t === "hit" && enemy) {
-        if (ev.crit) popDmg(enemy, "치명타!", C.border);
-        if (ev.resist === "weak") popDmg(enemy, "약점!", 0xff8a3c);
-        else if (ev.resist === "resist") popDmg(enemy, "저항", C.mp);
-        else if (ev.resist === "immune") popDmg(enemy, "무효!", C.dim);
-        popDmg(enemy, ev.amount, ev.resist === "immune" ? C.dim : ev.mag ? 0xb99cff : 0xffffff);
-        flashEnemy(enemy);
-      } else if (ev.t === "save" && enemy) popDmg(enemy, "내성!", C.epic);
-      else if (ev.t === "status" && enemy) {
-        popDmg(enemy, ev.on ? STATUS_NAME[ev.status] : `${STATUS_NAME[ev.status]} 해제`, STATUS_COLOR[ev.status] ?? C.epic);
-      } else if (ev.t === "death") {
-        const dead = E.enemies.find((e) => e.id === ev.unit);
-        if (dead) killEnemy(dead);
-      }
-    }
+    combatPresenter.presentAlly(events, m.name);
     hud.redraw();
     redrawEnemyInfo();
     refresh();

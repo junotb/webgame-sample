@@ -9,26 +9,24 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  CLASSES, ClassId, GearDef, NPCS, NpcDef, QUESTS, RANK_NAME, SHOP_ARMORS, SHOP_ITEMS,
-  SHOP_WEAPONS, SKILLS,
+  GearDef, NPCS, NpcDef, QUESTS, SHOP_ITEMS,
 } from "../defs";
 import {
   C, H, SceneHandle, SceneScope, W, button, fullFlash, nav, overlayRoot, panel,
   sceneRoot, setModeBadge, toast, tween, txt, ui,
 } from "../core";
-import {
-  G, Member, canClassChange, classOptions, doClassChange, memberRanks,
-} from "../state";
+import { G } from "../state";
 import { acceptQuest, questList, questStatus, reportQuest } from "../core/quests";
 import { DIR, FACING_NAME, Facing, GridMap, RelativeMove, cellAt, moveTarget, passable, rotateFacing } from "../grid";
-import { SKILL_PRICE, TownDecoDef, TownFacilityDef, TownGateDef, TownSpawn } from "../townmap";
+import { TownDecoDef, TownFacilityDef, TownGateDef, TownSpawn } from "../townmap";
 import { CARRIAGE_FARE, TOWNS, otherTown } from "../towns";
 import { FPEntity, FPTheme, SurfacePick, createFPView } from "../fpview";
 import { TileName, tileSprite } from "../tiles";
 import { portraitTexture } from "../portraits";
 import { drawAdventurer } from "../monsters";
-import { buildPartyHUD, pickMember } from "../hud";
+import { buildPartyHUD } from "../hud";
 import { openShopMenu, type ShopKind } from "../ui/shop-menu";
+import { openTrainingHall } from "../ui/training-hall";
 
 export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   const scope = new SceneScope();
@@ -612,155 +610,11 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
    *  장비 구매(상점 보유 시) / 기술 수련(trains) / 전직 상담(classes) */
   function openHall(f: TownFacilityDef): void {
     overlayOpen = true;
-    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
-    dim.eventMode = "static"; rootS.addChild(dim);
-    const p = panel(860, 560); p.x = (W - 860) / 2; p.y = (H - 560) / 2; rootS.addChild(p);
-    const content = new PIXI.Container(); rootS.addChild(content);
-    const closeBtn = button("나가기", 110, 40, close, { size: 15 });
-    closeBtn.x = p.x + 860 - 136; closeBtn.y = p.y + 560 - 56; rootS.addChild(closeBtn);
-
-    const shopGoods = f.id === "weapon" ? SHOP_WEAPONS : f.id === "armor" ? SHOP_ARMORS : null;
-    const magic = f.id === "spiritGuild" || f.id === "elementsGuild";
-    const trainLabel = magic ? "마법 수련" : "기술 수련";
-    const pathNames = (f.classes ?? []).map((c) => CLASSES[c].name);
-
-    function clear(): void { content.removeChildren().forEach((c) => c.destroy({ children: true })); }
-    function header(t: string): void {
-      const tt = txt(t, 24, C.border, { serif: true }); tt.x = p.x + 28; tt.y = p.y + 18; content.addChild(tt);
-    }
-
-    function main(): void {
-      clear(); header(f.name);
-      let i = 0;
-      const mk = (label: string, desc: string, fn: () => void) => {
-        const b = button(label, 340, 52, fn, { size: 16 });
-        b.x = p.x + 28; b.y = p.y + 76 + i * 66; content.addChild(b);
-        const d = txt(desc, 13, C.dim, { wrap: 420 });
-        d.x = p.x + 390; d.y = p.y + 76 + i * 66 + 16; content.addChild(d);
-        i++;
-      };
-      if (shopGoods) {
-        mk("장비 구매", f.id === "weapon" ? "담금질한 강철 — 무기·방패 일람." : "견고한 수호 — 방어구·장신구 일람.", () => {
-          close();
-          openShop(
-            f.id === "weapon" ? "무기점 — 담금질한 강철" : "방어구점 — 견고한 수호",
-            shopGoods, f.id === "weapon" ? "weapon" : "armor",
-            () => openHall(f));
-        });
-      }
-      if (f.trains?.length) {
-        mk(trainLabel, `${f.trains.map((k) => SKILLS[k].name).join(" · ")} — 미습득 기술을 ${SKILL_PRICE} G에 가르친다.`, trainPage);
-      }
-      if (f.classes?.length) {
-        mk("전직 상담", `이곳의 길: ${pathNames.join(" · ")}`, classPage);
-      }
-    }
-
-    /* ---- 기술 수련: 멤버를 골라 노비스 랭크로 습득 ---- */
-    function trainPage(): void {
-      clear(); header(`${f.name} — ${trainLabel}`);
-      const sub = txt(`미습득 기술을 ${SKILL_PRICE} G에 가르친다. (습득 시 노비스 랭크)`, 13, C.dim);
-      sub.x = p.x + 28; sub.y = p.y + 56; content.addChild(sub);
-      (f.trains ?? []).forEach((k, i) => {
-        const y = p.y + 92 + i * 52;
-        const b = button(`${SKILLS[k].name}  —  ${SKILL_PRICE} G`, 280, 42, () => {
-          if (G.gold < SKILL_PRICE) return toast("골드가 부족하다.", C.dim);
-          pickMember(`${SKILLS[k].name} — 누가 배울까?`, (m) => {
-            G.gold -= SKILL_PRICE;
-            m.bonusSkills.push(k);
-            toast(`${m.name}, [${SKILLS[k].name}] 습득! (노비스)`, C.border);
-            hud.redraw();
-            trainPage();
-          }, {
-            filter: (m) => (memberRanks(m)[k] ?? 0) === 0,
-            note: (m) => {
-              const r = memberRanks(m)[k] ?? 0;
-              return r ? `(이미 ${RANK_NAME[r]})` : "(미습득)";
-            },
-          });
-        }, { size: 14 });
-        b.x = p.x + 28; b.y = y; content.addChild(b);
-        const d = txt(`${SKILLS[k].cat} 계열`, 13, C.dim);
-        d.x = p.x + 330; d.y = y + 12; content.addChild(d);
-      });
-      const back = button("← 돌아가기", 130, 40, main, { size: 14 });
-      back.x = p.x + 28; back.y = p.y + 560 - 56; content.addChild(back);
-    }
-
-    /* ---- 전직 상담: 이 건물이 관할하는 트리만 ---- */
-    function hallOptions(m: Member): ClassId[] {
-      return classOptions(m).filter((c) => (f.classes ?? []).includes(c));
-    }
-    function classPage(): void {
-      clear(); header(`${f.name} — 전직 상담`);
-      const sub = txt(`이곳의 길: ${pathNames.join(" · ")}   (1차 Lv3 / 2차 Lv6, 되돌릴 수 없다)`, 13, C.dim, { wrap: 780 });
-      sub.x = p.x + 28; sub.y = p.y + 56; content.addChild(sub);
-      G.party.forEach((m, i) => {
-        const cc = canClassChange(m);
-        const opts = hallOptions(m);
-        const tier = CLASSES[m.classId].tier;
-        const status = cc && opts.length
-          ? (cc === "t1" ? "▶ 1차 전직 가능" : "▶ 2차 전직 가능")
-          : cc ? "(다른 건물의 길)"
-            : tier === 2 ? "(최종 클래스)" : tier === 0 ? "(Lv3 필요)" : "(Lv6 필요)";
-        const b = button(
-          `${m.name} — ${CLASSES[m.classId].name} Lv.${m.level}  ${status}`,
-          560, 48, () => memberPage(m), { size: 15 });
-        if (!cc || !opts.length) b.setDisabled(true);
-        b.x = p.x + 28; b.y = p.y + 92 + i * 58; content.addChild(b);
-      });
-      const back = button("← 돌아가기", 130, 40, main, { size: 14 });
-      back.x = p.x + 28; back.y = p.y + 560 - 56; content.addChild(back);
-    }
-
-    function memberPage(m: Member): void {
-      clear(); header(`${m.name}의 갈림길`);
-      const opts = hallOptions(m);
-      const intro = txt(
-        `${CLASSES[m.classId].name}의 소양을 살릴 길 — ${f.name}이 안내한다.`,
-        15, C.text);
-      intro.x = p.x + 28; intro.y = p.y + 62; content.addChild(intro);
-      opts.forEach((cid, i) => {
-        const c = CLASSES[cid];
-        const mTag = c.masters
-          ? c.masters.map((s) => (s === "LD" ? "빛or어둠" : SKILLS[s].name)).join("·") + " 달인"
-          : c.desc;
-        const b = button(`${c.name} — ${mTag}`, 560, 48, () => {
-          if (c.ld) ldPage(m, cid);
-          else { doClassChange(m, cid); done(m, cid); }
-        }, { size: 15 });
-        b.x = p.x + 28; b.y = p.y + 104 + i * 58; content.addChild(b);
-        const d = txt(c.desc, 13, C.dim, { wrap: 780 });
-        d.x = p.x + 620; d.y = p.y + 104 + i * 58 + 14; content.addChild(d);
-      });
-      const back = button("← 돌아가기", 130, 40, classPage, { size: 14 });
-      back.x = p.x + 28; back.y = p.y + 560 - 60; content.addChild(back);
-    }
-
-    function ldPage(m: Member, cid: ClassId): void {
-      clear(); header("빛과 어둠의 기로");
-      const t = txt(
-        `${CLASSES[cid].name}의 길은 신앙의 선택을 요구하네.\n선택한 계열이 달인/전문가의 경지로 각성한다.`,
-        16, C.text, { lh: 26 });
-      t.x = p.x + 28; t.y = p.y + 64; content.addChild(t);
-      const bl = button("빛의 길 — 성광과 축복", 340, 52, () => { doClassChange(m, cid, "light"); done(m, cid); }, { size: 16 });
-      bl.x = p.x + 28; bl.y = p.y + 150; content.addChild(bl);
-      const bd = button("어둠의 길 — 암흑과 흡수", 340, 52, () => { doClassChange(m, cid, "dark"); done(m, cid); }, { size: 16 });
-      bd.x = p.x + 28; bd.y = p.y + 214; content.addChild(bd);
-      const back = button("← 돌아가기", 130, 40, () => memberPage(m), { size: 14 });
-      back.x = p.x + 28; back.y = p.y + 560 - 60; content.addChild(back);
-    }
-
-    function done(m: Member, cid: ClassId): void {
-      toast(`${m.name}, [${CLASSES[cid].name}] (으)로 전직!`, C.border);
-      hud.redraw();
-      classPage();
-    }
-    main();
-    function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }
+    openTrainingHall(f, {
+      onChange: hud.redraw,
+      onClose: () => { overlayOpen = false; },
+    });
   }
-
   /* ---------- NPC 대화 (주제 선택식) ---------- */
   function openNpc(npc: NpcDef): void {
     overlayOpen = true;

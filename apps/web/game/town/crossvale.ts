@@ -61,28 +61,42 @@ export const CROSSVALE_STARTS: Record<"fountain" | "gate" | "carriage" | "westGa
  *  title: 시설 오버레이 제목(생략 시 name) */
 export const CROSSVALE_FACILITIES: TownFacilityDef[] = [
   { id: "temple", name: "신전", title: "신전 — 여명의 성소", x: 13, y: 4,
-    description: "촛불과 약초 향이 고요한 성소를 채운다." },
+    description: "촛불과 약초 향이 고요한 성소를 채운다.",
+    keeper: { name: "수녀 메리엘", role: "여명의 사제", portrait: 31,
+      greeting: "어서 와요. 다친 데가 있으면 숨기지 말고 보여 줘요. 몸도 마음도 여기선 쉬어도 괜찮아요." } },
   {
     id: "spiritGuild", name: "영혼 길드", x: 7, y: 7,
     trains: ["spirit"],
     classes: ["acolyte", "priest", "monk"],
+    keeper: { name: "에다", role: "영혼술 교관", portrait: 37,
+      greeting: "기척이 꽤 또렷하네요. 영혼의 소리에 귀 기울일 준비가 됐다면, 제가 첫걸음을 봐 드리죠." },
   },
   {
     id: "elementsGuild", name: "원소 길드", x: 20, y: 7,
     trains: ["elemental"],
     classes: ["mage", "archmage", "druid"],
+    keeper: { name: "아르벤", role: "원소학 강사", portrait: 8,
+      greeting: "불꽃부터 만지려 들진 마세요. 물과 바람을 먼저 이해해야 손가락을 덜 데니까요." },
   },
-  { id: "bountyGuild", name: "현상금 길드", x: 7, y: 12 },
+  { id: "bountyGuild", name: "현상금 길드", x: 7, y: 12,
+    keeper: { name: "브란", role: "의뢰 게시판 관리인", portrait: 6,
+      greeting: "일거리를 찾소? 벽에 붙은 종이는 많아도 목숨은 하나뿐이니, 감당할 만한 것만 고르시오." } },
   {
     id: "weapon", name: "무기점", x: 20, y: 12,
     trains: ["blade", "cudgel", "spear", "martial", "unarmed", "bow", "thrown"],
     classes: ["swordman", "swordmaster", "assassin"],
+    keeper: { name: "토렌", role: "대장장이", portrait: 4,
+      greeting: "칼은 번쩍이는 맛보다 손에 맞는 게 먼저야. 들어 보고, 마음에 들면 값 얘길 하지." },
   },
-  { id: "item", name: "도구점", title: "도구점 — 여행자의 벗", x: 7, y: 17 },
+  { id: "item", name: "도구점", title: "도구점 — 여행자의 벗", x: 7, y: 17,
+    keeper: { name: "미리", role: "도구점 주인", portrait: 29,
+      greeting: "어서 와요! 물약은 가볍고 후회는 무거워요. 길 떠나기 전에 몇 병 챙겨 둬요." } },
   {
     id: "armor", name: "방어구점", x: 20, y: 17,
     trains: ["armor", "dodge", "shield"],
     classes: ["spellsword", "paladin", "ranger"],
+    keeper: { name: "힐다", role: "갑주 제작자", portrait: 35,
+      greeting: "갑옷은 멋으로 입는 게 아니야. 어디를 얻어맞을지 말해 봐, 거기에 맞춰 골라 줄 테니." },
   },
   /* 남동쪽 길가의 독립 건물 — 가운데 한 칸은 두 시설을 가르는 골목이다. */
   { id: "inn", name: "여관 '잿불'", x: 23, y: 20, quests: ["s2"],
@@ -90,9 +104,12 @@ export const CROSSVALE_FACILITIES: TownFacilityDef[] = [
     topics: [
       { id: "rumor", label: "소문", text: "할로우베일 심부의 옛길에 백골들이 걸어다닌다는 소문이 떠돈다." },
       { id: "veterans", label: "옛 손님", text: "옛날에는 에버모어의 기사단도 이곳에 묵어갔다." },
-    ] },
+    ], keeper: { name: "로완", role: "여관 주인", portrait: 11,
+      greeting: "어서들 와! 빈방도 있고 따뜻한 수프도 있어. 우선 앉아서 숨부터 돌리라고." } },
   { id: "stable", name: "마굿간", x: 18, y: 20,
-    description: "건초 냄새 사이로 에버모어행 역마차가 출발을 기다린다." },
+    description: "건초 냄새 사이로 에버모어행 역마차가 출발을 기다린다.",
+    keeper: { name: "벤", role: "마부", portrait: 15,
+      greeting: "에버모어로 가나? 말들은 준비됐어. 삯만 치르면 흔들림 적게 모셔다주지." } },
 ];
 
 /* ---- 장식 POI — 기능 없음, 조사 시 정취 텍스트. 칸을 점유(차단)한다 ---- */

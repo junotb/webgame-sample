@@ -60,6 +60,18 @@ describe.each(townIds)("마을 맵 규칙 — %s", (id) => {
     }
   });
 
+  it("모든 기능 시설에 고유한 담당 NPC와 유효한 초상화·인사말이 있다", () => {
+    const names = new Set<string>();
+    for (const facility of t.facilities) {
+      expect(facility.keeper.name, `${facility.name}: 담당자 이름 누락`).not.toBe("");
+      expect(facility.keeper.greeting.length, `${facility.name}: 인사말이 너무 짧음`).toBeGreaterThan(15);
+      expect(facility.keeper.portrait, `${facility.name}: 초상화 범위`).toBeGreaterThanOrEqual(1);
+      expect(facility.keeper.portrait, `${facility.name}: 초상화 범위`).toBeLessThanOrEqual(48);
+      expect(names.has(facility.keeper.name), `${facility.name}: 담당자 이름 중복`).toBe(false);
+      names.add(facility.keeper.name);
+    }
+  });
+
   it("장식 POI와 성문은 바닥 칸 위에 있다", () => {
     for (const d of t.decos) expect(cellAt(t.map, d.x, d.y), d.id).toBe("floor");
     for (const g of t.gates) expect(cellAt(t.map, g.x, g.y), "gate").toBe("floor");

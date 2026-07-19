@@ -31,6 +31,15 @@ export interface TownFacilityDef {
   description?: string;
   /** 여관·길드 등에서 제공할 데이터 기반 대화 항목 */
   topics?: TownContentEntry[];
+  /** 시설 입구에서 파티를 맞는 담당 NPC */
+  keeper: TownKeeperDef;
+}
+
+export interface TownKeeperDef {
+  name: string;
+  role: string;
+  portrait: number;
+  greeting: string;
 }
 
 export interface TownContentRequirement {

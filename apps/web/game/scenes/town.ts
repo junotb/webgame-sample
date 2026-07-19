@@ -30,6 +30,7 @@ import { portraitTexture } from "../portraits";
 import { buildPartyHUD } from "../hud";
 import { openShopMenu, type ShopKind } from "../ui/shop-menu";
 import { openTrainingHall } from "../ui/training-hall";
+import { openFacilityWelcome } from "../ui/facility-welcome";
 
 export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   const scope = new SceneScope();
@@ -145,7 +146,11 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   };
   function openFacility(f: TownFacilityDef): void {
     if (busy()) return;
-    openTownFacility(f, facilityHandlers);
+    overlayOpen = true;
+    openFacilityWelcome(f, {
+      onEnter: () => openTownFacility(f, facilityHandlers),
+      onClose: () => { overlayOpen = false; },
+    });
   }
 
   /* ---------- 마굿간: 역마차 빠른이동 ---------- */

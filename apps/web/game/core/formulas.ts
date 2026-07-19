@@ -2,7 +2,7 @@
  * core/formulas.ts — 데미지/판정 공식 (순수 로직, 전투·필드 공용)
  * 명중은 d20 판정(core/dice), 대미지는 기존 감산식 모델을 유지한다.
  * ===================================================================== */
-import { AbilityDef } from "../defs";
+import { AbilityDef, DamageType, ResistBand, ResistTable, resistBand, resistMult } from "../defs";
 import { Stats, magicBase } from "../state";
 import { rollAttack } from "./dice";
 
@@ -11,12 +11,15 @@ export interface HitRoll {
   hit: boolean;
   dmg: number;
   crit: boolean;
+  /** 대상의 데미지 타입 저항 판정 — normal/resist/weak/immune */
+  resist: ResistBand;
 }
 
-/** 아군 기술 1타 판정. 명중(d20+acc vs targetAC) → 대미지 → 치명.
- *  - acc: 명중 보정 (능력치 수정치 + 숙련 랭크). 시전부에서 계산해 전달
- *  - targetAC: 적 회피도, adv: 유리(1)/불리(-1)
+/** 아군 1타 판정. (기본 공격만) 명중(d20+acc vs targetAC) → 대미지 → 치명 → 저항.
+ *  **기술·마법(a.id ≠ "")은 명중 굴림에서 제외 — 항상 명중한다.** 기본 공격만 빗나갈 수 있다.
+ *  - acc/targetAC/adv: 기본 공격 명중 굴림용 (기술·마법에서는 무시)
  *  - enemyDef: 적 원래 방어력, bonus: 방어 적용 후 고정 추가 피해(강타)
+ *  - dtype: 이 공격의 데미지 타입, res: 대상의 타입별 배율 테이블
  */
 export function rollAllyHit(
   s: Stats,
@@ -24,18 +27,24 @@ export function rollAllyHit(
   opts: {
     mult: number; bless: number; enemyDef: number; defDown?: number; bonus?: number;
     acc: number; targetAC: number; adv?: -1 | 0 | 1;
+    dtype: DamageType; res?: ResistTable;
   },
   rng: () => number = Math.random,
 ): HitRoll {
-  /* 명중 판정 — sureCrit(완벽한 일격)은 자동 명중 + 치명 */
+  /* 명중 판정 — sureCrit(완벽한 일격)은 자동 명중+치명. 기술·마법은 명중 굴림 없이 자동 명중.
+   *  오직 기본 공격(a.id === "")만 d20 명중 굴림을 한다. */
   let crit = !!a.sureCrit;
   let hit = crit;
   if (!a.sureCrit) {
-    const roll = rollAttack(rng, opts.acc, opts.targetAC, opts.adv ?? 0);
-    hit = roll.hit;
-    crit = roll.crit;
+    if (a.id) {
+      hit = true; // 기술·마법 — 명중 굴림 제외
+    } else {
+      const roll = rollAttack(rng, opts.acc, opts.targetAC, opts.adv ?? 0);
+      hit = roll.hit;
+      crit = roll.crit;
+    }
   }
-  if (!hit) return { hit: false, dmg: 0, crit: false };
+  if (!hit) return { hit: false, dmg: 0, crit: false, resist: "normal" };
 
   const base = a.kind === "mag" ? magicBase(s, a.skill) : s.atk;
   let dmg = Math.round(base * a.pow * opts.mult * opts.bless * (0.9 + rng() * 0.2));
@@ -45,7 +54,11 @@ export function rollAllyHit(
   /* 치명타 — 자연20/sureCrit로 이미 확정이면 굴리지 않음. 아니면 기술 확률 + 운(Fortune) */
   if (!crit) crit = rng() < (a.crit ?? 0) + s.crit;
   if (crit) dmg = Math.round(dmg * 1.7);
-  return { hit: true, dmg, crit };
+  /* 저항/약점 — 최종 피해에 타입 배율. 무효(≤0)는 0, 그 외는 최소 1 보장 */
+  const mult = resistMult(opts.res, opts.dtype);
+  const band = resistBand(mult);
+  dmg = band === "immune" ? 0 : Math.max(1, Math.round(dmg * mult));
+  return { hit: true, dmg, crit, resist: band };
 }
 
 /** 아군 치유량 (전투·필드 공용 공식) */
@@ -53,19 +66,31 @@ export function healAmount(s: Stats, a: AbilityDef, mult: number): number {
   return Math.round(magicBase(s, a.skill) * 1.8 * mult * a.pow);
 }
 
-/** 적 공격 1타 판정. 명중(d20+acc vs 아군 회피도) → 방어력 → 방어 태세 → 방패(guardCut).
- *  방어 태세(guarding)는 공격자에게 불리(disadvantage)를 주고 추가로 피해도 감소시킨다. */
+/** 적 공격 1타 판정. 명중(d20+acc vs 아군 회피도) → 방어력 → 방어 태세 → 방패(guardCut) → 저항.
+ *  방어 태세(guarding)는 공격자에게 불리(disadvantage)를 주고 추가로 피해도 감소시킨다.
+ *  dtype: 적 공격의 데미지 타입, res: 아군의 타입별 저항 배율. */
 export function rollEnemyHit(
   atk: number,
   target: Stats,
-  opts: { aoe: boolean; guarding: boolean; acc: number; targetAC: number },
+  opts: {
+    aoe: boolean; guarding: boolean; acc: number; targetAC: number;
+    dtype: DamageType; res?: ResistTable;
+    /** 공포 상태의 적 — 명중을 불리하게 굴린다 */
+    attackerFeared?: boolean;
+  },
   rng: () => number = Math.random,
-): { hit: boolean; dmg: number } {
-  const roll = rollAttack(rng, opts.acc, opts.targetAC, opts.guarding ? -1 : 0);
-  if (!roll.hit) return { hit: false, dmg: 0 };
+): { hit: boolean; dmg: number; resist: ResistBand } {
+  /* 방어 태세(대상)나 공포(공격자) 어느 쪽이든 불리 */
+  const adv: -1 | 0 | 1 = opts.guarding || opts.attackerFeared ? -1 : 0;
+  const roll = rollAttack(rng, opts.acc, opts.targetAC, adv);
+  if (!roll.hit) return { hit: false, dmg: 0, resist: "normal" };
   let dmg = Math.round(atk * (opts.aoe ? 0.65 : 1) * (0.9 + rng() * 0.25));
   dmg = Math.max(1, dmg - target.def);
   if (opts.guarding) dmg = Math.max(1, Math.round(dmg * 0.45));
   dmg = Math.max(1, Math.round(dmg * (1 - target.guardCut)));
-  return { hit: true, dmg };
+  /* 저항/약점 — 아군의 타입 저항을 최종 피해에 곱한다 */
+  const mult = resistMult(opts.res, opts.dtype);
+  const band = resistBand(mult);
+  dmg = band === "immune" ? 0 : Math.max(1, Math.round(dmg * mult));
+  return { hit: true, dmg, resist: band };
 }

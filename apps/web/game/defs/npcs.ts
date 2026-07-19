@@ -92,28 +92,6 @@ export const NPCS: NpcDef[] = [
       },
     ],
   },
-  {
-    id: "martha", name: "여관주인 마르타", portrait: 47, town: "crossvale",
-    desc: "여관 '잿불' 의 주인. 나그네들의 어머니.",
-    greeting: "어서 오렴. 따뜻한 수프라도 내줄까? 요즘 손님들이 뜸해서 말이야.",
-    gx: 21, gy: 19, color: 0x6a4a5a, accent: 0xe8dcc0,
-    quests: ["s2"],
-    topics: [
-      {
-        id: "inn", label: "여관",
-        text: "30 G면 전원 푹 재워주지. HP도 MP도 아침이면 가득할 거야. 무리하지 말고 자주 들르렴.",
-      },
-      {
-        id: "rumor", label: "소문",
-        text: "할로우베일 심부의 옛길에 백골들이 걸어다닌다는구나. 마차꾼들이 발길을 끊어서… 우리 여관도 파리만 날리지.",
-      },
-      {
-        id: "guest", label: "손님",
-        text: "옛날엔 에버모어의 기사단도 묵어갔단다. 지금 그 방엔 먼지뿐이지만… 너희 넷을 보니 그 시절 생각이 나는구나.",
-      },
-    ],
-  },
-
   /* =========================== 에버모어 성 =========================== */
   {
     id: "chamberlain", name: "시종장 오르윈", portrait: 21, town: "evermore",

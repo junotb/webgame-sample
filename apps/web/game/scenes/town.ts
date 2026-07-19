@@ -9,31 +9,72 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  CLASSES, ClassId, GearDef, NPCS, NpcDef, QUESTS, RANK_NAME, SHOP_ARMORS,
-  SHOP_ITEMS, SHOP_WEAPONS, SKILLS,
+  ATTRS, AttrId, CLASSES, ClassId, DAMAGE_META, DamageType, EquipSlot, GearDef, NPCS, NpcDef,
+  QUESTS, RANK_NAME, SHOP_ARMORS, SHOP_ITEMS, SHOP_WEAPONS, SKILLS, SLOT_META,
 } from "../defs";
 import {
   C, H, SceneHandle, W, app, button, fullFlash, nav, overlayRoot, panel,
   sceneRoot, setModeBadge, toast, tween, txt, ui,
 } from "../core";
 import {
-  G, Member, canClassChange, classOptions, doClassChange, memberRanks,
+  G, Member, canClassChange, classOptions, doClassChange, equipGear, memberRanks,
 } from "../state";
 import { acceptQuest, questList, questStatus, reportQuest } from "../core/quests";
-import { DIR, FACING_NAME, Facing, cellAt, leftOf, passable, rightOf } from "../grid";
-import { SKILL_PRICE, TownDecoDef, TownFacilityDef, TownSpawn } from "../townmap";
+import { DIR, FACING_NAME, Facing, GridMap, cellAt, leftOf, passable, rightOf } from "../grid";
+import { SKILL_PRICE, TownDecoDef, TownFacilityDef, TownGateDef, TownSpawn } from "../townmap";
 import { CARRIAGE_FARE, TOWNS, otherTown } from "../towns";
 import { FPEntity, FPTheme, SurfacePick, createFPView } from "../fpview";
-import { tileSprite } from "../tiles";
+import { TileName, tileSprite } from "../tiles";
 import { portraitTexture } from "../portraits";
 import { drawAdventurer } from "../monsters";
 import { buildPartyHUD, pickMember } from "../hud";
+
+/** 장비 저항을 짧은 설명으로 — 4원소 균일 경감은 "원소 피해 N% 경감"으로 요약 */
+function gearResSummary(it: GearDef): string {
+  const res = it.res;
+  if (!res) return "";
+  const entries = Object.entries(res) as [DamageType, number][];
+  const elems: DamageType[] = ["earth", "fire", "wind", "water"];
+  const uniformElem = entries.length === 4
+    && elems.every((e) => res[e] !== undefined)
+    && new Set(elems.map((e) => res[e])).size === 1;
+  if (uniformElem) return `원소 피해 ${Math.round((1 - (res.fire ?? 1)) * 100)}% 경감`;
+  return entries.map(([t, m]) => `${DAMAGE_META[t].name} ${Math.round((1 - m) * 100)}% 경감`).join(" ");
+}
+/** 장비의 슬롯 표시명 (투구/갑옷/…/반지). 무기는 오른손/왼손 */
+function slotLabel(it: GearDef): string {
+  if (it.slot === "ring") return "반지";
+  if (it.slot && it.slot in SLOT_META) return SLOT_META[it.slot as EquipSlot].name;
+  return "장비";
+}
+/** 상점 장비 한 줄 설명 — 공격/방어·계열·사거리·능력치·저항을 요약 */
+function gearDesc(it: GearDef): string {
+  const parts: string[] = [];
+  if (it.atk !== undefined) {
+    let head = `공격 +${it.atk} · ${DAMAGE_META[it.wtype ?? "slash"].name}`;
+    head += it.reach === "ranged" ? " · 원거리(후열)" : " · 근접";
+    if (it.twoHanded) head += " · 양손";
+    else if (it.slot === "offHand") head += " · 왼손";
+    parts.push(head);
+  } else {
+    parts.push(`${slotLabel(it)}${it.def ? ` · 방어 +${it.def}` : ""}`);
+  }
+  if (it.attrs) {
+    const ap = (Object.keys(it.attrs) as AttrId[]).filter((k) => it.attrs![k]).map((k) => `${ATTRS[k].name}+${it.attrs![k]}`);
+    if (ap.length) parts.push(ap.join(" "));
+  }
+  const rs = gearResSummary(it);
+  if (rs) parts.push(rs);
+  return parts.join(" · ");
+}
 
 export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   const T = TOWNS[G.town];
   setModeBadge(T.badge, C.border);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
   const map = T.map;
+  /* 시설 문은 논리적으로는 상호작용 지점(door)이지만, 화면·시야에서는 닫힌 벽면이다. */
+  const visualMap: GridMap = { ...map, cells: map.cells.map((cell) => cell === "door" ? "wall" : cell) };
   const npcs = NPCS.filter((n) => (n.town ?? "crossvale") === G.town);
   const start = T.starts[spawn] ?? T.starts.carriage ?? T.starts.gate
     ?? T.starts.fountain ?? T.starts.throne!;
@@ -59,6 +100,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
       ({ base: "floor", decal: hash01(x, y, 91.7, 53.3) < 0.5 ? "pave_decal" : "pave2_decal" }),
     /* 건물 벽 — 창문·풍화 벽을 드문드문 */
     wallAt: (x, y): SurfacePick => {
+      if (facilityAt(x, y)) return { base: "wall", decal: "door_closed_obj" };
       if (besideDoor(x, y)) return { base: "wall" };
       const h = hash01(x, y, 17.3, 71.9);
       if (h < 0.16) return { base: "wall", decal: "wall_window_decal" };
@@ -69,6 +111,9 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     ceiling: "ceiling",
     water: "water",
     stairs: { base: "floor", decal: "stairs_decal" },
+    floorTint: 0x93a85a,
+    wallTint: 0x9a8062,
+    ceilingTint: 0x73834e,
   };
   const fp = createFPView(townTheme);
   root.addChild(fp.root);
@@ -78,27 +123,29 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     T.facilities.find((f) => f.x === x && f.y === y);
   const decoAt = (x: number, y: number): TownDecoDef | undefined =>
     T.decos.find((d) => d.x === x && d.y === y);
+  const blockingDecoAt = (x: number, y: number): TownDecoDef | undefined => {
+    const d = decoAt(x, y);
+    return d?.blocking === false ? undefined : d;
+  };
   const npcAt = (x: number, y: number): NpcDef | undefined =>
     npcs.find((n) => n.gx === x && n.gy === y);
-  const gateAt = (x: number, y: number): boolean =>
-    T.gates.some((g) => g.x === x && g.y === y);
+  const gateAt = (x: number, y: number): TownGateDef | undefined =>
+    T.gates.find((g) => g.x === x && g.y === y);
 
   /* =====================================================================
    * 엔티티 노드 (문·간판, 분수·우물, 성문, NPC)
    * ===================================================================== */
   const ents: FPEntity[] = [];
 
-  /* 문(+) — 닫힌 목문 + 시설 간판 라벨 */
+  /* 문(+) — 문 그림은 벽면에 원근 렌더링, 여기서는 시설 간판만 남긴다. */
   for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
     if (cellAt(map, x, y) !== "door") continue;
-    const node = new PIXI.Container();
-    const s = tileSprite("door_closed_obj", 4); s.anchor.set(0.5, 1); node.addChild(s);
     const fac = facilityAt(x, y);
-    if (fac) {
-      const lb = txt(fac.name, 12, C.border, { weight: "700", shadow: true });
-      lb.anchor.set(0.5, 1); lb.y = -134; node.addChild(lb);
-    }
-    ents.push({ id: `door:${x},${y}`, x, y, node, worldH: 0.92, baseH: 128 });
+    if (!fac) continue;
+    const node = new PIXI.Container();
+    const lb = txt(fac.name, 12, C.border, { weight: "700", shadow: true });
+    lb.anchor.set(0.5, 1); lb.y = -134; node.addChild(lb);
+    ents.push({ id: `door-label:${x},${y}`, x, y, node, worldH: 0.92, baseH: 128 });
   }
 
   /* 분수 — 광장의 심장 (마을에 분수가 있을 때만) */
@@ -165,20 +212,35 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     });
   }
 
+  /* 나무·덤불·꽃·버섯 — 새 자연 타일을 1인칭 빌보드로 배치 */
+  const treeTiles: TileName[] = ["tree_01", "tree_02", "tree_03", "tree_04"];
+  for (const d of T.decos) {
+    if (!["tree", "bush", "flower", "mushroom"].includes(d.id)) continue;
+    const tile: TileName = d.id === "tree"
+      ? treeTiles[(d.x + d.y) % treeTiles.length]
+      : d.id === "bush" ? "bush_01"
+        : d.id === "flower" ? "flower_01" : "mushroom_01";
+    const node = new PIXI.Container();
+    const s = tileSprite(tile); s.anchor.set(0.5, 1); node.addChild(s);
+    const tall = d.id === "tree";
+    ents.push({
+      id: `deco:${d.x},${d.y}`, x: d.x, y: d.y, node,
+      worldH: tall ? 0.98 : d.id === "bush" ? 0.34 : 0.16,
+      baseH: tall ? 112 : d.id === "bush" ? 32 : 16,
+    });
+  }
+
   /* 성문 — 좌우 석주 한 쌍 (성문이 있는 마을만) */
-  T.gates.forEach((gpos, i) => {
+  T.gates.forEach((gpos) => {
     const node = new PIXI.Container();
     const g = new PIXI.Graphics();
-    const side = i === 0 ? -1 : 1;
-    g.rect(side * 10 - 14, -116, 28, 116).fill(0x3a3150);
-    g.rect(side * 10 - 14, -116, 28, 116).stroke({ width: 2, color: C.border, alpha: 0.3 });
-    g.rect(side * 10 - 18, -128, 36, 14).fill(0x2a2440);
+    g.rect(-34, -116, 18, 116).rect(16, -116, 18, 116).fill(0x5a4939);
+    g.rect(-38, -128, 76, 16).fill(0x3f3329);
+    g.rect(-34, -116, 18, 116).rect(16, -116, 18, 116).stroke({ width: 2, color: C.border, alpha: 0.28 });
     node.addChild(g);
-    if (i === 0 && T.gateLabel) {
-      const lb = txt(T.gateLabel, 12, C.text, { weight: "700", shadow: true });
-      lb.anchor.set(0.5, 1); lb.y = -134; node.addChild(lb);
-    }
-    ents.push({ id: `gate:${i}`, x: gpos.x, y: gpos.y, node, worldH: 1.0, baseH: 120 });
+    const lb = txt(gpos.label, 12, C.text, { weight: "700", shadow: true });
+    lb.anchor.set(0.5, 1); lb.y = -134; node.addChild(lb);
+    ents.push({ id: `gate:${gpos.id}`, x: gpos.x, y: gpos.y, node, worldH: 1.0, baseH: 120 });
   });
 
   /* NPC — 이름표 + 퀘스트 !/? 마커 */
@@ -269,7 +331,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const f: Facing = rel === "fwd" ? facing : rel === "back" ? (((facing + 2) % 4) as Facing)
       : rel === "sl" ? leftOf(facing) : rightOf(facing);
     const nx = px + DIR[f].dx, ny = py + DIR[f].dy;
-    if (!passable(map, nx, ny) || npcAt(nx, ny) || decoAt(nx, ny)) { bump(); return; }
+    if (!passable(map, nx, ny) || facilityAt(nx, ny) || npcAt(nx, ny) || blockingDecoAt(nx, ny)) { bump(); return; }
     px = nx; py = ny;
     stepBob();
     refresh();
@@ -292,14 +354,18 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   /* =====================================================================
    * 상호작용 — 자기 칸(성문·문) 우선, 다음 정면 칸
    * ===================================================================== */
-  const enterGate = (): void => { fullFlash(0x000000, 500, () => nav.explore()); };
+  const enterGate = (gate: TownGateDef): void => {
+    fullFlash(0x000000, 500, () => nav.field(gate.target));
+  };
   function interact(): void {
     if (busy()) return;
-    if (gateAt(px, py) && T.gateTo === "explore") { enterGate(); return; }
+    const ownGate = gateAt(px, py);
+    if (ownGate) { enterGate(ownGate); return; }
     const own = facilityAt(px, py);
     if (own) { openFacility(own); return; }
     const fx = px + DIR[facing].dx, fy = py + DIR[facing].dy;
-    if (gateAt(fx, fy) && T.gateTo === "explore") { enterGate(); return; }
+    const frontGate = gateAt(fx, fy);
+    if (frontGate) { enterGate(frontGate); return; }
     const npc = npcAt(fx, fy);
     if (npc) { openNpc(npc); return; }
     const fac = facilityAt(fx, fy);
@@ -311,10 +377,11 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
 
   /* ---- 화면 갱신 ---- */
   function refresh(): void {
-    fp.render(map, px, py, facing, ents);
+    fp.render(visualMap, px, py, facing, ents);
     redrawMinimap();
     const fx = px + DIR[facing].dx, fy = py + DIR[facing].dy;
-    if (gateAt(px, py) || gateAt(fx, fy)) prompt.text = T.gatePrompt ?? "[Z] 성문 밖으로";
+    const gate = gateAt(px, py) ?? gateAt(fx, fy);
+    if (gate) prompt.text = gate.prompt;
     else if (facilityAt(px, py)) prompt.text = `[Z] ${facilityAt(px, py)!.name}에 들어간다`;
     else if (facilityAt(fx, fy)) prompt.text = `[Z] ${facilityAt(fx, fy)!.name}에 들어간다`;
     else if (npcAt(fx, fy)) prompt.text = `[Z] ${npcAt(fx, fy)!.name}와(과) 대화`;
@@ -329,7 +396,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     if (busy()) return;
     switch (f.id) {
       case "item": openShop(f.title ?? f.name, SHOP_ITEMS, "item"); break;
-      case "inn": inn(); break;
+      case "inn": inn(f); break;
       case "temple": openTemple(f); break;
       case "bountyGuild": openBountyGuild(); break;
       case "stable": openStable(); break;
@@ -393,18 +460,33 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
     const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
     dim.eventMode = "static"; rootS.addChild(dim);
-    const ph = 160 + goods.length * 64;
-    const p = panel(660, ph); p.x = (W - 660) / 2; p.y = (H - ph) / 2; rootS.addChild(p);
+    /* 물품이 많은 장비점은 2열, 소모품점은 1열 */
+    const twoCol = goods.length > 6;
+    const cols = twoCol ? 2 : 1;
+    const rows = Math.ceil(goods.length / cols);
+    const PWID = twoCol ? 944 : 660;
+    const colW = twoCol ? 452 : 610;
+    const ph = 172 + rows * 64;
+    const p = panel(PWID, ph); p.x = (W - PWID) / 2; p.y = (H - ph) / 2; rootS.addChild(p);
     const tt = txt(shopTitle, 24, C.border, { serif: true }); tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
     const goldT = txt("", 15, C.text); goldT.x = p.x + 26; goldT.y = p.y + 56; rootS.addChild(goldT);
     function refreshGold(): void { goldT.text = `소지금 ${G.gold} G`; hud.redraw(); }
     refreshGold();
+    /** it가 장착될 슬롯의 현재 장비 표시 (장착 전 미리보기) */
+    function slotNote(it: GearDef, m: Member): string {
+      if (it.slot === "ring") return `반지 ${m.equip.ring1?.name ?? "—"} / ${m.equip.ring2?.name ?? "—"}`;
+      const slot = (it.slot ?? (it.atk !== undefined ? "mainHand" : "body")) as EquipSlot;
+      return `${slotLabel(it)} ${m.equip[slot]?.name ?? "—"}`;
+    }
     goods.forEach((it, i) => {
-      const y = p.y + 92 + i * 64;
-      const desc = kind === "weapon" ? `공격 +${it.atk}` : kind === "armor" ? `방어 +${it.def}` : it.desc ?? "";
-      const nameT = txt(`${it.name}  —  ${desc}`, 15, C.text, { wrap: 430 });
-      nameT.x = p.x + 26; nameT.y = y + 10; rootS.addChild(nameT);
-      const b = button(`${it.price} G`, 130, 42, () => {
+      const col = twoCol ? i % 2 : 0;
+      const row = twoCol ? Math.floor(i / 2) : i;
+      const colX = p.x + 26 + col * (colW + 8);
+      const y = p.y + 92 + row * 64;
+      const desc = kind === "item" ? (it.desc ?? "") : gearDesc(it);
+      const nameT = txt(`${it.name}  —  ${desc}`, 14, C.text, { wrap: colW - 128 });
+      nameT.x = colX; nameT.y = y + 8; rootS.addChild(nameT);
+      const b = button(`${it.price} G`, 110, 42, () => {
         if (G.gold < it.price) return toast("골드가 부족하다.", C.dim);
         if (kind === "item") {
           G.gold -= it.price;
@@ -416,27 +498,89 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         // 장비: 장착할 멤버 선택
         pickMember(`${it.name} — 누구에게 장착할까?`, (m) => {
           G.gold -= it.price;
-          if (kind === "weapon") m.weapon = { name: it.name, atk: it.atk ?? 0 };
-          else m.armor = { name: it.name, def: it.def ?? 0 };
-          toast(`${m.name}에게 ${it.name} 장착!`); refreshGold();
-        }, { note: (m) => kind === "weapon" ? `(${m.weapon.name})` : `(${m.armor.name})` });
+          const slot = equipGear(m, it);
+          toast(`${m.name}에게 ${it.name} 장착! (${SLOT_META[slot].name})`); refreshGold();
+        }, { note: (m) => `(${slotNote(it, m)})` });
       }, { size: 15 });
-      b.x = p.x + 660 - 160; b.y = y; rootS.addChild(b);
+      b.x = colX + colW - 116; b.y = y; rootS.addChild(b);
     });
     const closeBtn = button("나가기", 110, 40, () => {
       overlayOpen = false;
       rootS.destroy({ children: true });
       onClose?.();
     }, { size: 15 });
-    closeBtn.x = p.x + 660 - 136; closeBtn.y = p.y + ph - 56; rootS.addChild(closeBtn);
+    closeBtn.x = p.x + PWID - 136; closeBtn.y = p.y + ph - 56; rootS.addChild(closeBtn);
   }
 
-  function inn(): void {
-    if (G.gold < 30) return toast("숙박비 30 G가 부족하다.", C.dim);
-    G.gold -= 30;
-    G.party.forEach((m) => { m.hp = m.maxHp; m.mp = m.maxMp; });
-    hud.redraw();
-    fullFlash(0x000000, 900, () => toast("파티가 푹 쉬었다. 전원 HP/MP 회복!", C.text));
+  /* ---------- 여관: 숙박·소문·시설 의뢰 ---------- */
+  function inn(f: TownFacilityDef): void {
+    overlayOpen = true;
+    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
+    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
+    dim.eventMode = "static"; rootS.addChild(dim);
+    const PW = 720, PH = 430;
+    const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; rootS.addChild(p);
+    const title = txt(f.name, 24, C.border, { serif: true }); title.x = p.x + 28; title.y = p.y + 20; rootS.addChild(title);
+    const intro = txt("난롯불과 수프 냄새가 여행객을 맞는다.", 14, C.dim);
+    intro.x = p.x + 28; intro.y = p.y + 58; rootS.addChild(intro);
+    const speech = txt("따뜻한 불빛 아래, 잠시 발걸음을 멈출 수 있다.", 15, C.text, { wrap: 650, lh: 24 });
+    speech.x = p.x + 28; speech.y = p.y + 94; rootS.addChild(speech);
+    const say = (text: string) => { speech.text = text; };
+    const opts = new PIXI.Container(); rootS.addChild(opts);
+    const clearOpts = () => opts.removeChildren().forEach((child) => child.destroy({ children: true }));
+    const option = (label: string, i: number, fn: () => void, gold = false) => {
+      const b = button(label, 360, 38, fn, { size: 14, border: gold ? C.border : 0x555068 });
+      b.x = p.x + 28; b.y = p.y + 160 + i * 44; opts.addChild(b);
+    };
+
+    function menu(): void {
+      clearOpts();
+      let i = 0;
+      for (const qid of f.quests ?? []) {
+        const q = QUESTS.find((entry) => entry.id === qid);
+        if (!q) continue;
+        const status = questStatus(qid);
+        if (status === "available") {
+          option(`[의뢰] ${q.name}`, i++, () => {
+            if (!acceptQuest(qid)) return;
+            say(`${q.desc}\n\n— 의뢰 [${q.name}] 수주! (${q.objectives.map((o) => `${o.desc} 0/${o.count}`).join(" · ")})`);
+            toast(`의뢰 수주: ${q.name}`, C.border);
+            menu();
+          }, true);
+        } else if (status === "done") {
+          option(`[보고] ${q.name}`, i++, () => {
+            const reward = reportQuest(qid);
+            if (!reward) return;
+            const parts = [
+              reward.gold ? `${reward.gold} G` : "", reward.exp ? `경험치 ${reward.exp}` : "", ...reward.items,
+            ].filter(Boolean).join(" · ");
+            say(`옛길에는 다시 조용함이 찾아들었다. [${q.name}]의 완수를 확인했다.\n\n보상: ${parts}`);
+            toast(`의뢰 완수! 보상: ${parts}`, C.border);
+            if (reward.ups.length) toast(`레벨 업! ${reward.ups.join(" · ")} (HP/MP 전부 회복)`, C.border);
+            hud.redraw(); menu();
+          }, true);
+        } else if (status === "active") {
+          const progress = G.quests[qid];
+          option(`[진행 중] ${q.name}`, i++, () => {
+            say(`여관 장부에는 아직 이 의뢰가 남아 있다. (${q.objectives.map((o) => `${o.desc} ${Math.min(progress.counts[o.id] ?? 0, o.count)}/${o.count}`).join(" · ")})`);
+          });
+        }
+      }
+      option("숙박 — 30 G (전원 HP/MP 회복)", i++, () => {
+        if (G.gold < 30) return toast("숙박비 30 G가 부족하다.", C.dim);
+        G.gold -= 30;
+        G.party.forEach((m) => { m.hp = m.maxHp; m.mp = m.maxMp; });
+        hud.redraw();
+        say("푹신한 침대와 잔잔한 난롯불 아래에서 파티가 푹 쉬었다.\n\n전원 HP/MP가 회복되었다.");
+        fullFlash(0x000000, 900, () => toast("파티가 푹 쉬었다. 전원 HP/MP 회복!", C.text));
+      }, true);
+      option("소문", i++, () => say("할로우베일 심부의 옛길에 백골들이 걸어다닌다는 소문이 떠돈다. 마차꾼들이 발길을 끊으면서, 여관도 한산해졌다."));
+      option("옛 손님", i++, () => say("옛날에는 에버모어의 기사단도 이곳에 묵어갔다. 지금 그 방에는 먼지만 쌓였지만, 모험가들의 발걸음은 다시 이어지고 있다."));
+      option("나가기", i, close);
+    }
+
+    function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }
+    menu();
   }
 
   /* ---------- 신전: 상태이상 정화 ---------- */
@@ -509,8 +653,11 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         const dt = txt(subLine, 12, C.dim, { wrap: 620 });
         dt.x = p.x + 46; dt.y = y + 24; content.addChild(dt);
 
-        /* giver가 있는 의뢰는 해당 NPC에게서 수주·보고 (게시판은 안내만) */
-        const giverName = q.giver ? (NPCS.find((n) => n.id === q.giver)?.name ?? q.giver) : null;
+        /* NPC 또는 특정 시설에서 받는 의뢰는 게시판에서 위치만 안내한다. */
+        const facilityName = Object.values(TOWNS)
+          .flatMap((town) => town.facilities)
+          .find((facility) => facility.quests?.includes(q.id))?.name;
+        const giverName = q.giver ? (NPCS.find((n) => n.id === q.giver)?.name ?? q.giver) : facilityName;
         if (e.status === "available" && q.kind !== "main") {
           if (giverName) {
             const gt = txt(`수주처: ${giverName}`, 13, C.dim);
@@ -584,7 +731,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         i++;
       };
       if (shopGoods) {
-        mk("장비 구매", f.id === "weapon" ? "담금질한 강철 — 무기 일람." : "견고한 수호 — 방어구 일람.", () => {
+        mk("장비 구매", f.id === "weapon" ? "담금질한 강철 — 무기·방패 일람." : "견고한 수호 — 방어구·장신구 일람.", () => {
           close();
           openShop(
             f.id === "weapon" ? "무기점 — 담금질한 강철" : "방어구점 — 견고한 수호",

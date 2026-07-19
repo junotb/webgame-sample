@@ -3,11 +3,17 @@
  * 상태 + 행동 → BattleEvent 배열. 연출/입력은 scenes/battle.ts가 담당.
  * Member(HP/MP)와 items는 참조로 받아 직접 갱신한다 (기존 동작 유지).
  * ===================================================================== */
-import { ENEMY_DEFS, EnemyDef, RANK_NAME, Tier, enemyAC, enemyAcc, enemySave } from "../defs";
-import { BattleAbility, Member, Stats, allyAccuracy, memberStats, rankMult } from "../state";
+import {
+  ENEMY_DEFS, EnemyDef, RANK_NAME, ResistBand, Tier,
+  attackDamageType, enemyAC, enemyAcc, enemyInflictDC, enemySave,
+} from "../defs";
+import { BattleAbility, Member, Stats, allyAccuracy, equippedWeapon, memberResist, memberStats, rankMult } from "../state";
 import { rollSave } from "./dice";
 import { healAmount, rollAllyHit, rollEnemyHit } from "./formulas";
-import { BattleStatusId, StatusInstance, findStatus, removeStatus, upsertStatus } from "./statuses";
+import {
+  BattleStatusId, STATUS_NAME, StatusInstance, findStatus, incapacitatedBy, isFeared,
+  poisonPower, removeStatus, tickDurations, upsertStatus, wakeOnDamage,
+} from "./statuses";
 
 export type UnitId = string;
 
@@ -42,7 +48,11 @@ export type BattleEvent =
   /** 공격 전진/복귀 연출 지점 */
   | { t: "lunge"; unit: UnitId }
   | { t: "return"; unit: UnitId }
-  | { t: "hit"; unit: UnitId; target: UnitId; amount: number; crit: boolean; mag: boolean }
+  | { t: "hit"; unit: UnitId; target: UnitId; amount: number; crit: boolean; mag: boolean; resist?: ResistBand }
+  /** 지속 피해(중독 등) — 자기 턴 시작에 발생 */
+  | { t: "tick"; unit: UnitId; amount: number; status: BattleStatusId }
+  /** 행동 불가(수면/마비)로 턴을 건너뜀 */
+  | { t: "incap"; unit: UnitId; status: BattleStatusId }
   /** 명중 굴림 실패 — 공격이 빗나감 */
   | { t: "miss"; unit: UnitId; target: UnitId }
   /** 내성 굴림 성공 — 제어 효과를 저항해 무효화 */
@@ -131,6 +141,9 @@ export class BattleEngine {
       if (!u) continue;
       if (u.kind === "ally") {
         if (this.isDown(u)) continue;
+        const st = this.beginTurn(u, ev); // 중독 피해·행동불가 판정
+        if (st === "dead") { if (this.checkEnd(ev)) return { kind: "over", result: this.ended!, events: ev }; continue; }
+        if (st === "skip") continue; // 수면/마비 — 지속시간 감소는 beginTurn이 처리
         removeStatus(u.statuses, "guard"); // 방어 태세는 자신의 다음 턴 시작까지
         this.current = u;
         ev.push({ t: "turn", unit: u.id });
@@ -138,10 +151,56 @@ export class BattleEngine {
         return { kind: "player", unit: u.id, events: ev };
       }
       if (!u.alive) continue;
+      const st = this.beginTurn(u, ev);
+      if (st === "dead") { if (this.checkEnd(ev)) return { kind: "over", result: this.ended!, events: ev }; continue; }
+      if (st === "skip") continue;
       this.enemyAct(u, ev);
+      this.endTurn(u, ev);
       const end2 = this.checkEnd(ev);
       if (end2) return { kind: "over", result: end2, events: ev };
     }
+  }
+
+  /** 유닛 표시 이름 */
+  private uname(u: EngineUnit): string {
+    return u.kind === "ally" ? u.m.name : u.def.name;
+  }
+
+  /** 턴 시작 처리 — 중독 지속피해 → 행동불가(수면/마비) 판정.
+   *  "act"=행동 가능, "skip"=행동 불가(지속시간 감소 완료), "dead"=중독으로 사망 */
+  private beginTurn(u: EngineUnit, ev: BattleEvent[]): "act" | "skip" | "dead" {
+    const pp = poisonPower(u.statuses);
+    if (pp > 0) {
+      ev.push({ t: "tick", unit: u.id, amount: pp, status: "poison" });
+      ev.push({ t: "log", text: `${this.uname(u)}이(가) 중독으로 ${pp} 피해!` });
+      if (this.applyTrueDamage(u, pp, ev)) return "dead";
+    }
+    const incap = incapacitatedBy(u.statuses);
+    if (incap) {
+      ev.push({ t: "incap", unit: u.id, status: incap });
+      ev.push({ t: "log", text: `${this.uname(u)}은(는) ${incap === "sleep" ? "잠들어" : "마비되어"} 움직일 수 없다!` });
+      this.endTurn(u, ev);
+      return "skip";
+    }
+    return "act";
+  }
+
+  /** 턴 종료 — 지속시간 감소, 만료 상태를 off 이벤트로 알림 */
+  private endTurn(u: EngineUnit, ev: BattleEvent[]): void {
+    for (const id of tickDurations(u.statuses))
+      ev.push({ t: "status", target: u.id, status: id, on: false });
+  }
+
+  /** 방어·저항 무시 고정 피해(중독 등). 사망 시 true */
+  private applyTrueDamage(u: EngineUnit, amount: number, ev: BattleEvent[]): boolean {
+    if (u.kind === "ally") {
+      u.m.hp = Math.max(0, u.m.hp - amount);
+      if (u.m.hp <= 0) { ev.push({ t: "death", unit: u.id }); return true; }
+    } else {
+      u.hp -= amount;
+      if (u.hp <= 0) { u.hp = 0; u.alive = false; ev.push({ t: "death", unit: u.id }); return true; }
+    }
+    return false;
   }
 
   /* ---- 현재 아군의 행동 실행 ---- */
@@ -186,6 +245,7 @@ export class BattleEngine {
       }
     }
 
+    this.endTurn(actor, ev); // 행동을 마쳤으니 자신의 상태 지속시간 감소
     const end = this.checkEnd(ev);
     if (end) return { kind: "over", result: end, events: ev };
     return { kind: "acted", events: ev };
@@ -241,6 +301,9 @@ export class BattleEngine {
     const mult = a.id ? rankMult(a.rank) : 1;
     /* 명중 보정 = 기본 숙련 + 민첩 수정치 + 숙련(랭크). 기본 공격도 rank 1 */
     const acc = allyAccuracy(s, a.rank);
+    /* 데미지 타입 — 물리는 장착 무기 계열, 마법은 스킬/명시 dtype */
+    const dtype = attackDamageType(a, equippedWeapon(actor.m).wtype);
+    const adv: -1 | 0 | 1 = isFeared(actor.statuses) ? -1 : 0; // 공포 — 불리하게 굴림
     ev.push({ t: "log", text: `${actor.m.name}의 ${a.name}!${a.id ? ` [${RANK_NAME[a.rank]}]` : ""}` });
     ev.push({ t: "lunge", unit: actor.id });
     for (let h = 1; h <= a.hits; h++) {
@@ -255,6 +318,9 @@ export class BattleEngine {
           bonus: a.manaBurn ? Math.round(spentMp * a.manaBurn) : 0,
           acc,
           targetAC: enemyAC(e.def),
+          adv,
+          dtype,
+          res: e.def.res,
         }, this.rng);
         if (!roll.hit) {
           ev.push({ t: "miss", unit: actor.id, target: e.id });
@@ -263,7 +329,14 @@ export class BattleEngine {
         }
         e.hp -= roll.dmg;
         totalDealt += roll.dmg;
-        ev.push({ t: "hit", unit: actor.id, target: e.id, amount: roll.dmg, crit: roll.crit, mag: a.kind === "mag" });
+        ev.push({ t: "hit", unit: actor.id, target: e.id, amount: roll.dmg, crit: roll.crit, mag: a.kind === "mag", resist: roll.resist });
+        if (roll.resist === "weak") ev.push({ t: "log", text: `약점을 찔렀다! ${e.def.name}에게 큰 피해!` });
+        else if (roll.resist === "resist") ev.push({ t: "log", text: `${e.def.name}은(는) 피해를 견뎌냈다.` });
+        else if (roll.resist === "immune") ev.push({ t: "log", text: `${e.def.name}에게 효과가 없다…` });
+        if (e.hp > 0 && wakeOnDamage(e.statuses)) { // 수면은 피해로 깨어난다
+          ev.push({ t: "status", target: e.id, status: "sleep", on: false });
+          ev.push({ t: "log", text: `${e.def.name}이(가) 잠에서 깨어났다!` });
+        }
         if (e.hp <= 0) {
           e.hp = 0;
           e.alive = false;
@@ -311,6 +384,23 @@ export class BattleEngine {
       const power = Math.min(e.defv, Math.max(cur, Math.round(a.defDown * mult)));
       upsertStatus(e.statuses, { id: "defdown", turns: -1, power });
       ev.push({ t: "status", target: e.id, status: "defdown", on: true, power });
+    }
+    /* ---- 수면/마비/공포/중독 (내성 성공 시 무효) ---- */
+    const applyCtrl = (id: "sleep" | "paralyze" | "fear", turns: number) => {
+      if (resisted) { ev.push({ t: "save", target: e.id, status: id }); return; }
+      upsertStatus(e.statuses, { id, turns });
+      ev.push({ t: "status", target: e.id, status: id, on: true });
+    };
+    if (a.sleep) applyCtrl("sleep", a.ctrlTurns ?? 3);
+    if (a.paralyze) applyCtrl("paralyze", a.ctrlTurns ?? 2);
+    if (a.fear) applyCtrl("fear", a.ctrlTurns ?? 3);
+    if (a.poison) {
+      if (resisted) ev.push({ t: "save", target: e.id, status: "poison" });
+      else {
+        const power = Math.max(1, Math.round(a.poison * mult));
+        upsertStatus(e.statuses, { id: "poison", turns: a.ctrlTurns ?? 3, power });
+        ev.push({ t: "status", target: e.id, status: "poison", on: true, power });
+      }
     }
   }
 
@@ -363,6 +453,7 @@ export class BattleEngine {
     ev.push({ t: "log", text: aoe ? `${e.def.name}의 광역 공격!` : `${e.def.name}의 공격!` });
     ev.push({ t: "lunge", unit: e.id });
 
+    const feared = isFeared(e.statuses); // 공포 — 적 공격이 불리하게 굴림
     const victims = aoe ? targets : [forced ?? targets[(this.rng() * targets.length) | 0]];
     for (const v of victims) {
       /* 가로막기 — 유효한 보호자가 있으면 1회 대신 맞는다 */
@@ -380,20 +471,43 @@ export class BattleEngine {
       const roll = rollEnemyHit(e.atk, s, {
         aoe,
         guarding: !!findStatus(t.statuses, "guard"),
+        attackerFeared: feared,
         acc: enemyAcc(e.def),
         targetAC: s.evAC,
+        dtype: e.def.atkType ?? "bludgeon",
+        res: memberResist(t.m),
       }, this.rng);
       if (!roll.hit) {
         ev.push({ t: "miss", unit: e.id, target: t.id });
         continue;
       }
       t.m.hp = Math.max(0, t.m.hp - roll.dmg);
-      ev.push({ t: "hit", unit: e.id, target: t.id, amount: roll.dmg, crit: false, mag: false });
+      ev.push({ t: "hit", unit: e.id, target: t.id, amount: roll.dmg, crit: false, mag: false, resist: roll.resist });
+      if (roll.resist === "resist") ev.push({ t: "log", text: `${t.m.name}이(가) 피해를 흘려냈다.` });
+      else if (roll.resist === "immune") ev.push({ t: "log", text: `${t.m.name}에게는 통하지 않는다!` });
+      else if (roll.resist === "weak") ev.push({ t: "log", text: `${t.m.name}의 약점! 피해가 커졌다!` });
       if (t.m.hp <= 0) {
         ev.push({ t: "death", unit: t.id });
         ev.push({ t: "log", text: `${t.m.name}(이)가 쓰러졌다!` });
+      } else {
+        if (wakeOnDamage(t.statuses)) { // 수면 중 피격 → 각성
+          ev.push({ t: "status", target: t.id, status: "sleep", on: false });
+          ev.push({ t: "log", text: `${t.m.name}이(가) 잠에서 깨어났다!` });
+        }
+        this.applyEnemyInflict(e, t, s, ev); // 상태이상 부여 시도
       }
     }
     ev.push({ t: "return", unit: e.id });
+  }
+
+  /** 적 공격이 명중한 아군에게 확률로 상태이상을 건다 (내성 성공 시 무효) */
+  private applyEnemyInflict(e: EngineEnemy, t: EngineAlly, s: Stats, ev: BattleEvent[]): void {
+    const inf = e.def.inflict;
+    if (!inf || this.rng() >= inf.chance) return;
+    const saved = rollSave(this.rng, s.mods[inf.save], enemyInflictDC(e.def));
+    if (saved) { ev.push({ t: "save", target: t.id, status: inf.status }); return; }
+    upsertStatus(t.statuses, { id: inf.status, turns: inf.turns, power: inf.power });
+    ev.push({ t: "status", target: t.id, status: inf.status, on: true, power: inf.power });
+    ev.push({ t: "log", text: `${t.m.name}이(가) ${STATUS_NAME[inf.status]} 상태가 되었다!` });
   }
 }

@@ -2,6 +2,7 @@
  * defs/classes.ts — 직업 트리 (기초 2 → 1차 4 → 2차 8)
  * ===================================================================== */
 
+import { ResistTable } from "./damage";
 import { Rank, SkillId } from "./skills";
 
 export type ClassId =
@@ -39,6 +40,8 @@ export interface ClassDef {
   experts?: (SkillId | "LD")[];
   /** 빛/어둠 선택이 필요한 클래스 */
   ld?: boolean;
+  /** 직업 고유의 타입별 피해 배율 (수련·소양이 부여하는 저항) */
+  res?: ResistTable;
 }
 
 export const CLASSES: Record<ClassId, ClassDef> = {
@@ -127,6 +130,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     color: 0x4a3a2a, accent: 0xe8b84a,
     masters: ["blade", "spear"],
     experts: ["armor", "shield"],
+    /* 무수한 검격을 흘려낸 몸 — 베기·찌르기 15% 경감 */
+    res: { slash: 0.85, pierce: 0.85 },
   },
   assassin: {
     name: "어쌔신",
@@ -146,6 +151,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     color: 0x5a4a2a, accent: 0xe8dcc0,
     masters: ["cudgel", "armor", "shield"],
     experts: ["LD", "spirit"],
+    /* 신념의 방벽 — 어둠 피해 30% 경감 */
+    res: { dark: 0.7 },
   },
   ranger: {
     name: "레인저",
@@ -156,6 +163,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     color: 0x2f5240, accent: 0x8fb04a,
     masters: ["bow", "identify", "dodge"],
     experts: ["elemental", "perception", "LD"],
+    /* 바람을 읽는 사냥꾼 — 바람 피해 20% 경감 */
+    res: { wind: 0.8 },
   },
   archmage: {
     name: "대마법사",
@@ -166,6 +175,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     color: 0x2a2450, accent: 0xb46ff0,
     masters: ["elemental", "LD"],
     experts: ["perception"],
+    /* 원소의 정점 — 불·바람 피해 20% 경감 */
+    res: { fire: 0.8, wind: 0.8 },
   },
   druid: {
     name: "드루이드",
@@ -176,6 +187,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     color: 0x3d4a2a, accent: 0x9a8f4a,
     masters: ["elemental", "cudgel", "perception"],
     experts: ["LD", "identify"],
+    /* 대지의 현자 — 땅·물 피해 25% 경감 */
+    res: { earth: 0.75, water: 0.75 },
   },
   priest: {
     name: "사제",
@@ -186,6 +199,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     color: 0x4a4458, accent: 0xd8cba0,
     masters: ["spirit", "LD"],
     experts: ["shield"],
+    /* 영혼의 인도자 — 어둠 피해 20% 경감 */
+    res: { dark: 0.8 },
   },
   monk: {
     name: "몽크",
@@ -196,5 +211,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     color: 0x54302e, accent: 0xd8a531,
     masters: ["spirit", "martial", "unarmed", "dodge"],
     experts: ["LD"],
+    /* 무념의 정신 — 영혼 피해 30% 경감 */
+    res: { spirit: 0.7 },
   },
 };

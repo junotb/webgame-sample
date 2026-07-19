@@ -330,7 +330,7 @@ export function createScene(): SceneHandle {
       attrs: { ...d.attrs },
     }));
     newGame(configs);
-    /* 서장(헤르만의 편지) → 크로스베일 분수 앞에서 시작 (장로 카엘이 곁에) */
+    /* 크로스베일 분수 앞을 먼저 연 뒤, 서장 대화 오버레이를 띄운다. */
     G.flags.intro = true;
     fullFlash(0x000000, 600, () => nav.prologue());
   }

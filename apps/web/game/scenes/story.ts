@@ -5,28 +5,22 @@
  * ===================================================================== */
 import { SceneHandle, nav } from "../core";
 import { G } from "../state";
-import { EventNode, eventScene } from "./event";
+import { EventNode, eventOverlay, eventScene } from "./event";
 
-/* ---- 서장: 헤르만의 편지 (캐릭터 생성 직후) ---- */
+/* ---- 서장: 헤르만의 편지 (크로스베일 도착 후 대화 오버레이) ---- */
 export function prologueEvent(): SceneHandle {
   const nodes: EventNode[] = [
     {
-      name: "대스승 헤르만", portrait: "elder",
-      text: "제자들아. 늙은 스승의 마지막 심부름이다 — 이 편지를 에버모어 성의 연방 군주에게 전하거라. 세 성과 두 숲의 운명이 여기 담겨 있느니라.",
+      text: "오랜 훈련을 마치고, 마침내 세상으로 나왔다.",
     },
     {
-      name: "에런", portrait: "hero",
-      text: "…걱정 마세요, 스승님. 가장 가까운 마을, 크로스베일까지는 저희가 이미 길을 압니다.",
+      text: "첫 임무는 대스승 헤르만의 편지를 에버모어 왕성에 전달하는 일이다.",
     },
     {
-      name: "리엔", portrait: "hero",
-      text: "크로스베일에서 역마차를 타면 에버모어 성은 지척이라죠. 다만… 계곡 할로우베일 밑으로 뒤엉킨 옛길이 심상찮다는 소문이에요.",
-    },
-    {
-      text: "— 넷은 스승의 편지를 품고 길을 나섰다. 밤이 깊을 무렵, 마침내 관문 마을 크로스베일의 불빛이 눈에 들어왔다.",
+      text: "에버모어로 가는 길은 크로스베일의 마굿간에서 시작된다. 마굿간을 통해 이동하자.",
     },
   ];
-  return eventScene(nodes, () => nav.town("fountain"), { caption: "서장 — 대스승의 편지", bgColor: 0x0e0c1c });
+  return eventOverlay(nodes);
 }
 
 /* ---- 편지 전달: 에버모어 성 알현실 ---- */

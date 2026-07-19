@@ -44,9 +44,10 @@ export const evermoreMap: GridMap = parseMap([...EVERMORE_ROWS]);
 /* ---- 진입 지점 ----
  *  carriage: 크로스베일에서 역마차로 도착 — 남단 마차 광장(북향)
  *  throne: 알현실 편지 전달 이벤트 후 복귀 — 알현실 문 앞(북향) */
-export const EVERMORE_STARTS: Record<"carriage" | "throne", TownSpawnPos> = {
+export const EVERMORE_STARTS: Record<"carriage" | "throne" | "gate", TownSpawnPos> = {
   carriage: { x: 13, y: 20, facing: 0 },
   throne: { x: 13, y: 6, facing: 0 },
+  gate: { x: 1, y: 20, facing: 1 },
 };
 
 export const EVERMORE_FACILITIES: TownFacilityDef[] = [
@@ -73,4 +74,4 @@ export const EVERMORE_DECOS: TownDecoDef[] = [
 ];
 
 /** 에버모어 성에는 던전으로 나가는 성문이 없다 */
-export const EVERMORE_GATES: { x: number; y: number }[] = [];
+export const EVERMORE_GATES: import("./townmap").TownGateDef[] = [];

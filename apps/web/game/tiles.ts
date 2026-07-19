@@ -21,6 +21,15 @@ const SHEET_SRC = {
   wallCracks: "/assets/tiles/decorative_wall_cracks.png",
   floorCracks: "/assets/tiles/decorative_floor_cracks.png",
   brazier: "/assets/tiles/fx_fire_brazier_animation.png",
+  tree1: "/assets/tiles/props_tree_01.png",
+  tree2: "/assets/tiles/props_tree_02.png",
+  tree3: "/assets/tiles/props_tree_03.png",
+  tree4: "/assets/tiles/props_tree_04.png",
+  bush1: "/assets/tiles/props_bush_01.png",
+  bush2: "/assets/tiles/props_bush_02.png",
+  flower1: "/assets/tiles/props_flower_01.png",
+  flower2: "/assets/tiles/props_flower_02.png",
+  mushroom1: "/assets/tiles/props_mushroom_01.png",
 } as const;
 type SheetName = keyof typeof SHEET_SRC;
 
@@ -46,10 +55,20 @@ const FRAMES = {
   water: { s: "water", x: 96, y: 432, w: 16, h: 16 },
   /* ---- 오브젝트 (빌보드, 발밑 기준으로 쓰려면 anchor(0.5,1)) ---- */
   door_obj: { s: "doorAnim", x: 128, y: 32, w: 32, h: 32 },      // 열린 아치 — 던전 통로
-  door_closed_obj: { s: "doorAnim", x: 0, y: 32, w: 32, h: 32 }, // 닫힌 목문 — 마을 시설 입구
+  door_closed_obj: { s: "doorAnim", x: 0, y: 96, w: 32, h: 32 }, // 닫힌 목문 — 마을 시설 입구 (바닥까지 닿는 목문 프레임)
   chest_obj: { s: "doorAnim", x: 0, y: 128, w: 32, h: 32 },
   barrel_obj: { s: "props", x: 96, y: 64, w: 16, h: 32 },
   crate_obj: { s: "props", x: 256, y: 0, w: 32, h: 32 },
+  /* ---- 목가적 마을·필드 자연물 (개별 PNG 원본 크기) ---- */
+  tree_01: { s: "tree1", x: 0, y: 0, w: 96, h: 112 },
+  tree_02: { s: "tree2", x: 0, y: 0, w: 96, h: 112 },
+  tree_03: { s: "tree3", x: 0, y: 0, w: 96, h: 112 },
+  tree_04: { s: "tree4", x: 0, y: 0, w: 96, h: 112 },
+  bush_01: { s: "bush1", x: 0, y: 0, w: 32, h: 32 },
+  bush_02: { s: "bush2", x: 0, y: 0, w: 32, h: 32 },
+  flower_01: { s: "flower1", x: 0, y: 0, w: 16, h: 16 },
+  flower_02: { s: "flower2", x: 0, y: 0, w: 16, h: 16 },
+  mushroom_01: { s: "mushroom1", x: 0, y: 0, w: 16, h: 16 },
 } as const satisfies Record<string, FrameDef>;
 export type TileName = keyof typeof FRAMES;
 

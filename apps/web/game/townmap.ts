@@ -12,6 +12,7 @@
  * ===================================================================== */
 import { ClassId, SkillId } from "./defs";
 import { Facing, GridMap, parseMap } from "./grid";
+import type { FieldId } from "./fieldmaps";
 
 export const TOWN_ROWS = [
   "############################",
@@ -34,9 +35,9 @@ export const TOWN_ROWS = [
   "#.#####+............+#####.#",
   "#.######............######.#",
   "#..........................#",
-  "#...................##+###.#",
-  "#...................+#####.#",
-  "#...................######.#",
+  "#...............##+#.##+##.#",
+  "#...............####.#####.#",
+  "#...............####.#####.#",
   "############################",
 ] as const;
 
@@ -46,17 +47,20 @@ export const townMap: GridMap = parseMap([...TOWN_ROWS]);
  *  fountain: 프롤로그 직후 — 중앙 분수 앞(북향, 분수와 장로 카엘이 시야에)
  *  gate: 던전 귀환·전멸 복귀 — 남문 안쪽(북향)
  *  carriage: 에버모어 성에서 역마차로 귀환 — 남동 마굿간 앞(북향) */
-export type TownSpawn = "fountain" | "gate" | "carriage" | "throne";
+export type TownSpawn = "fountain" | "gate" | "carriage" | "throne" | "westGate" | "eastGate";
 export interface TownSpawnPos { x: number; y: number; facing: Facing }
-export const TOWN_STARTS: Record<"fountain" | "gate" | "carriage", TownSpawnPos> = {
+export const TOWN_STARTS: Record<"fountain" | "gate" | "carriage" | "westGate" | "eastGate", TownSpawnPos> = {
   fountain: { x: 13, y: 11, facing: 0 },
   gate: { x: 13, y: 21, facing: 0 },
-  carriage: { x: 18, y: 21, facing: 0 },
+  carriage: { x: 18, y: 19, facing: 0 },
+  westGate: { x: 2, y: 14, facing: 1 },
+  eastGate: { x: 25, y: 14, facing: 3 },
 };
 
 /* ---- 시설 (문 칸 기준 — 정면/문 위에서 [Z]) ----
  *  trains: 이 건물에서 구매(수련) 가능한 기술
  *  classes: 이 건물에서 상담 가능한 전직 트리
+ *  quests: 이 시설에서 수주·보고하는 의뢰
  *  title: 시설 오버레이 제목(생략 시 name) */
 export type TownFacilityId =
   | "temple" | "spiritGuild" | "elementsGuild" | "bountyGuild"
@@ -72,6 +76,8 @@ export interface TownFacilityDef {
   y: number;
   trains?: SkillId[];
   classes?: ClassId[];
+  /** 이 시설에서 수주·보고하는 의뢰 id */
+  quests?: string[];
 }
 
 export const TOWN_FACILITIES: TownFacilityDef[] = [
@@ -98,8 +104,9 @@ export const TOWN_FACILITIES: TownFacilityDef[] = [
     trains: ["armor", "dodge", "shield"],
     classes: ["spellsword", "paladin", "ranger"],
   },
-  { id: "inn", name: "여관 '잿불'", x: 22, y: 20 },
-  { id: "stable", name: "마굿간", x: 20, y: 21 },
+  /* 남동쪽 길가의 독립 건물 — 가운데 한 칸은 두 시설을 가르는 골목이다. */
+  { id: "inn", name: "여관 '잿불'", x: 23, y: 20, quests: ["s2"] },
+  { id: "stable", name: "마굿간", x: 18, y: 20 },
 ];
 
 /** 기술 수련 비용 (모든 건물 공통) */
@@ -107,11 +114,13 @@ export const SKILL_PRICE = 250;
 
 /* ---- 장식 POI — 기능 없음, 조사 시 정취 텍스트. 칸을 점유(차단)한다 ---- */
 export interface TownDecoDef {
-  id: "fountain" | "well" | "barrel" | "crate" | "statue";
+  id: "fountain" | "well" | "barrel" | "crate" | "statue" | "tree" | "bush" | "flower" | "mushroom";
   name: string;
   x: number;
   y: number;
   text: string;
+  /** 나무·덤불만 통행을 막고, 꽃·버섯은 지나갈 수 있다. */
+  blocking?: boolean;
 }
 export const TOWN_DECOS: TownDecoDef[] = [
   {
@@ -130,10 +139,28 @@ export const TOWN_DECOS: TownDecoDef[] = [
     id: "crate", name: "짐짝", x: 19, y: 11,
     text: "무기점으로 들일 강철 자재. 못이 단단히 박혀 있어 열리지 않는다.",
   },
+  { id: "tree", name: "느릅나무", x: 3, y: 5, text: "마을의 오래된 느릅나무. 잎 사이로 햇빛이 부서진다.", blocking: true },
+  { id: "tree", name: "물푸레나무", x: 24, y: 5, text: "물푸레나무 가지에 작은 새가 내려앉았다.", blocking: true },
+  { id: "tree", name: "정원수", x: 3, y: 15, text: "누군가 정성껏 다듬은 정원수다.", blocking: true },
+  { id: "tree", name: "사과나무", x: 24, y: 15, text: "사과나무에 아직 덜 익은 열매가 달려 있다.", blocking: true },
+  { id: "bush", name: "덤불", x: 6, y: 5, text: "연둣빛 덤불에서 풀 냄새가 난다.", blocking: true },
+  { id: "bush", name: "덤불", x: 22, y: 15, text: "연둣빛 덤불에서 풀 냄새가 난다.", blocking: true },
+  { id: "flower", name: "들꽃", x: 11, y: 9, text: "분수 곁 들꽃이 바람에 흔들린다." },
+  { id: "flower", name: "들꽃", x: 16, y: 11, text: "분수 곁 들꽃이 바람에 흔들린다." },
+  { id: "mushroom", name: "버섯", x: 5, y: 20, text: "비 온 뒤 돌틈에서 고개를 내민 버섯이다." },
 ];
 
-/* ---- 남문 (밟고 [Z] → 할로우베일 계곡) ---- */
-export const TOWN_GATES: { x: number; y: number }[] = [
-  { x: 13, y: 22 },
-  { x: 14, y: 22 },
+/* ---- 마을 외곽길 (밟고 [Z] → 주변 필드) ---- */
+export interface TownGateDef {
+  id: "west" | "south" | "east";
+  x: number;
+  y: number;
+  label: string;
+  prompt: string;
+  target: FieldId;
+}
+export const TOWN_GATES: TownGateDef[] = [
+  { id: "west", x: 1, y: 14, label: "서문 — 잊힌 사원의 길", prompt: "[Z] 서쪽으로 — 잊힌 사원", target: "ruinedTemple" },
+  { id: "south", x: 13, y: 22, label: "남문 — 고블린 계곡길", prompt: "[Z] 남쪽으로 — 고블린 계곡길", target: "goblinValley" },
+  { id: "east", x: 26, y: 14, label: "동문 — 헤르만의 은둔림", prompt: "[Z] 동쪽으로 — 헤르만의 숲", target: "hermanForest" },
 ];

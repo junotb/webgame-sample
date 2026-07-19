@@ -71,7 +71,6 @@ export const QUESTS: QuestDef[] = [
     id: "s2", kind: "side", name: "옛길의 망령",
     desc: "심부의 냉기 망령이 계곡 옛길을 위협한다. 넷이면 충분히 조용해질 것이다.",
     requires: { level: 2 },
-    giver: "martha",
     objectives: [{ id: "kill_skel", type: "kill", target: "skeleton", count: 4, desc: "냉기 망령 처치" }],
     rewards: { gold: 150, exp: 60 },
   },

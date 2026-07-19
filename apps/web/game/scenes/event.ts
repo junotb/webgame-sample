@@ -3,7 +3,7 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  C, H, SceneHandle, W, button, linear, panel, sceneRoot, setModeBadge, tween, txt,
+  C, H, SceneHandle, W, button, linear, overlayRoot, panel, sceneRoot, setModeBadge, tween, txt,
 } from "../core";
 
 export interface EventChoice {
@@ -19,22 +19,74 @@ export interface EventNode {
   choices?: EventChoice[];
   run?: () => void;
 }
-export interface EventOpts { caption?: string; bgColor?: number; }
+export interface EventOpts {
+  caption?: string;
+  bgColor?: number;
+  /** 사전 로드된 이벤트 일러스트. 지정하면 오버레이가 일러스트 팝업으로 표시된다. */
+  illustration?: PIXI.Texture;
+}
 
+/** 화면을 전환하는 스토리 이벤트. */
 export function eventScene(nodes: EventNode[], onEnd?: () => void, opts: EventOpts = {}): SceneHandle {
   setModeBadge("이벤트 모드", C.arcane);
+  return createEvent(nodes, onEnd, opts, false);
+}
+
+/**
+ * 현재 씬을 유지한 채 이벤트를 최상단에 표시한다.
+ * 일러스트가 있으면 어두운 배경 위에 일러스트 팝업을, 없으면 대화창만 표시한다.
+ */
+export function eventOverlay(nodes: EventNode[], onEnd?: () => void, opts: EventOpts = {}): SceneHandle {
+  return createEvent(nodes, onEnd, opts, true);
+}
+
+function createEvent(
+  nodes: EventNode[], onEnd: (() => void) | undefined, opts: EventOpts, overlay: boolean,
+): SceneHandle {
   const root = new PIXI.Container();
-  sceneRoot.addChild(root);
+  if (overlay) {
+    root.zIndex = 75;
+    overlayRoot.addChild(root);
+  } else sceneRoot.addChild(root);
 
-  const bg = new PIXI.Graphics();
-  bg.rect(0, 0, W, H).fill(opts.bgColor ?? C.night);
-  for (let i = 0; i < 6; i++) bg.circle(W / 2, H / 2, 120 + i * 70);
-  bg.stroke({ width: 1, color: C.border, alpha: 0.12 });
-  root.addChild(bg);
+  const hasIllustration = overlay && !!opts.illustration;
 
-  if (opts.caption) {
+  let advance: () => void = () => {};
+  if (overlay) {
+    if (hasIllustration) {
+      const dim = new PIXI.Graphics();
+      dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.68 });
+      root.addChild(dim);
+
+      const artFrame = panel(760, 330, { fill: 0x100d1d, alpha: 0.98 });
+      artFrame.x = (W - artFrame.width) / 2; artFrame.y = 54; root.addChild(artFrame);
+      const art = new PIXI.Sprite(opts.illustration!);
+      const maxW = artFrame.width - 24, maxH = artFrame.height - 24;
+      const scale = Math.min(maxW / art.texture.width, maxH / art.texture.height);
+      art.scale.set(scale); art.anchor.set(0.5);
+      art.x = artFrame.x + artFrame.width / 2; art.y = artFrame.y + artFrame.height / 2;
+      root.addChild(art);
+    }
+
+    // 빈 영역의 클릭도 이벤트 입력으로 소비해 탐험 조작이 뒤로 전달되지 않게 한다.
+    const inputBlocker = new PIXI.Graphics();
+    inputBlocker.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0 });
+    inputBlocker.eventMode = "static";
+    inputBlocker.on("pointertap", () => advance());
+    root.addChild(inputBlocker);
+  } else {
+    const bg = new PIXI.Graphics();
+    bg.rect(0, 0, W, H).fill(opts.bgColor ?? C.night);
+    for (let i = 0; i < 6; i++) bg.circle(W / 2, H / 2, 120 + i * 70);
+    bg.stroke({ width: 1, color: C.border, alpha: 0.12 });
+    bg.eventMode = "static";
+    bg.on("pointertap", () => advance());
+    root.addChild(bg);
+  }
+
+  if (opts.caption && (!overlay || hasIllustration)) {
     const cap = txt(opts.caption, 30, C.border, { serif: true, align: "center" });
-    cap.anchor.set(0.5, 0); cap.x = W / 2; cap.y = 110; root.addChild(cap);
+    cap.anchor.set(0.5, 0); cap.x = W / 2; cap.y = hasIllustration ? 66 : 110; root.addChild(cap);
   }
 
   const bp = panel(W - 160, 200, { alpha: 0.97 }); bp.x = 80; bp.y = H - 236; root.addChild(bp);
@@ -85,7 +137,7 @@ export function eventScene(nodes: EventNode[], onEnd?: () => void, opts: EventOp
     n.run?.();
     nameT.text = n.name ?? ""; nameTag.visible = !!n.name;
     bodyT.text = "";
-    drawPortrait(n.portrait);
+    drawPortrait(overlay && !hasIllustration ? undefined : n.portrait);
     if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
     busy = true;
     let ci = 0;
@@ -119,19 +171,38 @@ export function eventScene(nodes: EventNode[], onEnd?: () => void, opts: EventOp
       tween(nextHint, { y: H - 64 }, 400, { ease: linear, onDone: () => { if (!nextHint.destroyed) nextHint.y = H - 70; } });
     }
   }
-  function advance(): void {
+  advance = (): void => {
     if (busy) return;
     const n = nodes[idx];
     if (n.choices?.length) return;
     show(idx + 1);
-  }
-  bg.eventMode = "static"; bg.on("pointertap", advance);
+  };
   bp.eventMode = "static"; bp.on("pointertap", advance);
 
-  function finish(): void { onEnd?.(); }
+  /* 오버레이가 열린 동안에는 기반 씬의 단축키까지 막는다. */
+  const onOverlayKey = overlay ? (e: KeyboardEvent) => {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (e.key === " " || e.key === "Enter") advance();
+  } : null;
+  if (onOverlayKey) window.addEventListener("keydown", onOverlayKey, true);
+
+  let finished = false;
+  function dispose(): void {
+    if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
+    if (onOverlayKey) window.removeEventListener("keydown", onOverlayKey, true);
+    clearChoices();
+    if (!root.destroyed) root.destroy({ children: true });
+  }
+  function finish(): void {
+    if (finished) return;
+    finished = true;
+    dispose();
+    onEnd?.();
+  }
   show(0);
   return {
     onKey: (k) => { if (k === " " || k === "Enter") advance(); },
-    dispose: () => { if (typeTimer) { clearInterval(typeTimer); typeTimer = null; } },
+    dispose,
   };
 }

@@ -15,8 +15,12 @@ function mkMember(id: string, over: Partial<Member> = {}): Member {
     bonusSkills: [],
     level: 1, exp: 0,
     hp: 100, mp: 50, maxHp: 100, maxMp: 50,
-    weapon: { name: "", atk: 0 },
-    armor: { name: "", def: 0 },
+    equip: {
+      mainHand: { name: "검", atk: 0, wtype: "slash", reach: "melee" },
+      body: { name: "", def: 0 },
+    },
+    back: false,
+    apUnspent: 0, spUnspent: 0, trained: {},
     ...over,
   };
 }
@@ -42,10 +46,10 @@ const hits = (evs: BattleEvent[]) => evs.filter((e) => e.t === "hit");
 describe("BattleEngine", () => {
   it("도발 — 내성 실패 시 적의 단일 공격이 시전자에게 강제된다", () => {
     const A = mkMember("a"), B = mkMember("b");
-    /* rng 순서: [명중 nat12, 편차, 치명, 내성 nat3(실패→도발 적중)]
+    /* rng 순서: [편차, 치명, 내성 nat3(실패→도발 적중)]  (기술은 명중 굴림 제외 — 자동 명중)
      *           [적 명중 nat11, 편차] — 도발로 대상 강제라 선택 rng 없음 */
     const engine = new BattleEngine([A, B], ["goblin"], {
-      rng: seq(nat(12), 0.5, 0.5, nat(3), nat(11), 0.5),
+      rng: seq(0.5, 0.5, nat(3), nat(11), 0.5),
     });
 
     let ts = engine.next();
@@ -65,9 +69,9 @@ describe("BattleEngine", () => {
 
   it("내성 성공 — 도발을 저항하면 save 이벤트만 나고 상태이상은 붙지 않는다", () => {
     const A = mkMember("a"), B = mkMember("b");
-    /* [명중 nat12, 편차, 치명, 내성 nat11(성공→저항)] */
+    /* [편차, 치명, 내성 nat11(성공→저항)]  (기술은 자동 명중) */
     const engine = new BattleEngine([A, B], ["goblin"], {
-      rng: seq(nat(12), 0.5, 0.5, nat(11)),
+      rng: seq(0.5, 0.5, nat(11)),
     });
     engine.next();
     const res = engine.act({ type: "ability", ability: ab("provoke", 1), target: "enemy:0" });
@@ -138,15 +142,19 @@ describe("BattleEngine", () => {
 
   it("마법 봉인 — 보스의 광역(마법) 공격이 다음 턴에만 막힌다", () => {
     const A = mkMember("a"), B = mkMember("b");
-    /* rng 순서:
-     *  뇌진탕: [명중 nat12, 편차, 치명, 내성 nat3(실패→봉인 적중)]
-     *  보스 1턴(봉인): [대상선택→A, 명중 nat11, 편차]  (봉인이라 광역판정 없음)
-     *  보스 2턴(해제): [광역 0.2(<0.35), A명중 2d20, A편차, B명중 2d20, B편차] */
+    /* rng 순서 (기술은 자동 명중, lord는 명중 시 공포 부여 chance 0.99로 항상 실패시켜 rng 1개만 소모):
+     *  뇌진탕: [편차, 치명, 내성 nat3(실패→봉인 적중)]
+     *  보스 1턴(봉인): [대상선택→A, 명중 nat11, 편차, 공포 chance 0.99(실패)]  (봉인이라 광역판정 없음)
+     *  보스 2턴(해제): [광역 0.2(<0.35),
+     *                   A(방어 중 불리 2d20 0.9·0.9, 편차, 공포 0.99),
+     *                   B(방어 중 불리 2d20 0.9·0.9, 편차, 공포 0.99)] */
     const engine = new BattleEngine([A, B], ["lord"], {
       rng: seq(
-        nat(12), 0.5, 0.5, nat(3),
-        nat(1), nat(11), 0.5,
-        0.2, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+        0.5, 0.5, nat(3),
+        nat(1), nat(11), 0.5, 0.99,
+        0.2,
+        0.9, 0.9, 0.5, 0.99,
+        0.9, 0.9, 0.5, 0.99,
       ),
     });
 
@@ -214,5 +222,102 @@ describe("BattleEngine", () => {
     expect(ENEMY_DEFS.goblin.def).toBe(2);
     expect(ENEMY_DEFS.orc.def).toBe(9);
     expect(ENEMY_DEFS.lord.tier).toBe("보스");
+  });
+
+  it("중독 — 부여 후 대상의 턴 시작에 지속 피해가 들어간다", () => {
+    const A = mkMember("a");
+    /* 맹독(자동 명중): [편차, 치명, 내성 nat3(실패→중독)] · 이후 고블린 턴 진행분 */
+    const engine = new BattleEngine([A], ["goblin"], {
+      rng: seq(0.5, 0.5, nat(3), 0.5, nat(11), 0.5),
+    });
+    engine.next();
+    engine.act({ type: "ability", ability: ab("venom", 1), target: "enemy:0" });
+    expect(engine.enemies[0].statuses.some((s) => s.id === "poison")).toBe(true);
+
+    const ts = engine.next(); // 고블린 턴 시작 — 중독 발동
+    const tick = ts.events.find((e) => e.t === "tick");
+    expect(tick).toMatchObject({ status: "poison", amount: 6, unit: "enemy:0" });
+  });
+
+  it("수면 — 대상은 턴을 건너뛰고, 피해를 받으면 깨어난다", () => {
+    const A = mkMember("a");
+    /* 잠재우기(자동 명중): [편차, 치명, 내성 nat3(실패)] · 기본공격(명중 굴림): [nat12, 편차, 치명] */
+    const engine = new BattleEngine([A], ["goblin"], {
+      rng: seq(0.5, 0.5, nat(3), nat(12), 0.5, 0.5),
+    });
+    engine.next();
+    engine.act({ type: "ability", ability: ab("sleephex", 2), target: "enemy:0" });
+    expect(engine.enemies[0].statuses.some((s) => s.id === "sleep")).toBe(true);
+
+    const ts = engine.next(); // 고블린 턴 — 수면으로 건너뜀
+    expect(ts.events.some((e) => e.t === "incap" && e.status === "sleep")).toBe(true);
+    expect(ts.kind).toBe("player"); // 다시 A의 턴
+
+    const res = engine.act({ type: "ability", ability: BASIC_ATTACK, target: "enemy:0" });
+    expect(res.events.some((e) => e.t === "status" && e.status === "sleep" && !e.on)).toBe(true);
+    expect(engine.enemies[0].statuses.some((s) => s.id === "sleep")).toBe(false);
+  });
+
+  it("마비 — 턴을 건너뛰되 피해로는 풀리지 않는다", () => {
+    const A = mkMember("a");
+    const engine = new BattleEngine([A], ["goblin"], {
+      rng: seq(0.5, 0.5, nat(3), nat(12), 0.5, 0.5),
+    });
+    engine.next();
+    engine.act({ type: "ability", ability: ab("holdperson", 2), target: "enemy:0" });
+    expect(engine.enemies[0].statuses.some((s) => s.id === "paralyze")).toBe(true);
+
+    const ts = engine.next();
+    expect(ts.events.some((e) => e.t === "incap" && e.status === "paralyze")).toBe(true);
+
+    engine.act({ type: "ability", ability: BASIC_ATTACK, target: "enemy:0" });
+    expect(engine.enemies[0].statuses.some((s) => s.id === "paralyze")).toBe(true); // 여전히 마비
+  });
+
+  it("공포 — 공포에 걸린 적은 불리하게 굴려 빗나간다", () => {
+    const A = mkMember("a");
+    /* 공포(자동 명중): [편차, 치명, 내성 nat3(실패)]
+     * 고블린 턴: [대상선택 0.5→A, 불리 2d20 = 0.9(19)·0.05(1) → 자연1 자동 빗나감] */
+    const engine = new BattleEngine([A], ["goblin"], {
+      rng: seq(0.5, 0.5, nat(3), 0.5, 0.9, 0.05),
+    });
+    engine.next();
+    engine.act({ type: "ability", ability: ab("terror", 2), target: "enemy:0" });
+    expect(engine.enemies[0].statuses.some((s) => s.id === "fear")).toBe(true);
+
+    const ts = engine.next(); // 고블린 공격 — 공포로 불리 → 빗나감
+    expect(ts.events.some((e) => e.t === "miss" && e.unit === "enemy:0")).toBe(true);
+  });
+
+  it("적의 상태이상 부여 — 명중 시 확률로 아군을 중독시킨다 (슬라임)", () => {
+    const A = mkMember("a");
+    /* A 기본공격: [nat12, 편차, 치명]
+     * 슬라임 턴: [대상 0.5→A, 명중 nat12, 편차, 중독 chance 0.1(<0.3), 내성 nat3(실패)] */
+    const engine = new BattleEngine([A], ["slime"], {
+      rng: seq(nat(12), 0.5, 0.5, 0.5, nat(12), 0.5, 0.1, nat(3)),
+    });
+    engine.next();
+    engine.act({ type: "ability", ability: BASIC_ATTACK, target: "enemy:0" });
+
+    const ts = engine.next(); // 슬라임 공격 → 산성 점액으로 중독
+    expect(ts.events.some((e) => e.t === "status" && e.status === "poison" && e.target === "ally:a" && e.on)).toBe(true);
+    const AA = engine.allies[0];
+    expect(AA.statuses.some((s) => s.id === "poison")).toBe(true);
+  });
+
+  it("기술·마법은 명중 굴림에서 제외 — 자동 명중 (기본 공격만 빗나간다)", () => {
+    /* 기본 공격: 자연1 → 자동 빗나감 */
+    const eng1 = new BattleEngine([mkMember("a")], ["orc"], { rng: seq(nat(1)) });
+    eng1.next();
+    const r1 = eng1.act({ type: "ability", ability: BASIC_ATTACK, target: "enemy:0" });
+    expect(r1.events.some((e) => e.t === "miss")).toBe(true);
+    expect(hits(r1.events)).toHaveLength(0);
+
+    /* 화염구: 같은 자연1이라도 기술·마법은 명중 굴림을 하지 않아 반드시 명중 */
+    const eng2 = new BattleEngine([mkMember("a")], ["orc"], { rng: seq(nat(1), 0.5, 0.5) });
+    eng2.next();
+    const r2 = eng2.act({ type: "ability", ability: ab("fireball", 1), target: "enemy:0" });
+    expect(hits(r2.events).length).toBeGreaterThan(0);
+    expect(r2.events.some((e) => e.t === "miss")).toBe(false);
   });
 });

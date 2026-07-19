@@ -33,6 +33,10 @@ export interface FPTheme {
   ceiling: TileName;
   water: TileName;
   stairs: SurfacePick;
+  /** 테마별 색조. 지정하지 않으면 원본 타일 색을 유지한다. */
+  floorTint?: number;
+  wallTint?: number;
+  ceilingTint?: number;
 }
 
 /** 기본 테마 — 할로우베일 계곡 지하미궁 (dungeon.ts의 결정적 변형 함수 사용) */
@@ -56,11 +60,6 @@ const NEAR = 0.28;       // 최소 근접 거리 (카메라 칸 클리핑)
 const FLAME_MS = 110;    // 횃불 프레임 간격
 
 const fog = (dist: number) => Math.max(0.16, Math.min(1, 1.16 - 0.23 * dist));
-const gray = (b: number) => {
-  const v = Math.round(255 * b);
-  return (v << 16) | (v << 8) | v;
-};
-
 /** 원근 투영: (거리, 횡 오프셋) → 화면 x / 벽 상·하단 y */
 const px = (dist: number, lat: number) => CX + (FOCAL * lat) / dist;
 const topY = (dist: number) => CY - (FOCAL * 0.5) / dist;
@@ -82,6 +81,13 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
   let glows: { g: PIXI.Graphics; phase: number }[] = [];
   let flames: { sp: PIXI.Sprite; phase: number }[] = [];
   let glowT = 0;
+
+  const shade = (color: number, amount: number): number => {
+    const r = Math.round(((color >> 16) & 0xff) * amount);
+    const g = Math.round(((color >> 8) & 0xff) * amount);
+    const b = Math.round((color & 0xff) * amount);
+    return (r << 16) | (g << 8) | b;
+  };
 
   function quad(tex: PIXI.Texture, c: number[], tint: number): PIXI.PerspectiveMesh {
     const m = new PIXI.PerspectiveMesh({
@@ -129,13 +135,13 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
           px(far, j + 0.5), botY(far),
           px(near, j + 0.5), botY(near),
           px(near, j - 0.5), botY(near),
-        ], gray(cFog));
+        ], shade(theme.floorTint ?? 0xffffff, cFog));
         quad(tileTex(theme.ceiling), [
           px(near, j - 0.5), topY(near),
           px(near, j + 0.5), topY(near),
           px(far, j + 0.5), topY(far),
           px(far, j - 0.5), topY(far),
-        ], gray(cFog * 0.45));
+        ], shade(theme.ceilingTint ?? theme.floorTint ?? 0xffffff, cFog * 0.45));
       }
 
       /* --- 측면 벽 (복도 중심을 향한 면, 바깥쪽부터) --- */
@@ -147,7 +153,7 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
           if (cellAt(map, inner.mx, inner.my) === "wall") continue; // 면이 벽에 붙어 안 보임
           const lat = j - Math.sign(j) * 0.5;
           const wp = theme.wallAt(mx, my);
-          const sFog = gray(fog((near + far) / 2) * 0.88);
+          const sFog = shade(theme.wallTint ?? 0xffffff, fog((near + far) / 2) * 0.88);
           const nT = topY(near), nB = botY(near), fT = topY(far), fB = botY(far);
           const xN = px(near, lat), xF = px(far, lat);
           surfQuad(wp, j > 0
@@ -167,7 +173,7 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
           const wp = theme.wallAt(mx, my);
           const xL = px(face, j - 0.5), xR = px(face, j + 0.5);
           const yT = topY(face), yB = botY(face);
-          const tint = gray(fog(face));
+          const tint = shade(theme.wallTint ?? 0xffffff, fog(face));
           const mkFace = (name: TileName) => {
             const s = new PIXI.Sprite(tileTex(name));
             s.x = xL; s.y = yT;

@@ -2,7 +2,7 @@
  * townmap.test.ts — 마을 맵 데이터 정합성 검증 (크로스베일 · 에버모어)
  * ===================================================================== */
 import { describe, expect, it } from "vitest";
-import { NPCS } from "../defs";
+import { NPCS, QUESTS } from "../defs";
 import { cellAt, passable } from "../grid";
 import { TOWNS, TownData, TownId } from "../towns";
 
@@ -34,6 +34,14 @@ describe.each(townIds)("마을 맵 규칙 — %s", (id) => {
       const approach = DIRS.some(([dx, dy]) =>
         cellAt(t.map, f.x + dx, f.y + dy) === "floor");
       expect(approach, `${f.id}: 문 앞 접근 칸 없음`).toBe(true);
+    }
+  });
+
+  it("시설 의뢰는 실재하며 NPC 의뢰와 중복되지 않는다", () => {
+    for (const f of t.facilities) for (const qid of f.quests ?? []) {
+      const quest = QUESTS.find((q) => q.id === qid);
+      expect(quest, `${f.name}: 없는 의뢰 ${qid}`).toBeTruthy();
+      expect(quest?.giver, `${f.name}: ${qid}은 NPC 의뢰와 중복`).toBeUndefined();
     }
   });
 

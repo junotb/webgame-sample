@@ -6,7 +6,7 @@
 import { GridMap } from "./grid";
 import {
   TOWN_DECOS, TOWN_FACILITIES, TOWN_GATES, TOWN_STARTS,
-  TownDecoDef, TownFacilityDef, TownSpawn, TownSpawnPos, townMap,
+  TownDecoDef, TownFacilityDef, TownGateDef, TownSpawn, TownSpawnPos, townMap,
 } from "./townmap";
 import {
   EVERMORE_DECOS, EVERMORE_FACILITIES, EVERMORE_GATES, EVERMORE_STARTS, evermoreMap,
@@ -24,13 +24,7 @@ export interface TownData {
   starts: Partial<Record<TownSpawn, TownSpawnPos>>;
   facilities: TownFacilityDef[];
   decos: TownDecoDef[];
-  gates: { x: number; y: number }[];
-  /** 성문 목적지 — "explore"면 [Z]로 던전 진입 (없으면 성문 없음) */
-  gateTo?: "explore";
-  /** 성문 간판 라벨 */
-  gateLabel?: string;
-  /** 성문 위 프롬프트 */
-  gatePrompt?: string;
+  gates: TownGateDef[];
 }
 
 export const TOWNS: Record<TownId, TownData> = {
@@ -43,9 +37,6 @@ export const TOWNS: Record<TownId, TownData> = {
     facilities: TOWN_FACILITIES,
     decos: TOWN_DECOS,
     gates: TOWN_GATES,
-    gateTo: "explore",
-    gateLabel: "성문 — 할로우베일 계곡",
-    gatePrompt: "[Z] 성문 밖으로 — 할로우베일 계곡",
   },
   evermore: {
     id: "evermore",

@@ -3,11 +3,14 @@
  * 백엔드 도입 시 이 모듈이 API 계약의 기준.
  * ===================================================================== */
 export * from "./skills";
+export * from "./damage";
+export * from "./equip";
 export * from "./attrs";
 export * from "./classes";
 export * from "./abilities";
 export * from "./enemies";
 export * from "./shop";
+export * from "./loot";
 export * from "./quests";
 export * from "./npcs";
 export * from "./party";

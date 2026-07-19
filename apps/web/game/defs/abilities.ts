@@ -3,6 +3,7 @@
  * ===================================================================== */
 
 import { AttrId } from "./attrs";
+import { DamageType } from "./damage";
 import { Rank, SkillId } from "./skills";
 
 export interface AbilityDef {
@@ -14,6 +15,9 @@ export interface AbilityDef {
   pow: number;
   hits: number;
   kind: "phys" | "mag" | "heal";
+  /** 데미지 타입 명시 — 원소 주문의 세부 속성(불/바람/땅/물)에 필수.
+   *  생략 시: 물리는 장착 무기 계열, 영혼/빛/어둠은 스킬 계열이 타입이 된다. */
+  dtype?: DamageType;
   all?: boolean;
   pierce?: boolean;
   crit?: number;
@@ -24,6 +28,16 @@ export interface AbilityDef {
   defDown?: number;
   /** 적중된 적은 다음 턴 마법을 실행할 수 없다 */
   silence?: boolean;
+  /** 중독 — 매 턴 시작마다 (이 값 × rankMult) 고정 피해 */
+  poison?: number;
+  /** 수면 — 행동 불가, 피해 시 해제 */
+  sleep?: boolean;
+  /** 마비 — 행동 불가 (피해로 안 풀림) */
+  paralyze?: boolean;
+  /** 공포 — 대상의 공격이 불리하게 굴려진다 */
+  fear?: boolean;
+  /** 제어(수면/마비/공포/중독)의 지속 턴 수 — 생략 시 상태별 기본값 */
+  ctrlTurns?: number;
   /** 제어 효과(도발/봉인 등)에 내성 굴림을 허용 — 대상이 저항하면 효과 무효.
    *  값은 방어자가 굴리는 능력치(향후 아군 대상 디버프에도 사용). */
   save?: AttrId;
@@ -122,6 +136,7 @@ export const ABILITIES: AbilityDef[] = [
     pow: 1.6,
     hits: 1,
     kind: "mag",
+    dtype: "fire",
     desc: "불꽃의 구체",
   },
   {
@@ -134,6 +149,7 @@ export const ABILITIES: AbilityDef[] = [
     hits: 1,
     all: true,
     kind: "mag",
+    dtype: "wind",
     desc: "적 전체에 번개",
   },
   {
@@ -146,6 +162,7 @@ export const ABILITIES: AbilityDef[] = [
     hits: 1,
     all: true,
     kind: "mag",
+    dtype: "earth",
     desc: "하늘이 무너진다 (전체)",
   },
   {
@@ -203,6 +220,77 @@ export const ABILITIES: AbilityDef[] = [
     kind: "mag",
     drain: 0.5,
     desc: "피해의 절반을 흡수",
+  },
+  /* ---- 상태이상 부여 (수면·중독·마비·공포) ---- */
+  {
+    id: "sleephex",
+    skill: "spirit",
+    min: 2,
+    name: "잠재우기",
+    mp: 7,
+    pow: 0.2,
+    hits: 1,
+    kind: "mag",
+    sleep: true,
+    save: "wit",
+    ctrlTurns: 3,
+    desc: "적을 잠재운다 — 피해를 받으면 깨어남 (정신 내성)",
+  },
+  {
+    id: "venom",
+    skill: "dark",
+    min: 1,
+    name: "맹독",
+    mp: 6,
+    pow: 0.8,
+    hits: 1,
+    kind: "mag",
+    poison: 6,
+    save: "vital",
+    ctrlTurns: 3,
+    desc: "독을 퍼뜨려 매 턴 고정 피해 (체력 내성)",
+  },
+  {
+    id: "holdperson",
+    skill: "light",
+    min: 2,
+    name: "성스러운 속박",
+    mp: 9,
+    pow: 0.3,
+    hits: 1,
+    kind: "mag",
+    paralyze: true,
+    save: "vital",
+    ctrlTurns: 2,
+    desc: "빛으로 적을 옭아매 마비시킨다 (체력 내성)",
+  },
+  {
+    id: "terror",
+    skill: "dark",
+    min: 2,
+    name: "공포",
+    mp: 8,
+    pow: 0.5,
+    hits: 1,
+    kind: "mag",
+    fear: true,
+    save: "wit",
+    ctrlTurns: 3,
+    desc: "적을 공포에 빠뜨려 공격을 불리하게 만든다 (정신 내성)",
+  },
+  {
+    id: "poisonblade",
+    skill: "thrown",
+    min: 1,
+    name: "독날",
+    mp: 4,
+    pow: 1.0,
+    hits: 1,
+    kind: "phys",
+    poison: 5,
+    save: "vital",
+    ctrlTurns: 3,
+    desc: "독 묻은 칼날 — 적을 중독시킨다 (체력 내성)",
   },
 ];
 

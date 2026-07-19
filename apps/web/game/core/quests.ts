@@ -4,7 +4,9 @@
  * 메인은 자동 수주(체인), 서브/반복은 길드에서 수주, 보상은 길드 보고 시.
  * ===================================================================== */
 import { QUESTS, QuestDef, QuestObjectiveDef } from "../defs";
-import { G, QuestProgress, gainExpParty, partyLevel } from "../state";
+import { QuestProgress, gainExpParty, gameStore, partyLevel } from "../state";
+
+const game = () => gameStore.get();
 
 /** 씬이 보고하는 게임 이벤트 */
 export type GameEvent =
@@ -39,13 +41,13 @@ function requirementsMet(q: QuestDef): boolean {
   const r = q.requires;
   if (!r) return true;
   if (r.level && partyLevel() < r.level) return false;
-  if (r.quests && !r.quests.every((id) => G.quests[id]?.status === "rewarded")) return false;
+  if (r.quests && !r.quests.every((id) => game().quests[id]?.status === "rewarded")) return false;
   return true;
 }
 
 export function questStatus(id: string): QuestStatus {
   const q = questDef(id);
-  const p = G.quests[id];
+  const p = game().quests[id];
   if (p) {
     /* 반복 퀘스트는 보고 후 다시 수주 가능 상태로 보인다 */
     if (p.status === "rewarded" && q.kind === "repeat") return "available";
@@ -57,15 +59,15 @@ export function questStatus(id: string): QuestStatus {
 /** 길드 게시판용 목록 (메인 자동 수주 동기화 포함) */
 export function questList(): { def: QuestDef; status: QuestStatus; progress?: QuestProgress }[] {
   syncMainQuests();
-  return QUESTS.map((def) => ({ def, status: questStatus(def.id), progress: G.quests[def.id] }));
+  return QUESTS.map((def) => ({ def, status: questStatus(def.id), progress: game().quests[def.id] }));
 }
 
 /** clear형 목표는 수주 시점의 defeated 플래그를 소급 인정 (메인 체인 잠김 방지) */
 function retroCredit(q: QuestDef, p: QuestProgress): void {
   for (const o of q.objectives) {
     if (o.type !== "clear") continue;
-    const sym = o.target as keyof typeof G.explore.defeated;
-    if (G.explore.defeated[sym]) p.counts[o.id] = o.count;
+    const sym = o.target as keyof ReturnType<typeof game>["explore"]["defeated"];
+    if (game().explore.defeated[sym]) p.counts[o.id] = o.count;
   }
   if (objectiveMet(q, p)) p.status = "done";
 }
@@ -73,14 +75,14 @@ function retroCredit(q: QuestDef, p: QuestProgress): void {
 export function acceptQuest(id: string): boolean {
   const q = questDef(id);
   if (questStatus(id) !== "available") return false;
-  const prev = G.quests[id];
+  const prev = game().quests[id];
   const p: QuestProgress = {
     status: "active",
     counts: {},
     times: prev?.times ?? 0, // 반복 재수주 시 완료 횟수 유지
   };
   retroCredit(q, p);
-  G.quests[id] = p;
+  game().quests[id] = p;
   return true;
 }
 
@@ -88,11 +90,11 @@ export function acceptQuest(id: string): boolean {
 export function syncMainQuests(): QuestDef[] {
   const added: QuestDef[] = [];
   for (const q of QUESTS) {
-    if (q.kind !== "main" || G.quests[q.id]) continue;
+    if (q.kind !== "main" || game().quests[q.id]) continue;
     if (!requirementsMet(q)) continue;
     const p: QuestProgress = { status: "active", counts: {}, times: 0 };
     retroCredit(q, p);
-    G.quests[q.id] = p;
+    game().quests[q.id] = p;
     added.push(q);
   }
   return added;
@@ -103,7 +105,7 @@ export function questNotify(ev: GameEvent): QuestUpdate[] {
   syncMainQuests();
   const updates: QuestUpdate[] = [];
   for (const q of QUESTS) {
-    const p = G.quests[q.id];
+    const p = game().quests[q.id];
     if (!p || p.status !== "active") continue;
     for (const o of q.objectives) {
       const cur = p.counts[o.id] ?? 0;
@@ -126,13 +128,13 @@ export function questNotify(ev: GameEvent): QuestUpdate[] {
 /** 길드 보고 — 보상 지급. 레벨업한 멤버 이름을 함께 반환 */
 export function reportQuest(id: string): { gold: number; exp: number; items: string[]; ups: string[] } | null {
   const q = questDef(id);
-  const p = G.quests[id];
+  const p = game().quests[id];
   if (!p || p.status !== "done") return null;
   const r = q.rewards;
   const itemNames: string[] = [];
-  if (r.gold) G.gold += r.gold;
+  if (r.gold) game().gold += r.gold;
   for (const it of r.items ?? []) {
-    G.items[it.id] += it.n;
+    game().items[it.id] += it.n;
     itemNames.push(`${it.id === "potion" ? "치유 물약" : "마나 물약"} ×${it.n}`);
   }
   const ups = r.exp ? gainExpParty(r.exp) : [];
@@ -147,7 +149,7 @@ export function trackerLines(max = 3): { text: string; done: boolean }[] {
   syncMainQuests();
   const out: { text: string; done: boolean }[] = [];
   for (const q of QUESTS) {
-    const p = G.quests[q.id];
+    const p = game().quests[q.id];
     if (!p || (p.status !== "active" && p.status !== "done")) continue;
     if (p.status === "done") {
       out.push({ text: `${q.name} — 완료! 길드에 보고`, done: true });

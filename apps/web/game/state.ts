@@ -8,6 +8,7 @@ import {
   rollDrop,
 } from "./defs";
 import { abilityMod } from "./core/dice";
+import { Store } from "./core/store";
 import { StatusInstance } from "./core/statuses";
 import { NORMAL_SPAWNS, START, SYMBOL_SPAWNS, dungeonMap } from "./dungeon";
 import { TownId } from "./towns";
@@ -95,14 +96,28 @@ export interface GameState {
   _fled?: boolean;
 }
 
+const stateStore = new Store<GameState>();
+
+/** 기존 장면 호환용 live binding. 새 도메인 코드는 gameStore 경계를 사용한다. */
 export let G: GameState = null as unknown as GameState;
+export const gameStore = {
+  get: (): GameState => stateStore.get(),
+  transaction: <R>(change: (state: GameState) => R): R => stateStore.transaction(change),
+  subscribe: (listener: (state: Readonly<GameState>) => void): (() => void) => stateStore.subscribe(listener),
+};
+
+/** 세이브 로드처럼 상태 전체를 교체하는 유일한 진입점. */
+export function replaceGameState(next: GameState): void {
+  G = next;
+  stateStore.replace(next);
+}
 
 export function maxHpOf(attrs: Attrs): number { return 40 + attrs.vital * 3; }
 export function maxMpOf(attrs: Attrs): number { return 4 + attrs.int + attrs.wit; }
 
 /** 캐릭터 생성 화면에서 완성된 구성으로만 시작한다 (슬롯당 1개 필수) */
 export function newGame(configs: CreationConfig[]): void {
-  G = {
+  replaceGameState({
     party: PARTY_SLOTS.map((s, i) => {
       const cfg = configs.find((c) => c.slotId === s.id);
       if (!cfg) throw new Error(`newGame: missing CreationConfig for slot "${s.id}"`);
@@ -142,7 +157,7 @@ export function newGame(configs: CreationConfig[]): void {
     },
     flags: { intro: false, ending: false, letter: false },
     quests: {},
-  };
+  });
 }
 
 /** 파티 최고 레벨 — 퀘스트 수주 조건 판정용 */

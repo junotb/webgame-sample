@@ -2,6 +2,7 @@
  * core.ts — PIXI 셋업, 씬 매니저, 트윈, 공용 UI 헬퍼, nav 라우터
  * ===================================================================== */
 import * as PIXI from "pixi.js";
+import { TweenQueue } from "./core/tween-queue";
 import type { FieldId } from "./fieldmaps";
 import type { TownSpawn } from "./townmap";
 
@@ -32,14 +33,11 @@ export interface SceneHandle {
   dispose?: () => void;
 }
 let currentScene: SceneHandle | null = null;
-let sceneEpoch = 0;
 
 export function switchScene(builder: () => SceneHandle): void {
   if (currentScene?.dispose) currentScene.dispose();
   /* 이전 씬이 예약한 wait/tween 콜백을 제거해 전환 후 실행되지 않게 한다. */
-  sceneEpoch++;
-  for (let i = tweens.length - 1; i >= 0; i--)
-    if (!tweens[i].global) tweens.splice(i, 1);
+  tweenQueue.cancelSceneTweens();
   sceneRoot.removeChildren().forEach((c) => c.destroy({ children: true }));
   currentScene = builder();
 }
@@ -103,12 +101,7 @@ export function detachInput(): void {
 }
 
 /* ---- 트윈 ---- */
-interface Tween {
-  obj: object; from: Record<string, number>; to: Record<string, number>;
-  dur: number; t: number; ease: (t: number) => number; onDone?: () => void;
-  epoch: number; global: boolean;
-}
-const tweens: Tween[] = [];
+const tweenQueue = new TweenQueue();
 export const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 export const linear = (t: number) => t;
 
@@ -117,9 +110,9 @@ export function tween<T extends object>(obj: T, to: Record<string, number>, dur:
   const values = obj as unknown as Record<string, number>;
   const from: Record<string, number> = {};
   for (const k in to) from[k] = values[k];
-  tweens.push({
-    obj, from, to, dur, t: 0, ease: opts.ease ?? easeOut, onDone: opts.onDone,
-    epoch: sceneEpoch, global: opts.global ?? false,
+  tweenQueue.add({
+    obj, from, to, dur, ease: opts.ease ?? easeOut, onDone: opts.onDone,
+    global: opts.global ?? false,
   });
 }
 export function wait(ms: number, fn: () => void): void {
@@ -137,17 +130,7 @@ export function waitP(ms: number): Promise<void> {
   return new Promise((res) => wait(ms, res));
 }
 function tickTweens(): void {
-  const dt = app.ticker.deltaMS;
-  for (let i = tweens.length - 1; i >= 0; i--) {
-    const tw = tweens[i];
-    if ((tw.obj as { destroyed?: boolean }).destroyed) { tweens.splice(i, 1); continue; }
-    tw.t += dt;
-    const p = Math.min(1, tw.t / tw.dur);
-    const e = tw.ease(p);
-    const values = tw.obj as unknown as Record<string, number>;
-    for (const k in tw.to) values[k] = tw.from[k] + (tw.to[k] - tw.from[k]) * e;
-    if (p >= 1) { tweens.splice(i, 1); tw.onDone?.(); }
-  }
+  tweenQueue.tick(app.ticker.deltaMS);
 }
 
 /* ---- UI 헬퍼 ---- */
@@ -267,7 +250,7 @@ export async function initPixi(el: HTMLElement, fonts: { displayFont: string; bo
 export function destroyPixi(): void {
   if (currentScene?.dispose) currentScene.dispose();
   currentScene = null;
-  tweens.length = 0;
+  tweenQueue.clear();
   modeBadge = null;
   ui.menuOpen = false;
   detachInput();

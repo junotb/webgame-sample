@@ -3,7 +3,7 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  ATTRS, ATTR_IDS, CLASSES, EquipSlot, RANK_NAME, SLOT_META, SKILLS, SkillId,
+  ATTRS, ATTR_IDS, CLASSES, EquipSlot, MAGIC_TRADITIONS, RANK_NAME, SLOT_META, SKILLS, SkillId,
 } from "./defs";
 import { portraitTexture } from "./portraits";
 import {
@@ -161,15 +161,22 @@ export function openStatusMenu(onClose?: () => void): void {
     const sTitle = txt("— 스킬 숙련 —", 16, C.border, { weight: "700" });
     sTitle.x = bx + 28; sTitle.y = by + 320; detail.addChild(sTitle);
     let cy = by + 350;
-    for (const cat of ["물리", "방어", "마법", "보조"]) {
-      const line = (Object.keys(SKILLS) as SkillId[])
-        .filter((k) => SKILLS[k].cat === cat)
+    const groups: { label: string; skills: SkillId[] }[] = [
+      { label: "물리", skills: (Object.keys(SKILLS) as SkillId[]).filter((k) => SKILLS[k].cat === "물리") },
+      { label: "방어", skills: (Object.keys(SKILLS) as SkillId[]).filter((k) => SKILLS[k].cat === "방어") },
+      { label: "원소", skills: MAGIC_TRADITIONS.elemental.schools },
+      { label: "자아", skills: MAGIC_TRADITIONS.self.schools },
+      { label: "신성", skills: MAGIC_TRADITIONS.divine.schools },
+      { label: "보조", skills: (Object.keys(SKILLS) as SkillId[]).filter((k) => SKILLS[k].cat === "보조") },
+    ];
+    for (const group of groups) {
+      const line = group.skills
         .map((k) => {
           const rk = r[k] ?? 0;
           return rk ? `${SKILLS[k].name} [${RANK_NAME[rk]}]` : null;
         })
         .filter(Boolean).join("   ");
-      const lt = txt(`${cat} │ ${line || "—"}`, 14, line ? C.text : C.dim, { wrap: 800 });
+      const lt = txt(`${group.label} │ ${line || "—"}`, 14, line ? C.text : C.dim, { wrap: 800 });
       lt.x = bx + 28; lt.y = cy; detail.addChild(lt);
       cy += Math.max(26, lt.height + 8);
     }

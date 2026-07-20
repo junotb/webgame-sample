@@ -3,8 +3,8 @@
  * ===================================================================== */
 import { describe, expect, it } from "vitest";
 import {
-  ABILITIES, CLASSES, DAMAGE_META, DAMAGE_TYPES, DamageType, ENEMY_DEFS,
-  Rank, attackDamageType, enemyMelee, resistBand, resistMult,
+  ABILITIES, CLASSES, DAMAGE_META, DAMAGE_TYPES, DamageType, ENEMY_DEFS, MAGIC_TRADITIONS,
+  Rank, attackDamageType, attackDamageTypes, enemyMelee, resistBand, resistMult,
 } from "../defs";
 import { BattleAbility, Member, attackReach, memberResist, memberStats } from "../state";
 import { BASIC_ATTACK, BattleEngine, BattleEvent } from "../core/battle-engine";
@@ -65,18 +65,29 @@ describe("attackDamageType", () => {
     expect(attackDamageType(ab("slam", 2), "bludgeon")).toBe("bludgeon");
   });
   it("명시 dtype이 최우선 — 원소 세부 속성", () => {
-    expect(attackDamageType(ab("fireball", 1), "slash")).toBe("fire");
+    expect(attackDamageType(ab("fireball", 2), "slash")).toBe("fire");
     expect(attackDamageType(ab("chainlt", 2), "slash")).toBe("wind");
     expect(attackDamageType(ab("meteor", 3), "slash")).toBe("earth");
   });
-  it("dtype 없는 마법은 스킬 계열이 타입 (영혼/빛/어둠)", () => {
+  it("학파 마법은 피해 타입으로 해석된다", () => {
     expect(attackDamageType(ab("psyshock", 1), "slash")).toBe("spirit");
     expect(attackDamageType(ab("holy", 1), "slash")).toBe("light");
     expect(attackDamageType(ab("shadow", 1), "slash")).toBe("dark");
   });
+  it("메테오는 땅 60% + 불 40% 복합 피해", () => {
+    expect(attackDamageTypes(ab("meteor", 3), "slash")).toEqual([
+      { type: "earth", ratio: 0.6 },
+      { type: "fire", ratio: 0.4 },
+    ]);
+  });
 });
 
 describe("데이터 무결성", () => {
+  it("마법은 원소·자아·신성 3계통 9학파로 구성된다", () => {
+    expect(MAGIC_TRADITIONS.elemental.schools).toEqual(["fire", "water", "earth", "wind"]);
+    expect(MAGIC_TRADITIONS.self.schools).toEqual(["spirit", "mind", "body"]);
+    expect(MAGIC_TRADITIONS.divine.schools).toEqual(["light", "dark"]);
+  });
   it("모든 데미지 타입에 메타(이름/색)가 있다", () => {
     for (const t of DAMAGE_TYPES) {
       expect(DAMAGE_META[t]).toBeDefined();
@@ -90,12 +101,13 @@ describe("데이터 무결성", () => {
       expect(DAMAGE_TYPES).toContain(dt);
     }
   });
-  it("모든 원소 어빌리티는 세부 속성 dtype을 명시한다", () => {
+  it("모든 원소 공격 어빌리티는 해당 원소 또는 유효한 복합 피해를 쓴다", () => {
     const elemental: DamageType[] = ["earth", "fire", "wind", "water"];
     for (const a of ABILITIES) {
-      if (a.skill === "elemental") {
-        expect(a.dtype).toBeDefined();
-        expect(elemental).toContain(a.dtype!);
+      if (elemental.includes(a.skill as DamageType) && a.target !== "ally" && a.kind !== "heal") {
+        const components = attackDamageTypes(a, "slash");
+        expect(components.length).toBeGreaterThan(0);
+        for (const component of components) expect(elemental).toContain(component.type);
       }
     }
   });
@@ -109,12 +121,12 @@ describe("데이터 무결성", () => {
 });
 
 describe("전투 내 저항 적용", () => {
-  /* 오크(집게버섯): 불 ×2.0 약점, 물 ×0.5 저항. def 9 */
+  /* 슬라임: 불 약점 */
   it("약점(불) 공격은 배율만큼 피해가 늘고 resist:weak를 낸다", () => {
     const caster = mkMember({ attrs: { might: 10, int: 20, wit: 10, vital: 10, agi: 12, fortune: 0 } });
-    const engine = new BattleEngine([caster], ["orc"], { rng: seqRng() });
+    const engine = new BattleEngine([caster], ["slime"], { rng: seqRng() });
     engine.next();
-    const res = engine.act({ type: "ability", ability: ab("fireball", 1), target: "enemy:0" });
+    const res = engine.act({ type: "ability", ability: ab("fireball", 2), target: "enemy:0" });
     const h = hits(res.events)[0];
     expect(h && h.t === "hit" && h.resist).toBe("weak");
     expect(res.events.some((e) => e.t === "log" && e.text.includes("약점"))).toBe(true);
@@ -160,7 +172,7 @@ describe("전열/후열 — 사거리(attackReach)와 적 근접 판정(enemyMel
     expect(attackReach(BASIC_ATTACK, bow)).toBe("ranged");
   });
   it("마법·회복은 항상 원거리(시야)", () => {
-    expect(attackReach(ab("fireball", 1), melee)).toBe("ranged");
+    expect(attackReach(ab("fireball", 2), melee)).toBe("ranged");
     expect(attackReach(ab("heal", 1), melee)).toBe("ranged");
   });
   it("물리 스킬은 활·투척만 원거리, 그 외 근접", () => {

@@ -61,12 +61,12 @@ describe("스킬 훈련 — spendSkillPoint / trainableNext", () => {
   beforeEach(() => boot());
   it("훈련 랭크가 memberRanks에 반영된다 (없던 스킬 0→1)", () => {
     const m = M(); m.spUnspent = 5;
-    expect(memberRanks(m).elemental ?? 0).toBe(0);
-    const nxt = trainableNext(m, "elemental");
+    expect(memberRanks(m).fire ?? 0).toBe(0);
+    const nxt = trainableNext(m, "fire");
     expect(nxt).toEqual({ next: 1, cost: 1 });
-    expect(spendSkillPoint(m, "elemental")).toBe(true);
+    expect(spendSkillPoint(m, "fire")).toBe(true);
     expect(m.spUnspent).toBe(4);
-    expect(memberRanks(m).elemental).toBe(1);
+    expect(memberRanks(m).fire).toBe(1);
   });
   it("전문가(2)가 상한 — 그 이상은 훈련 불가 (달인은 클래스 전용)", () => {
     const m = M(); m.spUnspent = 10;
@@ -78,17 +78,17 @@ describe("스킬 훈련 — spendSkillPoint / trainableNext", () => {
     expect(m.spUnspent).toBe(10 - 1 - 2);
   });
   it("클래스가 이미 전문가 이상으로 주는 스킬은 훈련 불가", () => {
-    boot("scholar"); // 스콜라: 원소1·영혼1 (전문가 미만)
+    boot("scholar"); // 스콜라: 불1·육체1 (전문가 미만)
     const m = M(); m.spUnspent = 5;
-    // 스콜라는 elemental rank1 → 전문가(2)로 훈련 가능
-    expect(trainableNext(m, "elemental")).toEqual({ next: 2, cost: 2 });
+    // 스콜라는 불 rank1 → 전문가(2)로 훈련 가능
+    expect(trainableNext(m, "fire")).toEqual({ next: 2, cost: 2 });
     // 파이터 기준 armor는 rank1 → 훈련 가능하지만, 여기선 스콜라라 armor 0
     expect(trainableNext(m, "blade")).toEqual({ next: 1, cost: 1 });
   });
   it("포인트가 부족하면 실패", () => {
     const m = M(); m.spUnspent = 1;
-    expect(spendSkillPoint(m, "elemental")).toBe(true); // 0→1 비용1
-    expect(spendSkillPoint(m, "elemental")).toBe(false); // 1→2 비용2, 잔여 0
-    expect(memberRanks(m).elemental).toBe(1);
+    expect(spendSkillPoint(m, "fire")).toBe(true); // 0→1 비용1
+    expect(spendSkillPoint(m, "fire")).toBe(false); // 1→2 비용2, 잔여 0
+    expect(memberRanks(m).fire).toBe(1);
   });
 });

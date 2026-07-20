@@ -83,6 +83,20 @@ export const MONSTER_ICONS: MonsterIconDef[] = [
 ];
 
 export type Tier = "일반" | "정예" | "보스" | "에픽";
+export type CreatureTag =
+  | "living"
+  | "humanoid"
+  | "beast"
+  | "plant"
+  | "ooze"
+  | "undead"
+  | "construct"
+  | "spirit"
+  | "elemental"
+  | "aquatic"
+  | "flying"
+  | "mindless"
+  | "summoned";
 /** 단일 프레임 몬스터에 적용하는 코드 기반 움직임 유형 */
 export type MonsterMotion = "slime" | "flying" | "plant" | "beast" | "ghost" | "humanoid";
 export interface EnemyDef {
@@ -94,6 +108,8 @@ export interface EnemyDef {
   exp: number;
   gold: number;
   tier: Tier;
+  /** 종족·형태 태그 — 특효와 상태 면역의 예측 가능한 근거 */
+  tags: CreatureTag[];
   /** 이미지 없을 때의 절차적 그리기 폴백 */
   shape: "slime" | "goblin" | "wolf" | "skel" | "orc" | "lord" | "ancient";
   /** 프레임 시트 없이 몸체 변형으로 표현하는 기본 모션 */
@@ -114,6 +130,18 @@ export interface EnemyDef {
   atkType?: DamageType;
   /** 명중 시 확률로 아군에게 거는 상태이상 */
   inflict?: EnemyInflict;
+  /** 태그에서 파생되지 않는 개별 상태 면역 */
+  statusImmune?: BattleStatusId[];
+}
+
+/** 종족 태그 기반 공통 상태 면역. 개별 정의가 있으면 합산한다. */
+export function enemyStatusImmune(d: EnemyDef, status: BattleStatusId): boolean {
+  if (d.statusImmune?.includes(status)) return true;
+  if (d.tags.includes("mindless") && (status === "sleep" || status === "fear" || status === "taunt")) return true;
+  if ((d.tags.includes("undead") || d.tags.includes("construct") || d.tags.includes("ooze"))
+    && (status === "poison" || status === "bleed")) return true;
+  if (d.tags.includes("spirit") && (status === "poison" || status === "bleed" || status === "bind")) return true;
+  return false;
 }
 
 /* ---- D&D식 판정 파생치 (tier가 성장 없는 적의 bounded accuracy를 담당) ---- */
@@ -152,12 +180,13 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     exp: 16,
     gold: 10,
     tier: "일반",
+    tags: ["living", "ooze"],
     shape: "slime",
     motion: "slime",
     img: "Glareslime",
     color: 0x6ea86a,
     /* 물렁한 몸 — 날붙이·찌르기는 흘리고, 둔기와 불에 약하다 */
-    res: { slash: 0.5, pierce: 0.5, bludgeon: 1.5, fire: 1.5 },
+    res: { slash: 0.6, pierce: 0.5, bludgeon: 1.4, fire: 1.25, earth: 0.8 },
     atkType: "bludgeon", // 몸통 박치기
     inflict: { status: "poison", chance: 0.3, save: "vital", turns: 3, power: 4 }, // 산성 점액
   },
@@ -170,12 +199,13 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     exp: 22,
     gold: 16,
     tier: "일반",
+    tags: ["living", "humanoid"],
     shape: "goblin",
     motion: "humanoid",
     img: "Goblinfighter",
     color: 0x6f8a3c,
-    /* 동굴살이 — 불에 겁먹고, 어둠엔 익숙하다 */
-    res: { fire: 1.25, dark: 0.75 },
+    /* 금속 방패를 든 동굴 전사 — 전격에 약하고 어둠에 익숙하다 */
+    res: { wind: 1.25, dark: 0.85 },
     atkType: "slash", // 이 빠진 칼과 방패
   },
   wolf: {
@@ -187,12 +217,13 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     exp: 30,
     gold: 20,
     tier: "일반",
+    tags: ["living", "beast", "humanoid"],
     shape: "wolf",
     motion: "beast",
     img: "Goblinrider",
     color: 0x9a9aa0,
-    /* 사나운 굴늑대 — 찌르기에 약하고, 불길 앞에선 겁을 먹는다 */
-    res: { pierce: 1.5, fire: 1.25 },
+    /* 사나운 굴늑대 — 찌르기에 약하고 지면 충격을 흘린다 */
+    res: { pierce: 1.35, earth: 0.85 },
     atkType: "pierce", // 늑대의 송곳니 돌격
   },
   skeleton: {
@@ -204,12 +235,13 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     exp: 28,
     gold: 22,
     tier: "일반",
+    tags: ["undead", "spirit", "mindless"],
     shape: "skel",
     motion: "ghost",
     img: "Frostwraith",
     color: 0x7fc8dc,
     /* 냉기 언데드 — 뼈는 둔기에 바스러지고 빛·불에 정화된다. 찌르기·냉기·어둠은 무의미 */
-    res: { bludgeon: 1.5, fire: 1.75, light: 1.5, pierce: 0.5, water: 0.25, dark: 0 },
+    res: { bludgeon: 1.5, fire: 1.3, light: 1.65, pierce: 0.5, water: 0.25, dark: 0 },
     atkType: "water", // 냉기의 손길
     inflict: { status: "paralyze", chance: 0.25, save: "vital", turns: 2 }, // 얼어붙는 한기
   },
@@ -222,13 +254,14 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     exp: 150,
     gold: 220,
     tier: "정예",
+    tags: ["living", "humanoid"],
     shape: "orc",
     motion: "humanoid",
     img: "Goblinfanatic",
     color: 0x8a6a3c,
     big: 1.35,
-    /* 광기에 물든 상위 고블린 — 성스러운 빛에 약하고, 어둠 의식에 익숙하다 */
-    res: { light: 1.5, dark: 0.75, fire: 1.25 },
+    /* 광기에 물든 상위 고블린 — 땅·물·빛에 약하고 어둠 의식에 익숙하다 */
+    res: { earth: 1.25, water: 1.2, light: 1.3, dark: 0.8 },
     atkType: "slash", // 제례용 곡도
   },
   lord: {
@@ -240,13 +273,14 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     exp: 450,
     gold: 800,
     tier: "보스",
+    tags: ["living", "humanoid"],
     shape: "lord",
     motion: "humanoid",
     img: "Goblinlord",
     color: 0xc05a7a,
     big: 1.7,
-    /* 요새의 지배자 — 어둠의 주술에 통달했으나, 성스러운 빛 앞에선 움츠러든다 */
-    res: { dark: 0.5, light: 1.5, fire: 1.25, pierce: 0.75 },
+    /* 금속 장비와 어둠의 주술 — 바람·빛에 약하고 어둠과 찌르기를 견딘다 */
+    res: { wind: 1.2, light: 1.4, dark: 0.6, pierce: 0.8 },
     atkType: "dark", // 주술의 저주
     inflict: { status: "fear", chance: 0.3, save: "wit", turns: 2 }, // 소굴을 짓누르는 위압
   },
@@ -259,6 +293,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     exp: 999,
     gold: 2000,
     tier: "에픽",
+    tags: ["spirit", "elemental", "mindless"],
     shape: "ancient",
     motion: "ghost",
     img: "Crystalbloom",
@@ -267,8 +302,8 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     /* 고대 정령 — 물리도 원소도 절반으로 흘려버린다. 영혼과 어둠의 비의만이 그 핵을 흔든다 */
     res: {
       slash: 0.75, pierce: 0.75, bludgeon: 0.75,
-      earth: 0.5, fire: 0.5, wind: 0.5, water: 0.5,
-      spirit: 1.5, dark: 1.5,
+      earth: 0.75, fire: 0.75, wind: 0.75, water: 0.75,
+      spirit: 1.4, dark: 1.25,
     },
     atkType: "spirit", // 정신을 짓누르는 파동
     inflict: { status: "sleep", chance: 0.3, save: "wit", turns: 2 }, // 별의 자장가

@@ -20,7 +20,7 @@ import {
 import { BASIC_ATTACK, BattleEngine, BattleEvent } from "../core/battle-engine";
 import { gameplayRandom } from "../core/random";
 import {
-  STATUS_COLOR, STATUS_NAME, incapacitatedBy,
+  STATUS_COLOR, STATUS_NAME, findStatus, incapacitatedBy,
 } from "../core/statuses";
 import { questNotify, trackerLines, updateText } from "../core/quests";
 import {
@@ -371,7 +371,7 @@ export function goblinFortressScene(): SceneHandle {
     }
   }
 
-  /** 세계 턴마다: 중독 지속 피해 + 상태이상 지속시간 감소 (전투 중에만 호출) */
+  /** 세계 턴마다: 중독·출혈·화상 지속 피해 + 상태이상 지속시간 감소 */
   function statusUpkeep(): void {
     if (!combat) return;
     const events = combat.gridUpkeep();
@@ -379,7 +379,7 @@ export function goblinFortressScene(): SceneHandle {
       if (ev.t === "log") log(ev.text);
       else if (ev.t === "tick") {
         const enemy = E.enemies.find((e) => e.id === ev.unit);
-        if (enemy) combatPresenter.popDamage(enemy, `-${ev.amount}`, STATUS_COLOR.poison ?? 0x8fbf4a);
+        if (enemy) combatPresenter.popDamage(enemy, `-${ev.amount}`, STATUS_COLOR[ev.status] ?? 0x8fbf4a);
       } else if (ev.t === "status" && !ev.on) {
         const enemy = E.enemies.find((e) => e.id === ev.target);
         const member = G.party.find((m) => `ally:${m.id}` === ev.target);
@@ -403,6 +403,11 @@ export function goblinFortressScene(): SceneHandle {
       const incap = incapacitatedBy(e.statuses);
       if (incap) {
         log(`${ENEMY_DEFS[e.defId].name}은(는) ${incap === "sleep" ? "잠들어" : "마비되어"} 움직이지 못한다.`);
+        continue;
+      }
+      if (findStatus(e.statuses, "bind")) {
+        if (chebyshev(E.x, E.y, e.x, e.y) <= 1) enemyAttack(e);
+        else log(`${ENEMY_DEFS[e.defId].name}은(는) 속박되어 움직이지 못한다.`);
         continue;
       }
       const occupied = (x: number, y: number) =>
@@ -529,7 +534,16 @@ export function goblinFortressScene(): SceneHandle {
 
   /** 물리·기본 공격을 사거리에 따라 라우팅 — 근접은 전열+정면 칸, 원거리는 시야 내 대상 */
   function routePhysAttack(m: Member, a: BattleAbility): void {
-    if (attackReach(a, equippedWeapon(m)) === "ranged") {
+    const reach = attackReach(a, equippedWeapon(m));
+    if (a.all) {
+      if (reach === "melee" && m.back) { toast("후열에서는 근접 공격을 할 수 없다.", C.dim); return; }
+      const ts = reach === "ranged"
+        ? magTargets()
+        : aggroList().filter((e) => chebyshev(E.x, E.y, e.x, e.y) <= 1);
+      if (!ts.length) { toast("기술 범위 안에 적이 없다.", C.dim); return; }
+      closeSub(); execAttack(m, a, ts); return;
+    }
+    if (reach === "ranged") {
       const ts = magTargets();
       if (!ts.length) { toast("시야에 닿는 적이 없다.", C.dim); return; }
       closeSub();
@@ -602,9 +616,12 @@ export function goblinFortressScene(): SceneHandle {
     closeSub();
     const abs = memberAbilities(m);
     subRoot = new PIXI.Container(); root.addChild(subRoot);
-    const rows = Math.max(1, abs.length);
-    const p = panel(600, 62 + rows * 48, { alpha: 0.97 });
-    p.x = 240; p.y = H - 96 - (62 + rows * 48); subRoot.addChild(p);
+    const cols = abs.length > 9 ? 2 : 1;
+    const rows = Math.max(1, Math.ceil(abs.length / cols));
+    const panelW = cols === 2 ? 900 : 600;
+    const panelH = 62 + rows * 48;
+    const p = panel(panelW, panelH, { alpha: 0.97 });
+    p.x = 240; p.y = H - 96 - panelH; subRoot.addChild(p);
     const tt = txt(`${m.name}의 스킬 — 물리: 정면 칸 / 마법: 시야 ${MAG_RANGE}칸`, 14, C.border, { weight: "700" });
     tt.x = p.x + 16; tt.y = p.y + 10; subRoot.addChild(tt);
     if (!abs.length) {
@@ -612,20 +629,12 @@ export function goblinFortressScene(): SceneHandle {
       t.x = p.x + 16; t.y = p.y + 42; subRoot.addChild(t);
     }
     abs.forEach((a, i) => {
-      const y = p.y + 40 + i * 48;
-      const b = button(`${a.name} [${RANK_NAME[a.rank]}]`, 210, 38, () => {
+      const col = Math.floor(i / rows);
+      const row = i % rows;
+      const x = p.x + 14 + col * 445;
+      const y = p.y + 40 + row * 48;
+      const b = button(`${a.name} [${RANK_NAME[a.rank]}]`, 180, 38, () => {
         if (m.mp < a.mp) { toast("MP 부족!", C.dim); return; }
-        if (a.kind === "heal") {
-          closeSub();
-          pickMember(`${a.name} — 회복할 아군`, (t2) => {
-            const events = combat?.gridHeal(m.id, a, t2.id) ?? [];
-            const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
-            if (line) log(line.text);
-            hud.redraw();
-            endMemberAction();
-          }, { filter: (t2) => t2.hp > 0, note: (t2) => `HP ${t2.hp}/${t2.maxHp}` });
-          return;
-        }
         if (a.cover) {
           closeSub();
           pickMember(`${a.name} — 보호할 아군`, (t2) => {
@@ -635,6 +644,35 @@ export function goblinFortressScene(): SceneHandle {
             hud.redraw();
             endMemberAction();
           }, { filter: (t2) => t2.hp > 0 && t2.id !== m.id, note: (t2) => `HP ${t2.hp}/${t2.maxHp}` });
+          return;
+        }
+        if (a.target === "self") {
+          closeSub();
+          const events = combat?.gridSupport(m.id, a, m.id) ?? [];
+          const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
+          if (line) log(line.text);
+          hud.redraw();
+          endMemberAction();
+          return;
+        }
+        if (a.target === "ally" || a.kind === "heal") {
+          if (a.allAllies) {
+            closeSub();
+            const events = combat?.gridSupport(m.id, a, m.id) ?? [];
+            const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
+            if (line) log(line.text);
+            hud.redraw();
+            endMemberAction();
+            return;
+          }
+          closeSub();
+          pickMember(`${a.name} — 대상 아군`, (t2) => {
+            const events = combat?.gridSupport(m.id, a, t2.id) ?? [];
+            const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
+            if (line) log(line.text);
+            hud.redraw();
+            endMemberAction();
+          }, { filter: (t2) => a.revive ? t2.hp <= 0 : t2.hp > 0, note: (t2) => `HP ${t2.hp}/${t2.maxHp}` });
           return;
         }
         if (a.kind === "phys") {
@@ -650,13 +688,13 @@ export function goblinFortressScene(): SceneHandle {
         pendingMag = a;
         openTargetMenu(m, ts);
       }, { size: 13 });
-      b.x = p.x + 14; b.y = y; subRoot!.addChild(b);
-      const kindMark = a.kind === "mag" ? "◈마법" : a.kind === "heal" ? "✚회복" : "⚔물리";
+      b.x = x; b.y = y; subRoot!.addChild(b);
+      const kindMark = a.target === "ally" || a.target === "self" ? "✚지원" : a.kind === "mag" ? "◈마법" : a.kind === "heal" ? "✚회복" : "⚔물리";
       const d = txt(`${kindMark} · MP ${a.mp} · ${a.desc}`, 12, C.dim);
-      d.x = p.x + 238; d.y = y + 10; subRoot!.addChild(d);
+      d.x = x + 190; d.y = y + 10; subRoot!.addChild(d);
     });
     const cb = button("닫기", 76, 32, closeSub, { size: 13 });
-    cb.x = p.x + 600 - 90; cb.y = p.y + 8; subRoot.addChild(cb);
+    cb.x = p.x + panelW - 90; cb.y = p.y + 8; subRoot.addChild(cb);
   }
 
   function openTargetMenu(m: Member, ts: GridEnemy[]): void {

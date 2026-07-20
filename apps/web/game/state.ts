@@ -5,7 +5,7 @@ import {
   ABILITIES, AbilityDef, AttrId, ATTR_IDS, Attrs, CLASSES, ClassId, DamageType, ENEMY_DEFS,
   EQUIP_SLOTS, EquipSlot, Equipped, FIELD_SKILLS, FieldSkillDef, FISTS, GearDef, LD, OwnedGear,
   PARTY_SLOTS, RANK_MULT, Rank, RARITY_META, ResistTable, SkillId, Tier, WeaponReach, WeaponView,
-  rollDrop,
+  SKILLS, rollDrop,
 } from "./defs";
 import { abilityMod } from "./core/dice";
 import { Store } from "./core/store";
@@ -400,9 +400,9 @@ export function memberStats(m: Member): Stats {
   };
 }
 
-/** 스킬 계열에 따른 마법 공격 기반치 — 영혼은 지혜, 나머지는 지능 */
+/** 학파 메타데이터에 따른 마법 기반치 — 원소는 지능, 자아·신성은 지혜 */
 export function magicBase(s: Stats, skill: SkillId): number {
-  return skill === "spirit" ? s.magWit : s.magInt;
+  return SKILLS[skill].castingAttr === "wit" ? s.magWit : s.magInt;
 }
 
 /** 공격의 사거리 — 근접(전열·정면 칸 전용) / 원거리(후열에서도 시야 내 공격).

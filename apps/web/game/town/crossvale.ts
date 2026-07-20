@@ -69,8 +69,8 @@ export const CROSSVALE_FACILITIES: TownFacilityDef[] = [
         "발걸음이 많이 무거워 보이네요. 여명의 빛 아래에서는 잠시 긴장을 풀어도 괜찮답니다.",
       ] } },
   {
-    id: "spiritGuild", name: "영혼 길드", x: 7, y: 7,
-    trains: ["spirit"],
+    id: "spiritGuild", name: "자아 길드", x: 7, y: 7,
+    trains: ["spirit", "mind", "body"],
     classes: ["acolyte", "priest", "monk"],
     keeper: { name: "에다", role: "영혼술 교관", portrait: 37,
       greetings: [
@@ -81,7 +81,7 @@ export const CROSSVALE_FACILITIES: TownFacilityDef[] = [
   },
   {
     id: "elementsGuild", name: "원소 길드", x: 20, y: 7,
-    trains: ["elemental"],
+    trains: ["fire", "water", "earth", "wind"],
     classes: ["mage", "archmage", "druid"],
     keeper: { name: "아르벤", role: "원소학 강사", portrait: 8,
       greetings: [

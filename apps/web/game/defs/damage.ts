@@ -81,20 +81,44 @@ export function resistBand(mult: number): ResistBand {
   return "normal";
 }
 
+/** 복합 피해 한 성분. ratio 합계는 정규화되므로 반드시 1일 필요는 없다. */
+export interface DamageComponent {
+  type: DamageType;
+  ratio: number;
+}
+
+export function normalizeDamage(components: DamageComponent[]): DamageComponent[] {
+  const valid = components.filter((c) => c.ratio > 0);
+  const sum = valid.reduce((n, c) => n + c.ratio, 0);
+  return sum > 0 ? valid.map((c) => ({ ...c, ratio: c.ratio / sum })) : [];
+}
+
 /** 공격 1타의 데미지 타입.
  *  - 명시 dtype 우선 (원소 세부 속성은 반드시 여기서 지정)
  *  - 그 외 마법은 스킬 계열(영혼/빛/어둠)이 곧 타입
  *  - 물리는 장착 무기의 계열(weaponType)이 타입 */
 export function attackDamageType(
-  a: { dtype?: DamageType; kind: "phys" | "mag" | "heal"; skill: SkillId },
+  a: { dtype?: DamageType; damage?: DamageComponent[]; kind: "phys" | "mag" | "heal"; skill: SkillId },
   weaponType: WeaponType,
 ): DamageType {
+  if (a.damage?.length) return a.damage[0].type;
   if (a.dtype) return a.dtype;
   if (a.kind === "mag") {
-    if (a.skill === "spirit") return "spirit";
+    if (a.skill === "fire" || a.skill === "water" || a.skill === "earth" || a.skill === "wind") return a.skill;
+    if (a.skill === "spirit" || a.skill === "mind" || a.skill === "body") return "spirit";
     if (a.skill === "light") return "light";
     if (a.skill === "dark") return "dark";
-    return "fire"; // 원소 dtype 누락 방어 (damage.test가 강제)
+    return "spirit";
   }
   return weaponType;
+}
+
+
+/** 공격의 모든 피해 성분. 단일 타입 공격도 길이 1의 배열로 반환한다. */
+export function attackDamageTypes(
+  a: { dtype?: DamageType; damage?: DamageComponent[]; kind: "phys" | "mag" | "heal"; skill: SkillId },
+  weaponType: WeaponType,
+): DamageComponent[] {
+  if (a.damage?.length) return normalizeDamage(a.damage);
+  return [{ type: attackDamageType(a, weaponType), ratio: 1 }];
 }

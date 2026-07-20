@@ -26,4 +26,20 @@ describe("버전 세이브", () => {
     expect(() => parseSave("{")).toThrow("JSON");
     expect(() => parseSave(JSON.stringify({ version: SAVE_VERSION + 1, state: G }))).toThrow("버전");
   });
+
+  it("v1 통합 원소·영혼 숙련을 v2의 9개 학파로 마이그레이션한다", () => {
+    const legacy = JSON.parse(serializeGame());
+    legacy.version = 1;
+    legacy.state.party[0].bonusSkills = ["elemental", "spirit"];
+    legacy.state.party[0].trained = { elemental: 2, spirit: 1 };
+    const parsed = parseSave(JSON.stringify(legacy));
+    expect(parsed.party[0].bonusSkills).toEqual(expect.arrayContaining([
+      "fire", "water", "earth", "wind", "spirit", "mind", "body",
+    ]));
+    expect(parsed.party[0].trained.fire).toBe(2);
+    expect(parsed.party[0].trained.water).toBe(2);
+    expect(parsed.party[0].trained.spirit).toBe(1);
+    expect(parsed.party[0].trained.mind).toBe(1);
+    expect(parsed.party[0].trained.body).toBe(1);
+  });
 });

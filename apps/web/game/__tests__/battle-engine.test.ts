@@ -167,10 +167,10 @@ describe("BattleEngine", () => {
     const engine = new BattleEngine([A], ["goblin"], { rng: flat(0.5) });
 
     engine.next();
-    /* round(10 × 1.3 × 1.55) − 2 + round(20 × 1.2) = 20 − 2 + 24 = 42 */
+    /* round(10 × 1.1 × 1.55) − 2 + round(20 × 0.9) = 17 − 2 + 18 = 33 */
     const res = engine.act({ type: "ability", ability: ab("slam", 2), target: "enemy:0" });
     expect(A.mp).toBe(0);
-    expect(hits(res.events)[0]).toMatchObject({ amount: 42 });
+    expect(hits(res.events)[0]).toMatchObject({ amount: 33 });
   });
 
   it("마법 봉인 — 보스의 광역(마법) 공격이 다음 턴에만 막힌다", () => {
@@ -269,7 +269,7 @@ describe("BattleEngine", () => {
 
     const ts = engine.next(); // 고블린 턴 시작 — 중독 발동
     const tick = ts.events.find((e) => e.t === "tick");
-    expect(tick).toMatchObject({ status: "poison", amount: 6, unit: "enemy:0" });
+    expect(tick).toMatchObject({ status: "poison", amount: 5, unit: "enemy:0" });
   });
 
   it("수면 — 대상은 턴을 건너뛰고, 피해를 받으면 깨어난다", () => {
@@ -349,8 +349,74 @@ describe("BattleEngine", () => {
     /* 화염구: 같은 자연1이라도 기술·마법은 명중 굴림을 하지 않아 반드시 명중 */
     const eng2 = new BattleEngine([mkMember("a")], ["orc"], { rng: seq(nat(1), 0.5, 0.5) });
     eng2.next();
-    const r2 = eng2.act({ type: "ability", ability: ab("fireball", 1), target: "enemy:0" });
+    const r2 = eng2.act({ type: "ability", ability: ab("fireball", 2), target: "enemy:0" });
     expect(hits(r2.events).length).toBeGreaterThan(0);
     expect(r2.events.some((e) => e.t === "miss")).toBe(false);
+  });
+
+  it("출혈·화상 — 서로 독립된 지속 피해로 턴마다 적용된다", () => {
+    const A = mkMember("a");
+    const engine = new BattleEngine([A], ["goblin"], { rng: flat(0) });
+    engine.gridEnter();
+    engine.gridOffense(A.id, ab("doublecut", 1), ["enemy:0"]);
+    engine.gridOffense(A.id, ab("fireball", 2), ["enemy:0"]);
+    expect(engine.enemies[0].statuses.some((s) => s.id === "bleed")).toBe(true);
+    expect(engine.enemies[0].statuses.some((s) => s.id === "burn")).toBe(true);
+
+    const events = engine.gridUpkeep();
+    const dots = events.filter((e) => e.t === "tick");
+    expect(dots.some((e) => e.t === "tick" && e.status === "bleed")).toBe(true);
+    expect(dots.some((e) => e.t === "tick" && e.status === "burn")).toBe(true);
+  });
+
+  it("종족 태그 — 정신 없는 언데드는 독·출혈·공포를 무효화한다", () => {
+    const A = mkMember("a");
+    const engine = new BattleEngine([A], ["skeleton"], { rng: flat(0) });
+    engine.gridEnter();
+    engine.gridOffense(A.id, ab("venom", 1), ["enemy:0"]);
+    engine.gridOffense(A.id, ab("doublecut", 1), ["enemy:0"]);
+    engine.gridOffense(A.id, ab("terror", 2), ["enemy:0"]);
+    const ids = engine.enemies[0].statuses.map((s) => s.id);
+    expect(ids).not.toContain("poison");
+    expect(ids).not.toContain("bleed");
+    expect(ids).not.toContain("fear");
+  });
+
+  it("지원 주문 — 보호막은 HP보다 먼저 피해를 받고 정화는 해로운 상태를 제거한다", () => {
+    const A = mkMember("a");
+    const engine = new BattleEngine([A], ["goblin"], { rng: flat(0.9) });
+    engine.gridEnter();
+    engine.gridSupport(A.id, ab("soulward", 1), A.id);
+    const barrier = engine.allies[0].statuses.find((s) => s.id === "barrier");
+    expect(barrier?.power).toBe(18);
+    engine.gridEnemyAct("enemy:0", [A.id]);
+    expect(A.hp).toBe(A.maxHp);
+    expect(engine.allies[0].statuses.find((s) => s.id === "barrier")?.power).toBeLessThan(18);
+
+    engine.allies[0].statuses.push({ id: "poison", turns: 3, power: 5 }, { id: "fear", turns: 2 });
+    engine.gridSupport(A.id, ab("purify", 1), A.id);
+    expect(engine.allies[0].statuses.some((s) => s.id === "poison" || s.id === "fear")).toBe(false);
+  });
+
+  it("부활 — 쓰러진 아군만 다시 전투에 복귀시킬 수 있다", () => {
+    const A = mkMember("a"), B = mkMember("b", { hp: 0 });
+    const engine = new BattleEngine([A, B], ["goblin"], { rng: flat(0.5) });
+    engine.gridEnter();
+    engine.gridSupport(A.id, ab("resurrection", 3), B.id);
+    expect(B.hp).toBeGreaterThan(0);
+    expect(B.hp).toBeLessThanOrEqual(B.maxHp);
+  });
+
+  it("처형 — 임계 HP 이하의 일반 적을 즉시 쓰러뜨리지만 보스에게는 통하지 않는다", () => {
+    const A = mkMember("a");
+    const normal = new BattleEngine([A], ["goblin"], { rng: flat(0.5) });
+    normal.enemies[0].hp = 8;
+    normal.gridOffense(A.id, ab("execution", 3), ["enemy:0"]);
+    expect(normal.enemies[0].alive).toBe(false);
+
+    const boss = new BattleEngine([mkMember("b")], ["lord"], { rng: flat(0.5) });
+    boss.enemies[0].hp = Math.floor(boss.enemies[0].maxHp * 0.1);
+    boss.gridOffense("b", ab("execution", 3), ["enemy:0"]);
+    expect(boss.enemies[0].alive).toBe(true);
   });
 });

@@ -4,6 +4,8 @@
  * 새 상태이상은 여기에 id·이름·헬퍼를 더하고 각 전투 훅에서 호출한다.
  * ===================================================================== */
 
+import type { ResistTable } from "../defs/damage";
+
 export type BattleStatusId =
   /** 방어 태세 — 받는 피해 감소. 자신의 다음 턴 시작까지 */
   | "guard"
@@ -22,7 +24,21 @@ export type BattleStatusId =
   /** 마비 — 행동 불가. 피해로는 풀리지 않는다 */
   | "paralyze"
   /** 공포 — 자신의 공격이 불리(disadvantage)로 굴려진다 */
-  | "fear";
+  | "fear"
+  /** 출혈/화상 — 자기 턴 시작마다 power 고정 피해 */
+  | "bleed"
+  | "burn"
+  /** 감속/속박 — 행동 순서 감소. 속박은 이동도 막는 그리드 전투 표식 */
+  | "slow"
+  | "bind"
+  /** 전투 버프 */
+  | "atkup"
+  | "defup"
+  | "speedup"
+  /** power만큼 피해를 대신 받는 보호막 */
+  | "barrier"
+  /** res에 기록된 타입별 피해 배율 */
+  | "resistup";
 
 export interface StatusInstance {
   id: BattleStatusId;
@@ -32,6 +48,8 @@ export interface StatusInstance {
   power?: number;
   /** 부여자 UnitId (taunt: 도발자, cover: 대신 맞는 아군) */
   src?: string;
+  /** resistup 전용 타입별 최종 피해 배율 */
+  res?: ResistTable;
 }
 
 export const STATUS_NAME: Record<BattleStatusId, string> = {
@@ -44,6 +62,15 @@ export const STATUS_NAME: Record<BattleStatusId, string> = {
   sleep: "수면",
   paralyze: "마비",
   fear: "공포",
+  bleed: "출혈",
+  burn: "화상",
+  slow: "감속",
+  bind: "속박",
+  atkup: "공격 강화",
+  defup: "방어 강화",
+  speedup: "속도 강화",
+  barrier: "보호막",
+  resistup: "속성 보호",
 };
 
 /** 상태이상 계열 색 (배너·태그용) */
@@ -52,7 +79,25 @@ export const STATUS_COLOR: Partial<Record<BattleStatusId, number>> = {
   sleep: 0x7fa8dc,
   paralyze: 0xe0d24a,
   fear: 0xb46ff0,
+  bleed: 0xd94b5b,
+  burn: 0xff7a3c,
+  slow: 0x72b9df,
+  bind: 0xc9a24a,
+  atkup: 0xf06a55,
+  defup: 0xd9c38c,
+  speedup: 0x8fe0a0,
+  barrier: 0x8fb7ff,
+  resistup: 0xffe08a,
 };
+
+export const HARMFUL_STATUSES: BattleStatusId[] = [
+  "taunt", "defdown", "silence", "poison", "sleep", "paralyze", "fear",
+  "bleed", "burn", "slow", "bind",
+];
+
+export function isHarmfulStatus(id: BattleStatusId): boolean {
+  return HARMFUL_STATUSES.includes(id);
+}
 
 export function findStatus(list: StatusInstance[], id: BattleStatusId): StatusInstance | undefined {
   return list.find((s) => s.id === id);
@@ -76,6 +121,12 @@ export function poisonPower(list: StatusInstance[]): number {
   return findStatus(list, "poison")?.power ?? 0;
 }
 
+export function damageOverTime(list: StatusInstance[]): { id: "poison" | "bleed" | "burn"; power: number }[] {
+  return (["poison", "bleed", "burn"] as const)
+    .map((id) => ({ id, power: findStatus(list, id)?.power ?? 0 }))
+    .filter((dot) => dot.power > 0);
+}
+
 /** 행동 불가 상태면 그 id(sleep/paralyze), 아니면 null */
 export function incapacitatedBy(list: StatusInstance[]): "sleep" | "paralyze" | null {
   if (findStatus(list, "sleep")) return "sleep";
@@ -86,6 +137,32 @@ export function incapacitatedBy(list: StatusInstance[]): "sleep" | "paralyze" | 
 /** 공포 상태 — 공격이 불리하게 굴려진다 */
 export function isFeared(list: StatusInstance[]): boolean {
   return !!findStatus(list, "fear");
+}
+
+export function attackStatusMult(list: StatusInstance[]): number {
+  return 1 + (findStatus(list, "atkup")?.power ?? 0) / 100;
+}
+
+export function defenseStatusBonus(list: StatusInstance[]): number {
+  return findStatus(list, "defup")?.power ?? 0;
+}
+
+export function speedStatusMult(list: StatusInstance[]): number {
+  const up = (findStatus(list, "speedup")?.power ?? 0) / 100;
+  const slow = (findStatus(list, "slow")?.power ?? 0) / 100;
+  const bound = findStatus(list, "bind") ? 0.5 : 1;
+  return Math.max(0.25, (1 + up) * (1 - slow) * bound);
+}
+
+export function statusResist(list: StatusInstance[]): ResistTable | undefined {
+  return findStatus(list, "resistup")?.res;
+}
+
+/** 해로운 상태를 모두 제거하고 제거된 id를 반환한다. */
+export function cleanseStatuses(list: StatusInstance[]): BattleStatusId[] {
+  const removed = list.filter((s) => isHarmfulStatus(s.id)).map((s) => s.id);
+  for (const id of removed) removeStatus(list, id);
+  return removed;
 }
 
 /** 피해를 받았을 때 수면 해제 — 자고 있었으면 true (해제됨) */

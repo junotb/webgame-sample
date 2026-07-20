@@ -2,7 +2,7 @@
  * core/formulas.ts — 데미지/판정 공식 (순수 로직, 전투·필드 공용)
  * 명중은 d20 판정(core/dice), 대미지는 기존 감산식 모델을 유지한다.
  * ===================================================================== */
-import { AbilityDef, DamageType, ResistBand, ResistTable, resistBand, resistMult } from "../defs";
+import { AbilityDef, DamageComponent, DamageType, ResistBand, ResistTable, normalizeDamage, resistBand, resistMult } from "../defs";
 import { Stats, magicBase } from "../state";
 import { rollAttack } from "./dice";
 import { gameplayRandom } from "./random";
@@ -27,8 +27,9 @@ export function rollAllyHit(
   a: AbilityDef,
   opts: {
     mult: number; bless: number; enemyDef: number; defDown?: number; bonus?: number;
+    attackMult?: number; tagMult?: number; currentHpBonus?: number;
     acc: number; targetAC: number; adv?: -1 | 0 | 1;
-    dtype: DamageType; res?: ResistTable;
+    dtype: DamageType; damageTypes?: DamageComponent[]; res?: ResistTable;
   },
   rng: () => number = gameplayRandom,
 ): HitRoll {
@@ -48,17 +49,21 @@ export function rollAllyHit(
   if (!hit) return { hit: false, dmg: 0, crit: false, resist: "normal" };
 
   const base = a.kind === "mag" ? magicBase(s, a.skill) : s.atk;
-  let dmg = Math.round(base * a.pow * opts.mult * opts.bless * (0.9 + rng() * 0.2));
-  const defv = Math.max(0, (a.pierce ? Math.floor(opts.enemyDef / 2) : opts.enemyDef) - (opts.defDown ?? 0));
+  let dmg = Math.round(base * a.pow * opts.mult * opts.bless * (opts.attackMult ?? 1) * (opts.tagMult ?? 1) * (0.9 + rng() * 0.2));
+  /* 물리 방어는 주문에는 1/3만 적용된다. 속성 저항이 마법 방어의 주축이다. */
+  const armor = a.kind === "mag" ? Math.floor(opts.enemyDef / 3) : opts.enemyDef;
+  const defv = Math.max(0, (a.pierce ? Math.floor(armor / 2) : armor) - (opts.defDown ?? 0));
   dmg = Math.max(1, dmg - defv);
   if (opts.bonus) dmg += opts.bonus;
+  if (opts.currentHpBonus) dmg += opts.currentHpBonus;
   /* 치명타 — 자연20/sureCrit로 이미 확정이면 굴리지 않음. 아니면 기술 확률 + 운(Fortune) */
   if (!crit) crit = rng() < (a.crit ?? 0) + s.crit;
   if (crit) dmg = Math.round(dmg * 1.7);
   /* 저항/약점 — 최종 피해에 타입 배율. 무효(≤0)는 0, 그 외는 최소 1 보장 */
-  const mult = resistMult(opts.res, opts.dtype);
-  const band = resistBand(mult);
-  dmg = band === "immune" ? 0 : Math.max(1, Math.round(dmg * mult));
+  const components = normalizeDamage(opts.damageTypes?.length ? opts.damageTypes : [{ type: opts.dtype, ratio: 1 }]);
+  const weightedMult = components.reduce((sum, c) => sum + c.ratio * resistMult(opts.res, c.type), 0);
+  const band = resistBand(weightedMult);
+  dmg = band === "immune" ? 0 : Math.max(1, Math.round(dmg * weightedMult));
   return { hit: true, dmg, crit, resist: band };
 }
 

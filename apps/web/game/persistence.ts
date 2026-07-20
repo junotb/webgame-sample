@@ -1,6 +1,6 @@
 import { GameState, gameStore, replaceGameState } from "./state";
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface SaveEnvelope {
   version: number;
@@ -30,9 +30,28 @@ export function parseSave(raw: string): GameState {
   try { parsed = JSON.parse(raw); }
   catch { throw new Error("세이브 JSON을 읽을 수 없다"); }
   if (!isRecord(parsed) || typeof parsed.version !== "number") throw new Error("세이브 형식이 잘못되었다");
-  if (parsed.version !== SAVE_VERSION) throw new Error(`지원하지 않는 세이브 버전: ${parsed.version}`);
+  if (parsed.version !== 1 && parsed.version !== SAVE_VERSION) throw new Error(`지원하지 않는 세이브 버전: ${parsed.version}`);
   validateState(parsed.state);
   const state = structuredClone(parsed.state);
+  /* v1의 통합 원소/영혼 숙련을 v2의 9개 개별 학파로 확장한다. */
+  if (parsed.version === 1) {
+    for (const member of state.party) {
+      const oldBonus = member.bonusSkills as string[];
+      const expanded: string[] = [];
+      for (const skill of oldBonus) {
+        if (skill === "elemental") expanded.push("fire", "water", "earth", "wind");
+        else if (skill === "spirit") expanded.push("spirit", "mind", "body");
+        else expanded.push(skill);
+      }
+      member.bonusSkills = [...new Set(expanded)] as typeof member.bonusSkills;
+      const trained = member.trained as Record<string, number | undefined>;
+      const elemental = trained.elemental;
+      if (elemental) for (const school of ["fire", "water", "earth", "wind"]) trained[school] ??= elemental;
+      const selfMagic = trained.spirit;
+      if (selfMagic) for (const school of ["spirit", "mind", "body"]) trained[school] ??= selfMagic;
+      delete trained.elemental;
+    }
+  }
   /* v1 안에서 추가된 퀘스트 월드 플래그는 구 세이브에 안전한 기본값을 보충한다. */
   state.flags.bishopDefeated ??= false;
   state.flags.goblinOrders ??= state.explore.chestOpened.c1;

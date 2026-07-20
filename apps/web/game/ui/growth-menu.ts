@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { ATTRS, ATTR_IDS, CLASSES, RANK_NAME, SKILLS, SkillId } from "../defs";
+import { ATTRS, ATTR_IDS, CLASSES, MAGIC_TRADITIONS, RANK_NAME, SKILLS, SkillId } from "../defs";
 import { C, H, W, button, overlayRoot, panel, txt } from "../core";
 import {
   Member, memberRanks, spendAttrPoint, spendSkillPoint, trainableNext,
@@ -9,7 +9,7 @@ export function openGrowthMenu(m: Member, onClose?: () => void): void {
   const root = new PIXI.Container(); root.zIndex = 72; overlayRoot.addChild(root);
   const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.62 });
   dim.eventMode = "static"; root.addChild(dim);
-  const PW = 960, PH = 600;
+  const PW = 960, PH = 680;
   const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; root.addChild(p);
   const bx = p.x, by = p.y;
   const content = new PIXI.Container(); root.addChild(content);
@@ -36,11 +36,11 @@ export function openGrowthMenu(m: Member, onClose?: () => void): void {
     const sT = txt("— 스킬 훈련 (전문가까지 · 달인은 클래스 전용) —", 15, C.border, { weight: "700" });
     sT.x = bx + 320; sT.y = by + 92; content.addChild(sT);
     const ranks = memberRanks(m);
-    const col = (cats: string[], colX: number) => {
+    const col = (groups: { label: string; skills: SkillId[] }[], colX: number) => {
       let y = by + 122;
-      for (const cat of cats) {
-        const ct = txt(cat, 13, C.dim); ct.x = colX; ct.y = y; content.addChild(ct); y += 22;
-        for (const k of (Object.keys(SKILLS) as SkillId[]).filter((s) => SKILLS[s].cat === cat)) {
+      for (const group of groups) {
+        const ct = txt(group.label, 13, C.dim); ct.x = colX; ct.y = y; content.addChild(ct); y += 22;
+        for (const k of group.skills) {
           const cur = ranks[k] ?? 0;
           const lt = txt(`${SKILLS[k].name} [${RANK_NAME[cur]}]`, 14, cur ? C.text : C.dim);
           lt.x = colX + 8; lt.y = y + 6; content.addChild(lt);
@@ -54,11 +54,20 @@ export function openGrowthMenu(m: Member, onClose?: () => void): void {
         y += 8;
       }
     };
-    col(["물리", "방어"], bx + 320);
-    col(["마법", "보조"], bx + 620);
+    const byCat = (cat: string) => (Object.keys(SKILLS) as SkillId[]).filter((s) => SKILLS[s].cat === cat);
+    col([
+      { label: "물리", skills: byCat("물리") },
+      { label: "방어", skills: byCat("방어") },
+    ], bx + 320);
+    col([
+      { label: "원소 마법", skills: MAGIC_TRADITIONS.elemental.schools },
+      { label: "자아 마법", skills: MAGIC_TRADITIONS.self.schools },
+      { label: "신성 마법", skills: MAGIC_TRADITIONS.divine.schools },
+      { label: "보조", skills: byCat("보조") },
+    ], bx + 620);
   }
 
   render();
   const closeBtn = button("닫기", 100, 36, () => { root.destroy({ children: true }); onClose?.(); }, { size: 15 });
-  closeBtn.x = bx + PW - 128; closeBtn.y = by + PH - 52; root.addChild(closeBtn);
+  closeBtn.x = bx + PW - 128; closeBtn.y = by + 18; root.addChild(closeBtn);
 }

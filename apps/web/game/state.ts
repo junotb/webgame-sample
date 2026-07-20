@@ -10,7 +10,7 @@ import {
 import { abilityMod } from "./core/dice";
 import { Store } from "./core/store";
 import { StatusInstance } from "./core/statuses";
-import { NORMAL_SPAWNS, START, SYMBOL_SPAWNS, dungeonMap } from "./dungeon";
+import { NORMAL_SPAWNS, START, SYMBOL_SPAWNS, dungeonMap } from "./goblin-fortress";
 import type { TownId } from "./town/types";
 
 export interface Member {

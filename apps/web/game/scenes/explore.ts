@@ -27,7 +27,7 @@ import {
   DIR, FACING_NAME, RelativeMove, cellAt, chebyshev, enemyStep, hasLOS,
   moveTarget, passable, rightOf, rotateFacing,
 } from "../grid";
-import { POIS, PoiDef, START, dungeonMap } from "../dungeon";
+import { POIS, PoiDef, START, dungeonMap } from "../goblin-fortress";
 import { FPEntity, createFPView } from "../fpview";
 import { tileSprite } from "../tiles";
 import { drawMonster } from "../monsters";

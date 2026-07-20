@@ -3,7 +3,7 @@ import {
   DIR, Facing, adjacent, backOf, cellAt, chebyshev, enemyStep, hasLOS,
   leftOf, moveTarget, parseMap, passable, rightOf, rotateFacing,
 } from "../grid";
-import { DUNGEON_ROWS, NORMAL_SPAWNS, POIS, START, SYMBOL_SPAWNS, dungeonMap } from "../dungeon";
+import { DUNGEON_ROWS, NORMAL_SPAWNS, POIS, START, SYMBOL_SPAWNS, dungeonMap } from "../goblin-fortress";
 
 describe("방향 수학", () => {
   it("좌/우/뒤 회전", () => {

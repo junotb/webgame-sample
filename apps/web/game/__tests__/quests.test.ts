@@ -3,7 +3,7 @@
  * ===================================================================== */
 import { beforeEach, describe, expect, it } from "vitest";
 import { PARTY_SLOTS, QUESTS } from "../defs";
-import { NORMAL_SPAWNS } from "../dungeon";
+import { NORMAL_SPAWNS } from "../goblin-fortress";
 import { G, newGame } from "../state";
 import {
   acceptQuest, questNotify, questStatus, reportQuest, trackerLines,

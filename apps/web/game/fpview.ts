@@ -9,7 +9,7 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import { DIR, Facing, GridMap, cellAt, hasLOS, rightOf } from "./grid";
-import { floorVariant, mossAt, torchAt } from "./dungeon";
+import { floorVariant, mossAt, torchAt } from "./goblin-fortress";
 import { TileName, flameTex, tileTex } from "./tiles";
 
 export interface FPEntity {

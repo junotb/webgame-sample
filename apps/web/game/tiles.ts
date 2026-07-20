@@ -31,6 +31,14 @@ const SHEET_SRC = {
   flowers: "/assets/world/props/nature/flowers.png",
   mushrooms: "/assets/world/props/nature/mushrooms.png",
   cave: "/assets/world/tilesets/cave/ground.png",
+  goblinSky1: "/assets/world/backgrounds/goblin_valley_sky_01.png",
+  goblinSky2: "/assets/world/backgrounds/goblin_valley_sky_02.png",
+  goblinSky3: "/assets/world/backgrounds/goblin_valley_sky_03.png",
+  barbarianOutpost: "/assets/world/tilesets/outposts/barbarian.png",
+  beachOutpost: "/assets/world/tilesets/outposts/beach.png",
+  valleyRocks: "/assets/world/tilesets/nature/rocks.png",
+  hunterCamp: "/assets/world/props/outposts/huntercamp_small.png",
+  outdoorCampfire: "/assets/world/props/outdoor/campfire_01_animation.png",
 } as const;
 type SheetName = keyof typeof SHEET_SRC;
 
@@ -103,6 +111,20 @@ const FRAMES = {
   cave_floor: { s: "cave", x: 88, y: 208, w: 16, h: 16 },   // 회색 암반 바닥
   cave_wall: { s: "cave", x: 272, y: 440, w: 32, h: 28 },   // 갈색 암벽
   cave_ceiling: { s: "cave", x: 80, y: 470, w: 32, h: 24 }, // 어두운 암반 천장
+  /* ---- 고블린 계곡길 — 야영지·해안 전용 비주얼 ---- */
+  goblin_sky_base: { s: "goblinSky1", x: 0, y: 0, w: 576, h: 324 },
+  goblin_sky_cloud_back: { s: "goblinSky2", x: 0, y: 0, w: 576, h: 324 },
+  goblin_sky_cloud_near: { s: "goblinSky3", x: 0, y: 0, w: 576, h: 324 },
+  bandit_hideout_obj: { s: "hunterCamp", x: 0, y: 0, w: 192, h: 240 },
+  goblin_tent_obj: { s: "barbarianOutpost", x: 248, y: 0, w: 164, h: 146 },
+  goblin_totem_obj: { s: "barbarianOutpost", x: 48, y: 352, w: 48, h: 112 },
+  goblin_bone_gate_obj: { s: "barbarianOutpost", x: 8, y: 476, w: 80, h: 100 },
+  shore_boat_obj: { s: "beachOutpost", x: 624, y: 194, w: 144, h: 72 },
+  shore_dock_obj: { s: "beachOutpost", x: 624, y: 592, w: 144, h: 176 },
+  valley_rock_obj: { s: "valleyRocks", x: 288, y: 0, w: 96, h: 96 },
+  campfire_obj_0: { s: "outdoorCampfire", x: 0, y: 0, w: 48, h: 64 },
+  campfire_obj_1: { s: "outdoorCampfire", x: 48, y: 0, w: 48, h: 64 },
+  campfire_obj_2: { s: "outdoorCampfire", x: 96, y: 0, w: 48, h: 64 },
 } as const satisfies Record<string, FrameDef>;
 export type TileName = keyof typeof FRAMES;
 

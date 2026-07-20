@@ -31,6 +31,8 @@ const SHEET_SRC = {
   flowers: "/assets/world/props/nature/flowers.png",
   mushrooms: "/assets/world/props/nature/mushrooms.png",
   cave: "/assets/world/tilesets/cave/ground.png",
+  fountainProp: "/assets/world/props/structures/fountain.png",
+  wellProp: "/assets/world/props/village/well.png",
   goblinSky1: "/assets/world/backgrounds/goblin_valley_sky_01.png",
   goblinSky2: "/assets/world/backgrounds/goblin_valley_sky_02.png",
   goblinSky3: "/assets/world/backgrounds/goblin_valley_sky_03.png",
@@ -111,6 +113,9 @@ const FRAMES = {
   cave_floor: { s: "cave", x: 88, y: 208, w: 16, h: 16 },   // 회색 암반 바닥
   cave_wall: { s: "cave", x: 272, y: 440, w: 32, h: 28 },   // 갈색 암벽
   cave_ceiling: { s: "cave", x: 80, y: 470, w: 32, h: 24 }, // 어두운 암반 천장
+  /* ---- 마을 구조물 프롭 (빌보드) ---- */
+  fountain_obj: { s: "fountainProp", x: 0, y: 0, w: 92, h: 40 }, // 둥근 돌 분수 (시선 높이에 맞춰 납작하게)
+  well_obj: { s: "wellProp", x: 0, y: 0, w: 52, h: 58 },         // 지붕 달린 돌우물
   /* ---- 고블린 계곡길 — 야영지·해안 전용 비주얼 ---- */
   goblin_sky_base: { s: "goblinSky1", x: 0, y: 0, w: 576, h: 324 },
   goblin_sky_cloud_back: { s: "goblinSky2", x: 0, y: 0, w: 576, h: 324 },

@@ -193,32 +193,21 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
   const fountain = town.decos.find((deco) => deco.id === "fountain");
   if (fountain) {
     const node = new PIXI.Container();
-    const g = new PIXI.Graphics();
-    g.ellipse(0, 2, 48, 10).fill({ color: 0x000000, alpha: 0.3 });
-    g.roundRect(-44, -24, 88, 24, 6).fill(0x4a4560);
-    g.roundRect(-44, -24, 88, 24, 6).stroke({ width: 2, color: 0x6a657f, alpha: 0.8 });
-    g.ellipse(0, -24, 40, 12).fill(0x3c6e8e);
-    g.rect(-5, -58, 10, 34).fill(0x6a657f);
-    g.ellipse(0, -58, 18, 6).fill(0x5a5570);
-    g.ellipse(0, -60, 14, 4).fill(0x4f9fd0);
-    g.rect(-1.5, -78, 3, 18).fill({ color: 0x9fd0e8, alpha: 0.8 });
-    g.circle(0, -79, 4).fill({ color: 0xcfe8f4, alpha: 0.9 });
-    node.addChild(g);
-    entities.push({ id: "fountain", x: fountain.x, y: fountain.y, node, worldH: 0.55, baseH: 84 });
+    const shadow = new PIXI.Graphics();
+    shadow.ellipse(0, 2, 52, 11).fill({ color: 0x000000, alpha: 0.3 });
+    const sprite = tileSprite("fountain_obj", 2); sprite.anchor.set(0.5, 1);
+    node.addChild(shadow, sprite);
+    entities.push({ id: "fountain", x: fountain.x, y: fountain.y, node, worldH: 0.42, baseH: 80 });
   }
 
   const well = town.decos.find((deco) => deco.id === "well");
   if (well) {
     const node = new PIXI.Container();
-    const g = new PIXI.Graphics();
-    g.ellipse(0, 2, 28, 7).fill({ color: 0x000000, alpha: 0.3 });
-    g.roundRect(-24, -26, 48, 26, 5).fill(0x5a5570);
-    g.roundRect(-24, -26, 48, 26, 5).stroke({ width: 2, color: 0x6a657f, alpha: 0.8 });
-    g.ellipse(0, -26, 20, 6).fill(0x14101f);
-    g.rect(-21, -58, 4, 32).rect(17, -58, 4, 32).fill(0x4a3a2a);
-    g.moveTo(-27, -56).lineTo(0, -72).lineTo(27, -56).closePath().fill(0x6a4a3a);
-    node.addChild(g);
-    entities.push({ id: "well", x: well.x, y: well.y, node, worldH: 0.5, baseH: 74 });
+    const shadow = new PIXI.Graphics();
+    shadow.ellipse(0, 2, 34, 8).fill({ color: 0x000000, alpha: 0.3 });
+    const sprite = tileSprite("well_obj", 2); sprite.anchor.set(0.5, 1);
+    node.addChild(shadow, sprite);
+    entities.push({ id: "well", x: well.x, y: well.y, node, worldH: 0.55, baseH: 116 });
   }
 
   for (const deco of town.decos) {

@@ -152,7 +152,7 @@ export const CROSSVALE_FACILITIES: TownFacilityDef[] = [
 export const CROSSVALE_DECOS: TownDecoDef[] = [
   {
     id: "fountain", name: "분수", x: 13, y: 10,
-    text: "맑은 물줄기가 달빛을 튕겨낸다. 광장의 심장 — 크로스베일은 오늘도 나그네를 맞는다.",
+    text: "둥근 돌 테를 두른 분수. 계곡 개울에서 끌어온 맑은 물이 찰랑이며 달빛을 튕겨낸다. 광장의 심장 — 크로스베일은 오늘도 나그네를 맞는다.",
     blocking: true,
   },
   {

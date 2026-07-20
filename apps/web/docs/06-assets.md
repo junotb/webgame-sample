@@ -21,6 +21,7 @@ assets-source/
 ├── monsters/                      몬스터 원본
 ├── npcs/                          NPC 원본
 └── world/
+    ├── backgrounds/                장면용 배경 완성본과 합성 레이어
     ├── decals/                    바닥·벽 위에 얹는 균열과 흔적
     ├── effects/                   불·빛·마법·물·날씨 효과
     ├── props/                     건물·가구·자연물·차량 등 오브젝트
@@ -111,6 +112,22 @@ tree.PNG
 
 현재 런타임 시설 표식은 `public/assets/world/props/buildings/facility_emblems.png`, 건물 파사드는 `public/assets/world/tilesets/village/facades.png`를 사용하며 프레임은 `game/tiles.ts`에서 등록한다.
 
+크로스베일은 `public/assets/world/tilesets/village/ground.png`과 `water.png`에서 초지·포장·개울 표면을 사용한다. 현재 에셋만으로 부족한 부분은 다음과 같다.
+
+- 1인칭 시점에서 지붕 윤곽을 분명히 만드는 박공·처마·모서리 세트
+- 흐르는 방향과 강둑 연결을 표현하는 48px 개울 직선·곡선·끝단 애니메이션
+- 초지와 포장로 사이의 가장자리·모서리 전환 타일
+- 개울가 갈대, 징검돌, 작은 목교와 길가 울타리 같은 변경 마을 프롭
+
+지붕은 전용 박공 세트가 추가되기 전까지 파사드 상단 띠로 표현한다. 마을 바깥 풍경은 `assets-source/world/backgrounds/mountain_peak/craftpix/scene_02_alpine_meadow/background.png`를 선별해 `public/assets/world/backgrounds/crossvale_valley.png`로 배포한다.
+
+### 배경 원본 선별
+
+- 기본 장면 배경은 현재 캔버스와 같은 16:9 픽셀아트인 576×324 원본을 기준으로 한다.
+- 픽셀 밀도와 안티앨리어싱 방식이 크게 다른 고해상도 일러스트는 바로 보관하지 않고, 게임 팔레트와 픽셀 밀도에 맞게 변환할 계획이 있을 때만 후보로 둔다.
+- `background_4x.png`, `background_8x.png`처럼 1배 원본을 nearest 방식으로 확대한 파일은 중복 보관하지 않는다. 필요 배율은 런타임이나 편집 과정에서 다시 만들 수 있다.
+- 완성본 `background.png`와 개별 `layer_*.png`는 용도가 다르므로 함께 보관할 수 있다. 전자는 즉시 선별·배포할 때, 후자는 패럴랙스와 재합성 작업에 사용한다.
+
 ## 런타임 등록
 
 ### 타일과 프롭
@@ -125,6 +142,10 @@ tree.PNG
 1. `public/assets/monsters/icons/`에 파일을 둔다.
 2. `game/defs/enemies.ts`의 `MONSTER_ICONS`와 `ENEMY_DEFS.img`를 연결한다.
 3. 영문 카탈로그 이름의 소문자와 파일명이 일치해야 한다.
+
+몬스터의 기본 애니메이션은 단일 프레임 아이콘과 `EnemyDef.motion`을 조합한 코드 기반 모션으로 표현한다. `slime`, `flying`, `plant`, `beast`, `ghost`, `humanoid` 유형이 대기·공격·피격·사망 동작을 공유한다.
+
+프레임 시트는 보스처럼 고유 실루엣과 동작이 실제 게임에 채택되고 런타임 프레임 정의까지 함께 추가되는 경우에만 보관한다. 카탈로그와 연결되지 않은 후보 프레임 시트는 `assets-source/`에 누적하지 않는다.
 
 ### 초상화
 

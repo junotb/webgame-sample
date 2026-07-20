@@ -23,10 +23,14 @@ const SHEET_SRC = {
   brazier: "/assets/world/effects/fire/brazier_animation.png",
   facilityEmblems: "/assets/world/props/buildings/facility_emblems.png",
   villageFacades: "/assets/world/tilesets/village/facades.png",
+  villageGround: "/assets/world/tilesets/village/ground.png",
+  villageWater: "/assets/world/tilesets/village/water.png",
+  townBackgrounds: "/assets/world/backgrounds/crossvale_valley.png",
   trees: "/assets/world/props/nature/trees.png",
   bushes: "/assets/world/props/nature/bushes.png",
   flowers: "/assets/world/props/nature/flowers.png",
   mushrooms: "/assets/world/props/nature/mushrooms.png",
+  cave: "/assets/world/tilesets/cave/ground.png",
 } as const;
 type SheetName = keyof typeof SHEET_SRC;
 
@@ -78,6 +82,13 @@ const FRAMES = {
   village_window_flower: { s: "villageFacades", x: 0, y: 576, w: 48, h: 96 },
   village_door_wood: { s: "villageFacades", x: 48, y: 576, w: 48, h: 96 },
   village_door_arch: { s: "villageFacades", x: 96, y: 576, w: 48, h: 96 },
+  /* ---- 크로스베일 초지·대로·개울 (style_48 48px 그리드) ---- */
+  village_grass: { s: "villageGround", x: 0, y: 0, w: 48, h: 48 },
+  village_grass_alt: { s: "villageGround", x: 48, y: 48, w: 48, h: 48 },
+  village_paving: { s: "villageGround", x: 144, y: 48, w: 48, h: 48 },
+  village_cobble: { s: "villageGround", x: 240, y: 48, w: 48, h: 48 },
+  village_water: { s: "villageWater", x: 0, y: 64, w: 48, h: 48 },
+  crossvale_valley_bg: { s: "townBackgrounds", x: 0, y: 0, w: 576, h: 324 },
   /* ---- 목가적 마을·필드 자연물 (종류별 atlas, 프레임은 원본 크기 유지) ---- */
   tree_01: { s: "trees", x: 0, y: 0, w: 96, h: 112 },
   tree_02: { s: "trees", x: 96, y: 0, w: 96, h: 112 },
@@ -88,6 +99,10 @@ const FRAMES = {
   flower_01: { s: "flowers", x: 0, y: 0, w: 16, h: 16 },
   flower_02: { s: "flowers", x: 16, y: 0, w: 16, h: 16 },
   mushroom_01: { s: "mushrooms", x: 0, y: 0, w: 16, h: 16 },
+  /* ---- 고블린 요새(동굴) 표면 — cave/ground.png의 이음매 없는 암반 블록에서 슬라이스 ---- */
+  cave_floor: { s: "cave", x: 88, y: 208, w: 16, h: 16 },   // 회색 암반 바닥
+  cave_wall: { s: "cave", x: 272, y: 440, w: 32, h: 28 },   // 갈색 암벽
+  cave_ceiling: { s: "cave", x: 80, y: 470, w: 32, h: 24 }, // 어두운 암반 천장
 } as const satisfies Record<string, FrameDef>;
 export type TileName = keyof typeof FRAMES;
 

@@ -23,23 +23,27 @@ export interface FPEntity {
   baseH?: number;
 }
 
-/** 표면 = 베이스 타일 + 선택적 오버레이 데칼 */
-export interface SurfacePick { base: TileName; decal?: TileName }
+/** 표면 = 베이스 타일 + 선택적 오버레이 데칼·벽 상단 지붕 띠 */
+export interface SurfacePick { base: TileName; decal?: TileName; cap?: TileName }
 
 export interface FPTheme {
   floorAt(x: number, y: number): SurfacePick;
   wallAt(x: number, y: number): SurfacePick;
   torchAt(x: number, y: number): boolean;
-  ceiling: TileName;
+  /** null이면 야외 하늘이 보이도록 천장 면을 그리지 않는다. */
+  ceiling: TileName | null;
   water: TileName;
   stairs: SurfacePick;
   /** 테마별 색조. 지정하지 않으면 원본 타일 색을 유지한다. */
   floorTint?: number;
+  waterTint?: number;
   wallTint?: number;
   ceilingTint?: number;
+  /** 전방 가시 깊이. 던전은 짧게, 야외·마을은 길게 설정할 수 있다. */
+  viewDistance?: number;
 }
 
-/** 기본 테마 — 할로우베일 계곡 지하미궁 (dungeon.ts의 결정적 변형 함수 사용) */
+/** 기본 던전 테마 — 석조 지하미궁 (goblin-fortress.ts의 결정적 변형 함수 사용) */
 export function dungeonTheme(): FPTheme {
   return {
     floorAt: (x, y) => ({ base: floorVariant(x, y) }),
@@ -51,15 +55,31 @@ export function dungeonTheme(): FPTheme {
   };
 }
 
-const MAXD = 4;          // 전방 가시 깊이
-const SIDE = 3;          // 좌우 가시 폭
+/** 고블린 요새 테마 — 동굴 암반 표면 + 횃불. 균열/이끼 데칼로 거친 굴을 표현하고
+ *  따뜻한 색조로 횃불 밝힌 소굴 느낌을 낸다. */
+export function goblinFortressTheme(): FPTheme {
+  return {
+    floorAt: () => ({ base: "cave_floor" }),
+    wallAt: (x, y) => (mossAt(x, y) ? { base: "cave_wall", decal: "wall_worn_decal" } : { base: "cave_wall" }),
+    torchAt,
+    ceiling: "cave_ceiling",
+    water: "water",
+    stairs: { base: "cave_floor", decal: "stairs_decal" },
+    floorTint: 0xb0a58c, waterTint: 0x5a7a86, wallTint: 0xc79a63, ceilingTint: 0x6b5a44,
+  };
+}
+
+const DEFAULT_MAXD = 4;  // 기본 전방 가시 깊이(던전)
+const SIDE = 5;          // 16:9 화면 가장자리까지 바닥·벽이 닿는 좌우 가시 폭
 const FOCAL = 580;       // 원근 초점 거리(px)
 const CX = 640;          // 소실점 x
 const CY = 320;          // 지평선 y
 const NEAR = 0.28;       // 최소 근접 거리 (카메라 칸 클리핑)
 const FLAME_MS = 110;    // 횃불 프레임 간격
 
-const fog = (dist: number) => Math.max(0.16, Math.min(1, 1.16 - 0.23 * dist));
+/** 가시 거리 끝에서도 실루엣이 남도록 깊이에 비례해 감쇠한다. */
+const fog = (dist: number, viewDistance: number) =>
+  Math.max(0.18, Math.min(1, 1.12 - (0.9 * dist) / viewDistance));
 /** 원근 투영: (거리, 횡 오프셋) → 화면 x / 벽 상·하단 y */
 const px = (dist: number, lat: number) => CX + (FOCAL * lat) / dist;
 const topY = (dist: number) => CY - (FOCAL * 0.5) / dist;
@@ -81,6 +101,7 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
   let glows: { g: PIXI.Graphics; phase: number }[] = [];
   let flames: { sp: PIXI.Sprite; phase: number }[] = [];
   let glowT = 0;
+  const viewDistance = Math.max(1, Math.floor(theme.viewDistance ?? DEFAULT_MAXD));
 
   const shade = (color: number, amount: number): number => {
     const r = Math.round(((color >> 16) & 0xff) * amount);
@@ -104,6 +125,20 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
     if (pick.decal) quad(tileTex(pick.decal), c, tint);
   }
 
+  /** 벽 상단 약 30%에 지붕 재질을 얹고, 문·창·표식은 그 위에 그린다. */
+  function wallQuad(pick: SurfacePick, c: number[], tint: number): void {
+    quad(tileTex(pick.base), c, tint);
+    if (pick.cap) {
+      const ratio = 0.3;
+      const rightX = c[2] + (c[4] - c[2]) * ratio;
+      const rightY = c[3] + (c[5] - c[3]) * ratio;
+      const leftX = c[0] + (c[6] - c[0]) * ratio;
+      const leftY = c[1] + (c[7] - c[1]) * ratio;
+      quad(tileTex(pick.cap), [c[0], c[1], c[2], c[3], rightX, rightY, leftX, leftY], tint);
+    }
+    if (pick.decal) quad(tileTex(pick.decal), c, tint);
+  }
+
   function render(map: GridMap, x: number, y: number, facing: Facing, entities: FPEntity[]): void {
     geom.removeChildren().forEach((c) => c.destroy({ children: true }));
     bills.removeChildren(); // 엔티티 노드는 씬 소유 — destroy하지 않는다
@@ -116,10 +151,10 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
 
     /* 카메라는 자기 칸의 뒤쪽 가장자리에 위치 — 깊이 d 칸은 거리 d..d+1 구간,
      * 정면 벽 면은 거리 d. (근접 벽의 과도한 텍스처 확대를 막는다) */
-    for (let d = MAXD; d >= 0; d--) {
+    for (let d = viewDistance; d >= 0; d--) {
       const near = Math.max(NEAR, d);
       const far = d + 1;
-      const cFog = fog(d + 0.5);
+      const cFog = fog(d + 0.5, viewDistance);
 
       /* --- 바닥·천장 (열린 칸) --- */
       for (let j = -SIDE; j <= SIDE; j++) {
@@ -135,13 +170,16 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
           px(far, j + 0.5), botY(far),
           px(near, j + 0.5), botY(near),
           px(near, j - 0.5), botY(near),
-        ], shade(theme.floorTint ?? 0xffffff, cFog));
-        quad(tileTex(theme.ceiling), [
-          px(near, j - 0.5), topY(near),
-          px(near, j + 0.5), topY(near),
-          px(far, j + 0.5), topY(far),
-          px(far, j - 0.5), topY(far),
-        ], shade(theme.ceilingTint ?? theme.floorTint ?? 0xffffff, cFog * 0.45));
+        ], shade(kind === "water" ? theme.waterTint ?? theme.floorTint ?? 0xffffff
+          : theme.floorTint ?? 0xffffff, cFog));
+        if (theme.ceiling) {
+          quad(tileTex(theme.ceiling), [
+            px(near, j - 0.5), topY(near),
+            px(near, j + 0.5), topY(near),
+            px(far, j + 0.5), topY(far),
+            px(far, j - 0.5), topY(far),
+          ], shade(theme.ceilingTint ?? theme.floorTint ?? 0xffffff, cFog * 0.45));
+        }
       }
 
       /* --- 측면 벽 (복도 중심을 향한 면, 바깥쪽부터) --- */
@@ -153,10 +191,10 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
           if (cellAt(map, inner.mx, inner.my) === "wall") continue; // 면이 벽에 붙어 안 보임
           const lat = j - Math.sign(j) * 0.5;
           const wp = theme.wallAt(mx, my);
-          const sFog = shade(theme.wallTint ?? 0xffffff, fog((near + far) / 2) * 0.88);
+          const sFog = shade(theme.wallTint ?? 0xffffff, fog((near + far) / 2, viewDistance) * 0.88);
           const nT = topY(near), nB = botY(near), fT = topY(far), fB = botY(far);
           const xN = px(near, lat), xF = px(far, lat);
-          surfQuad(wp, j > 0
+          wallQuad(wp, j > 0
             ? [xF, fT, xN, nT, xN, nB, xF, fB]
             : [xN, nT, xF, fT, xF, fB, xN, nB], sFog);
         }
@@ -173,7 +211,7 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
           const wp = theme.wallAt(mx, my);
           const xL = px(face, j - 0.5), xR = px(face, j + 0.5);
           const yT = topY(face), yB = botY(face);
-          const tint = shade(theme.wallTint ?? 0xffffff, fog(face));
+          const tint = shade(theme.wallTint ?? 0xffffff, fog(face, viewDistance));
           const mkFace = (name: TileName) => {
             const s = new PIXI.Sprite(tileTex(name));
             s.x = xL; s.y = yT;
@@ -182,6 +220,13 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
             geom.addChild(s);
           };
           mkFace(wp.base);
+          if (wp.cap) {
+            const cap = new PIXI.Sprite(tileTex(wp.cap));
+            cap.x = xL; cap.y = yT;
+            cap.width = xR - xL; cap.height = (yB - yT) * 0.3;
+            cap.tint = tint;
+            geom.addChild(cap);
+          }
           if (wp.decal) mkFace(wp.decal);
           /* 횃불 — 불꽃 스프라이트 + 광원 (가운데 열만 광원) */
           if (theme.torchAt(mx, my)) {
@@ -212,7 +257,7 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
       const dxm = e.x - x, dym = e.y - y;
       const d = fwd.dx * dxm + fwd.dy * dym;
       const j = rt.dx * dxm + rt.dy * dym;
-      if (d < 1 || d > MAXD || Math.abs(j) > SIDE) continue;
+      if (d < 1 || d > viewDistance || Math.abs(j) > SIDE) continue;
       if (!hasLOS(map, x, y, e.x, e.y)) continue;
       placed.push({ e, d, j });
     }
@@ -224,7 +269,7 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
       n.x = px(dist, j);
       n.y = botY(dist);
       n.scale.set(sc);
-      n.alpha = fog(dist);
+      n.alpha = fog(dist, viewDistance);
       bills.addChild(n);
     }
   }

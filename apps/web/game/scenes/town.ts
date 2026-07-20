@@ -16,7 +16,9 @@ import {
   sceneRoot, setModeBadge, toast, tween, txt, ui,
 } from "../core";
 import { G, partyLevel } from "../state";
-import { acceptQuest, questList, questStatus, reportQuest } from "../core/quests";
+import {
+  acceptQuest, carriageUnlocked, questList, questNotify, questStatus, repeatCooldownDays, reportQuest,
+} from "../core/quests";
 import type { RelativeMove } from "../grid";
 import { compileTown } from "../town/compile";
 import { keeperSays, townContentUnlocked } from "../town/content";
@@ -102,6 +104,10 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
    * 상호작용 — 자기 칸(성문·문) 우선, 다음 정면 칸
    * ===================================================================== */
   const enterGate = (gate: TownGateDef): void => {
+    if (G.town === "crossvale" && !G.flags.stableBriefed) {
+      log("에버모어로 떠날 방법부터 알아봐야 한다. 남동쪽 마구간의 마부에게 길 사정을 물어보자.");
+      return;
+    }
     fullFlash(0x000000, 500, () => nav.field(gate.target));
   };
   function interact(): void {
@@ -156,6 +162,12 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   /* ---------- 마굿간: 역마차 빠른이동 ---------- */
   function openStable(f: TownFacilityDef): void {
     overlayOpen = true;
+    if (G.town === "crossvale" && !G.flags.stableBriefed) {
+      G.flags.stableBriefed = true;
+      questNotify({ t: "talk", npc: "crossvale_stable" });
+      reportQuest("main_hermans_letter");
+      toast("마부에게 길 사정을 들었다. 크로스베일 바깥으로 이동할 수 있다.", C.border);
+    }
     const dest = otherTown(G.town);
     const destName = TOWNS[dest].name;
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
@@ -164,18 +176,23 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const p = panel(620, 300); p.x = (W - 620) / 2; p.y = (H - 300) / 2; rootS.addChild(p);
     const tt = txt("마굿간 — 역마차", 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
+    const unlocked = carriageUnlocked();
     const ds = txt(
-      keeperSays(f.keeper, `${destName}까지 ${CARRIAGE_FARE} G예요. 준비됐으면 바로 출발하죠.`),
+      keeperSays(f.keeper, unlocked
+        ? `${destName}까지 ${CARRIAGE_FARE} G예요. 준비됐으면 바로 출발하죠.`
+        : "서쪽 좁은 계곡에서 산적들이 마차를 덮치고 있어요. 현상금 길드의 의뢰를 받고 그 무리를 소탕한 뒤 보고해 주세요. 그전에는 운행할 수 없습니다."),
       15, C.text, { lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
     function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }
     const go = button(`${destName}(으)로 출발 — ${CARRIAGE_FARE} G`, 340, 50, () => {
       if (G.gold < CARRIAGE_FARE) return toast(keeperSays(f.keeper, "삯이 모자라네요. 외상은 안 됩니다."), C.dim);
       G.gold -= CARRIAGE_FARE;
+      advanceTownTime(G, 8 * 60);
       G.town = dest;
       close();
       fullFlash(0x000000, 800, () => nav.town("carriage"));
     }, { size: 16, border: C.border });
+    if (!unlocked) go.setDisabled(true);
     go.x = p.x + 26; go.y = p.y + 150; rootS.addChild(go);
     const closeBtn = button("나가기", 110, 40, close, { size: 15 });
     closeBtn.x = p.x + 620 - 136; closeBtn.y = p.y + 300 - 56; rootS.addChild(closeBtn);
@@ -315,10 +332,10 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
     const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
     dim.eventMode = "static"; rootS.addChild(dim);
-    const p = panel(860, 560); p.x = (W - 860) / 2; p.y = (H - 560) / 2; rootS.addChild(p);
+    const p = panel(860, 650); p.x = (W - 860) / 2; p.y = (H - 650) / 2; rootS.addChild(p);
     const content = new PIXI.Container(); rootS.addChild(content);
     const closeBtn = button("나가기", 110, 40, close, { size: 15 });
-    closeBtn.x = p.x + 860 - 136; closeBtn.y = p.y + 560 - 56; rootS.addChild(closeBtn);
+    closeBtn.x = p.x + 860 - 136; closeBtn.y = p.y + 650 - 56; rootS.addChild(closeBtn);
 
     function board(): void {
       content.removeChildren().forEach((c) => c.destroy({ children: true }));
@@ -328,9 +345,9 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
       keeperLine.x = p.x + 360; keeperLine.y = p.y + 26; content.addChild(keeperLine);
       const list = questList();
       list.forEach((e, i) => {
-        const y = p.y + 62 + i * 54;
+        const y = p.y + 62 + i * 48;
         const q = e.def;
-        const marker = q.kind === "main" ? "★" : q.kind === "side" ? "◆" : "↻";
+        const marker = q.kind === "main" ? "★" : q.kind === "side" ? "◆" : q.kind === "job" ? "▲" : "↻";
         const locked = e.status === "locked";
         const nameLine = locked
           ? `${marker} ???`
@@ -341,7 +358,10 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         let subLine: string;
         if (locked) {
           const r = q.requires;
-          subLine = r?.level ? `수주 조건: 파티 Lv${r.level}` : "수주 조건: 선행 의뢰 완료";
+          const cooldown = repeatCooldownDays(q.id);
+          subLine = cooldown ? `새 현상금 게시까지 ${cooldown}일` : r?.level
+            ? `수주 조건: 파티 Lv${r.level}${r.quests ? " · 선행 승급 심사 완료" : ""}`
+            : "수주 조건: 선행 의뢰 완료";
         } else if (e.status === "available") {
           subLine = q.desc;
         } else if (e.status === "rewarded") {
@@ -386,6 +406,8 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
                 ...r.items,
               ].filter(Boolean).join(" · ");
               toast(`의뢰 완수! 보상: ${parts}`, C.border);
+              if (q.id === "main_clear_evermore_road")
+                toast("계곡 서쪽 길과 에버모어행 역마차가 열렸다!", C.border);
               if (r.ups.length) toast(`레벨 업! ${r.ups.join(" · ")} (HP/MP 전부 회복)`, C.border);
               hud.redraw(); refreshNpcMarks();
               board();
@@ -394,8 +416,8 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
           }
         }
       });
-      const note = txt("★메인 ◆서브 ↻현상금(반복) — 현상금은 보고 후 다시 수주할 수 있다.", 13, C.dim);
-      note.x = p.x + 28; note.y = p.y + 560 - 52; content.addChild(note);
+      const note = txt("★ 메인   ◆ 서브   ▲ 직업(승급)   ↻ 현상금(반복) — 반복 의뢰는 보고한 다음 날 갱신", 13, C.dim);
+      note.x = p.x + 28; note.y = p.y + 650 - 52; content.addChild(note);
     }
     board();
     function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }

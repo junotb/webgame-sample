@@ -79,6 +79,8 @@ export interface QuestProgress {
   counts: Record<string, number>;
   /** 반복 퀘스트 완료(보고) 횟수 */
   times: number;
+  /** 반복 의뢰가 다시 게시되는 월드 날짜 */
+  availableAtDay?: number;
 }
 
 export interface GameState {
@@ -93,7 +95,13 @@ export interface GameState {
   /** 마을 방문과 휴식으로 흐르는 월드 시계 (구버전 세이브는 최초 접근 시 생성) */
   townWorld?: { day: number; minuteOfDay: number; visits: Partial<Record<TownId, number>> };
   explore: ExploreState;
-  flags: { intro: boolean; ending: boolean; letter: boolean };
+  flags: {
+    intro: boolean; ending: boolean; letter: boolean;
+    bishopDefeated: boolean; goblinOrders: boolean;
+    hostagesRescued: boolean; banditsDefeated: boolean;
+    /** 크로스베일 마구간에서 길이 막힌 사정을 들었는가 */
+    stableBriefed: boolean;
+  };
   quests: Record<string, QuestProgress>;
   _fled?: boolean;
 }
@@ -158,7 +166,11 @@ export function newGame(configs: CreationConfig[]): void {
       lordIntroSeen: false,
       veil: 0,
     },
-    flags: { intro: false, ending: false, letter: false },
+    flags: {
+      intro: false, ending: false, letter: false,
+      bishopDefeated: false, goblinOrders: false,
+      hostagesRescued: false, banditsDefeated: false, stableBriefed: false,
+    },
     quests: {},
   });
 }
@@ -519,8 +531,8 @@ export function partyFortune(): number {
 
 export function canClassChange(m: Member): "t1" | "t2" | null {
   const tier = CLASSES[m.classId].tier;
-  if (tier === 0 && m.level >= 3) return "t1";
-  if (tier === 1 && m.level >= 6) return "t2";
+  if (tier === 0 && m.level >= 3 && G.quests.job_first_promotion?.status === "rewarded") return "t1";
+  if (tier === 1 && m.level >= 6 && G.quests.job_final_promotion?.status === "rewarded") return "t2";
   return null;
 }
 export function classOptions(m: Member): ClassId[] {

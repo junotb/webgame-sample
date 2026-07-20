@@ -11,9 +11,11 @@ const game = () => gameStore.get();
 /** 씬이 보고하는 게임 이벤트 */
 export type GameEvent =
   | { t: "kill"; defId: string }
-  | { t: "clear"; symbol: "orc" | "lord" | "ancient" }
+  | { t: "clear"; symbol: string }
   | { t: "reach"; poi: string }
-  | { t: "talk"; npc: string };
+  | { t: "talk"; npc: string }
+  | { t: "collect"; item: string }
+  | { t: "rescue"; group: string };
 
 export type QuestStatus = "locked" | "available" | "active" | "done" | "rewarded";
 
@@ -49,8 +51,10 @@ export function questStatus(id: string): QuestStatus {
   const q = questDef(id);
   const p = game().quests[id];
   if (p) {
-    /* 반복 퀘스트는 보고 후 다시 수주 가능 상태로 보인다 */
-    if (p.status === "rewarded" && q.kind === "repeat") return "available";
+    if (p.status === "rewarded" && q.kind === "repeat") {
+      const day = game().townWorld?.day ?? 1;
+      return day >= (p.availableAtDay ?? day) && requirementsMet(q) ? "available" : "locked";
+    }
     return p.status;
   }
   return requirementsMet(q) ? "available" : "locked";
@@ -65,9 +69,22 @@ export function questList(): { def: QuestDef; status: QuestStatus; progress?: Qu
 /** clear형 목표는 수주 시점의 defeated 플래그를 소급 인정 (메인 체인 잠김 방지) */
 function retroCredit(q: QuestDef, p: QuestProgress): void {
   for (const o of q.objectives) {
-    if (o.type !== "clear") continue;
-    const sym = o.target as keyof ReturnType<typeof game>["explore"]["defeated"];
-    if (game().explore.defeated[sym]) p.counts[o.id] = o.count;
+    let completed = false;
+    if (o.type === "clear") {
+      if (o.target === "fallen_bishop") completed = !!game().flags.bishopDefeated;
+      else if (o.target === "valley_bandits") completed = !!game().flags.banditsDefeated;
+      else if (o.target === "orc" || o.target === "lord" || o.target === "ancient")
+        completed = game().explore.defeated[o.target];
+    } else if (o.type === "collect" && o.target === "goblin_orders") {
+      completed = !!game().flags.goblinOrders || game().explore.chestOpened.c1;
+    } else if (o.type === "rescue" && o.target === "valley_hostages") {
+      completed = !!game().flags.hostagesRescued;
+    } else if (o.type === "talk" && o.target === "crossvale_stable") {
+      completed = !!game().flags.stableBriefed;
+    } else if (o.type === "talk" && o.target === "federal_lord") {
+      completed = !!game().flags.letter;
+    }
+    if (completed) p.counts[o.id] = o.count;
   }
   if (objectiveMet(q, p)) p.status = "done";
 }
@@ -114,7 +131,9 @@ export function questNotify(ev: GameEvent): QuestUpdate[] {
         (ev.t === "kill" && o.type === "kill" && o.target === ev.defId) ||
         (ev.t === "clear" && o.type === "clear" && o.target === ev.symbol) ||
         (ev.t === "reach" && o.type === "reach" && o.target === ev.poi) ||
-        (ev.t === "talk" && o.type === "talk" && o.target === ev.npc);
+        (ev.t === "talk" && o.type === "talk" && o.target === ev.npc) ||
+        (ev.t === "collect" && o.type === "collect" && o.target === ev.item) ||
+        (ev.t === "rescue" && o.type === "rescue" && o.target === ev.group);
       if (!hit) continue;
       p.counts[o.id] = cur + 1;
       const done = objectiveMet(q, p);
@@ -140,6 +159,8 @@ export function reportQuest(id: string): { gold: number; exp: number; items: str
   const ups = r.exp ? gainExpParty(r.exp) : [];
   p.status = "rewarded";
   p.times += 1;
+  if (q.kind === "repeat")
+    p.availableAtDay = (game().townWorld?.day ?? 1) + (q.repeatEveryDays ?? 1);
   syncMainQuests(); // 메인 체인 다음 단계 자동 수주
   return { gold: r.gold ?? 0, exp: r.exp ?? 0, items: itemNames, ups };
 }
@@ -167,4 +188,21 @@ export function updateText(u: QuestUpdate): string {
   return u.questDone
     ? `퀘스트 완료: ${u.quest.name} — 길드에 보고하자!`
     : `퀘스트: ${u.objective.desc} ${u.count}/${u.objective.count}`;
+}
+
+/** 반복 의뢰가 다시 게시되기까지 남은 일수. 대기 중이 아니면 0. */
+export function repeatCooldownDays(id: string): number {
+  const q = questDef(id);
+  const p = game().quests[id];
+  if (q.kind !== "repeat" || p?.status !== "rewarded") return 0;
+  return Math.max(0, (p.availableAtDay ?? 0) - (game().townWorld?.day ?? 1));
+}
+
+/** 산적 소탕을 길드에 보고하면 계곡 서쪽 길과 에버모어행 역마차가 열린다. */
+export function carriageUnlocked(): boolean {
+  const route = game().quests.main_clear_evermore_road;
+  /* 신규 메인 체인이 없던 구 세이브는 기존 산적 처치 기록을 그대로 인정한다. */
+  return route?.status === "rewarded"
+    || !!game().flags.letter
+    || (!!game().flags.banditsDefeated && !route);
 }

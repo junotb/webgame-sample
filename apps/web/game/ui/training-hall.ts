@@ -111,7 +111,9 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
       const status = change && choices.length
         ? (change === "t1" ? "▶ 1차 전직 가능" : "▶ 2차 전직 가능")
         : change ? "(다른 건물의 길)"
-          : tier === 2 ? "(최종 클래스)" : tier === 0 ? "(Lv3 필요)" : "(Lv6 필요)";
+          : tier === 2 ? "(최종 클래스)"
+            : tier === 0 ? (member.level < 3 ? "(Lv3 필요)" : "(첫 번째 승급 심사 필요)")
+              : (member.level < 6 ? "(Lv6 필요)" : "(최종 승급 심사 필요)");
       const b = button(`${member.name} — ${CLASSES[member.classId].name} Lv.${member.level}  ${status}`, 560, 48, () => memberPage(member), { size: 15 });
       if (!change || !choices.length) b.setDisabled(true);
       b.x = p.x + 28; b.y = p.y + 92 + i * 58; content.addChild(b);

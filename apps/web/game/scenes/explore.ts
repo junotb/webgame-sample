@@ -28,7 +28,7 @@ import {
   moveTarget, passable, rightOf, rotateFacing,
 } from "../grid";
 import { POIS, PoiDef, START, fortressMap } from "../goblin-fortress";
-import { FPEntity, createFPView } from "../fpview";
+import { FPEntity, createFPView, goblinFortressTheme } from "../fpview";
 import { tileSprite } from "../tiles";
 import { drawMonster } from "../monsters";
 import type { MonsterView } from "../monsters";
@@ -59,7 +59,7 @@ export function goblinFortressScene(): SceneHandle {
   const voidG = new PIXI.Graphics();
   voidG.rect(0, 0, W, H).fill(C.night);
   root.addChild(voidG);
-  const fp = createFPView();
+  const fp = createFPView(goblinFortressTheme());
   root.addChild(fp.root);
 
   /* ---- 엔티티 노드 (씬 소유, fpview가 배치) ---- */
@@ -864,8 +864,10 @@ export function goblinFortressScene(): SceneHandle {
     }
     if (p.id === "c1" && !E.chestOpened.c1) {
       E.chestOpened.c1 = true;
+      G.flags.goblinOrders = true;
       G.gold += 60; G.items.potion++;
-      toast("60 G와 치유 물약을 손에 넣었다!", C.border);
+      toast("60 G와 치유 물약, 봉인된 「고블린 작전 문서」를 손에 넣었다!", C.border);
+      questNotify({ t: "collect", item: "goblin_orders" }).forEach((up) => toast(updateText(up), C.border));
       hud.redraw(); refresh();
       return;
     }

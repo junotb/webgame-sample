@@ -96,14 +96,17 @@ export const EVERMORE_DECOS: TownDecoDef[] = [
   {
     id: "fountain", name: "대분수", x: 13, y: 11,
     text: "에버모어의 대분수 — 세 성과 두 숲의 문장이 물결 위에 새겨져 있다.",
+    blocking: true,
   },
   {
     id: "statue", name: "군주상", x: 10, y: 18,
     text: "초대 연방 군주의 석상. 손에 든 저울은 세 성의 균형을 뜻한다 전한다.",
+    blocking: true,
   },
   {
     id: "statue", name: "사자상", x: 16, y: 18,
     text: "이름 없는 사자(使者)의 석상. 편지 한 통이 나라를 이었다는 옛 이야기가 새겨져 있다.",
+    blocking: true,
   },
 ];
 

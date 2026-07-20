@@ -5,7 +5,7 @@
  *
  *  구역: 북서 개울 / 북단 신전 / NW 영혼 길드 · NE 원소 길드
  *        W 현상금 길드 · E 무기점 / W 도구점 · E 방어구점
- *        SE 여관·마굿간 / SW 우물 / 남단 성문(할로우베일 계곡)
+ *        SE 여관·마굿간 / SW 우물 / 남단 성문(고블린 계곡길)
  *
  *  크로스베일은 대스승 헤르만의 편지를 에버모어 성에 전하러 온 제자들이
  *  가장 먼저 닿는 변경 마을. 마굿간의 역마차로 에버모어 성과 오간다.
@@ -127,10 +127,10 @@ export const CROSSVALE_FACILITIES: TownFacilityDef[] = [
       ] },
   },
   /* 남동쪽 길가의 독립 건물 — 가운데 한 칸은 두 시설을 가르는 골목이다. */
-  { id: "inn", name: "여관 '잿불'", x: 23, y: 20, quests: ["s2"],
+  { id: "inn", name: "여관 '잿불'", x: 23, y: 20,
     description: "난롯불과 수프 냄새가 여행객을 맞는다.",
     topics: [
-      { id: "rumor", label: "소문", text: "할로우베일 심부의 옛길에 백골들이 걸어다닌다는 소문이 떠돈다." },
+      { id: "rumor", label: "소문", text: "고블린 요새 깊은 동굴에 백골 같은 망령이 떠돈다는 소문이 돈다." },
       { id: "veterans", label: "옛 손님", text: "옛날에는 에버모어의 기사단도 이곳에 묵어갔다." },
     ], keeper: { name: "로완", role: "여관 주인", portrait: 11,
       greetings: [
@@ -142,39 +142,52 @@ export const CROSSVALE_FACILITIES: TownFacilityDef[] = [
     description: "건초 냄새 사이로 에버모어행 역마차가 출발을 기다린다.",
     keeper: { name: "벤", role: "마부", portrait: 15,
       greetings: [
-        "에버모어로 가나? 말들은 준비됐어. 삯만 치르면 흔들림 적게 모셔다주지.",
-        "왕도행 마차는 조금 뒤에 떠나. 짐이 많으면 지금부터 단단히 묶어 두는 게 좋을 거야.",
-        "말들이 오늘따라 기분이 좋아. 날씨만 버텨 준다면 에버모어까지 꽤 편하게 갈 수 있겠군.",
+        "에버모어로 가나? 서쪽 마차로의 산적들만 정리되면 바로 말을 내주지.",
+        "왕도행 마차는 길이 안전해지는 대로 떠나. 현상금 길드에서 산적 소탕 건을 확인해 봐.",
+        "말들은 준비됐지만 마부 목숨도 하나뿐이야. 계곡의 산적들이 사라지기 전엔 운행할 수 없어.",
       ] } },
 ];
 
-/* ---- 장식 POI — 기능 없음, 조사 시 정취 텍스트. 칸을 점유(차단)한다 ---- */
+/* ---- 장식 — 분수·우물만 조사 가능, 나머지는 풍경용 ---- */
 export const CROSSVALE_DECOS: TownDecoDef[] = [
   {
     id: "fountain", name: "분수", x: 13, y: 10,
     text: "맑은 물줄기가 달빛을 튕겨낸다. 광장의 심장 — 크로스베일은 오늘도 나그네를 맞는다.",
+    blocking: true,
   },
   {
     id: "well", name: "우물", x: 4, y: 21,
     text: "두레박이 삐걱인다. 바닥 저 아래, 동전 몇 닢이 소원과 함께 잠들어 있다.",
+    blocking: true,
   },
   {
     id: "barrel", name: "술통", x: 8, y: 18,
     text: "도구점 앞에 부려 놓은 술통. 로칸의 필체로 '외상 사절'이라 적혀 있다.",
+    interactive: false,
   },
   {
     id: "crate", name: "짐짝", x: 19, y: 11,
     text: "무기점으로 들일 강철 자재. 못이 단단히 박혀 있어 열리지 않는다.",
+    interactive: false,
   },
-  { id: "tree", name: "느릅나무", x: 3, y: 5, text: "마을의 오래된 느릅나무. 잎 사이로 햇빛이 부서진다.", blocking: true },
-  { id: "tree", name: "물푸레나무", x: 24, y: 5, text: "물푸레나무 가지에 작은 새가 내려앉았다.", blocking: true },
-  { id: "tree", name: "정원수", x: 3, y: 15, text: "누군가 정성껏 다듬은 정원수다.", blocking: true },
-  { id: "tree", name: "사과나무", x: 24, y: 15, text: "사과나무에 아직 덜 익은 열매가 달려 있다.", blocking: true },
-  { id: "bush", name: "덤불", x: 6, y: 5, text: "연둣빛 덤불에서 풀 냄새가 난다.", blocking: true },
-  { id: "bush", name: "덤불", x: 22, y: 15, text: "연둣빛 덤불에서 풀 냄새가 난다.", blocking: true },
-  { id: "flower", name: "들꽃", x: 11, y: 9, text: "분수 곁 들꽃이 바람에 흔들린다." },
-  { id: "flower", name: "들꽃", x: 16, y: 11, text: "분수 곁 들꽃이 바람에 흔들린다." },
-  { id: "mushroom", name: "버섯", x: 5, y: 20, text: "비 온 뒤 돌틈에서 고개를 내민 버섯이다." },
+  { id: "tree", name: "느릅나무", x: 3, y: 5, text: "마을의 오래된 느릅나무. 잎 사이로 햇빛이 부서진다.", interactive: false, blocking: true },
+  { id: "tree", name: "물푸레나무", x: 24, y: 5, text: "물푸레나무 가지에 작은 새가 내려앉았다.", interactive: false, blocking: true },
+  { id: "tree", name: "정원수", x: 3, y: 15, text: "누군가 정성껏 다듬은 정원수다.", interactive: false, blocking: true },
+  { id: "tree", name: "사과나무", x: 24, y: 15, text: "사과나무에 아직 덜 익은 열매가 달려 있다.", interactive: false, blocking: true },
+  { id: "tree", name: "개울가 버드나무", x: 2, y: 5, text: "물가로 늘어진 가지 끝에서 물방울이 떨어진다.", interactive: false, blocking: true },
+  { id: "tree", name: "마을 끝 느릅나무", x: 25, y: 10, text: "대로 끝을 지키듯 서 있는 오래된 느릅나무다.", interactive: false, blocking: true },
+  { id: "tree", name: "어린 물푸레나무", x: 2, y: 19, text: "새로 돋은 잎이 계곡바람에 가볍게 흔들린다.", interactive: false, blocking: true },
+  { id: "bush", name: "덤불", x: 6, y: 5, text: "연둣빛 덤불에서 풀 냄새가 난다.", interactive: false, blocking: true },
+  { id: "bush", name: "덤불", x: 22, y: 15, text: "연둣빛 덤불에서 풀 냄새가 난다.", interactive: false, blocking: true },
+  { id: "bush", name: "개울가 관목", x: 5, y: 5, text: "축축한 흙을 따라 작은 관목이 무성하게 자랐다.", interactive: false, blocking: true },
+  { id: "bush", name: "산울타리", x: 5, y: 9, text: "낮게 다듬은 산울타리가 건물과 거리를 구분한다.", interactive: false, blocking: true },
+  { id: "flower", name: "들꽃", x: 11, y: 9, text: "분수 곁 들꽃이 바람에 흔들린다.", interactive: false },
+  { id: "flower", name: "들꽃", x: 16, y: 11, text: "분수 곁 들꽃이 바람에 흔들린다.", interactive: false },
+  { id: "flower", name: "개울가 들꽃", x: 4, y: 5, text: "개울가의 촉촉한 풀밭에 작은 꽃이 피었다.", interactive: false },
+  { id: "flower", name: "광장 화단", x: 10, y: 10, text: "회백색 포석 틈으로 소박한 들꽃이 고개를 내민다.", interactive: false },
+  { id: "flower", name: "광장 화단", x: 17, y: 14, text: "여행자들의 발길 옆에서 노란 꽃잎이 흔들린다.", interactive: false },
+  { id: "mushroom", name: "버섯", x: 5, y: 20, text: "비 온 뒤 돌틈에서 고개를 내민 버섯이다.", interactive: false },
+  { id: "mushroom", name: "물가버섯", x: 4, y: 4, text: "개울의 물안개를 머금은 작은 버섯이다.", interactive: false },
 ];
 
 /* ---- 마을 외곽길 (밟고 [Z] → 주변 필드) ---- */

@@ -81,9 +81,10 @@ export function compileTown<TNpc extends TownNpcPosition>(
     if (cellAt(town.map, deco.x, deco.y) !== "floor") {
       fail(town, `장식 '${deco.name}'이 바닥 칸에 있지 않음 (${deco.x},${deco.y})`);
     }
-    addUnique(town, decoByPosition, deco, deco.x, deco.y, "장식");
+    if (deco.interactive !== false)
+      addUnique(town, decoByPosition, deco, deco.x, deco.y, "장식");
     occupyFloor(deco.x, deco.y, `장식 '${deco.name}'`);
-    if (deco.blocking !== false) blockedPositions.add(townPositionKey(deco.x, deco.y));
+    if (deco.blocking === true) blockedPositions.add(townPositionKey(deco.x, deco.y));
   }
 
   for (const gate of town.gates) {

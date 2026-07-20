@@ -32,6 +32,14 @@ describe("TownNavigation", () => {
     expect(new TownNavigation(town.map, spatial, { x: 13, y: 21, facing: 2 }).interaction().kind)
       .toBe("gate");
   });
+
+  it("작은 바닥 장식은 조사와 이동을 방해하지 않는다", () => {
+    const movement = new TownNavigation(town.map, spatial, { x: 11, y: 10, facing: 0 });
+
+    expect(movement.interaction().kind).toBe("none");
+    expect(movement.move("fwd")).toBe(true);
+    expect(movement.pose).toMatchObject({ x: 11, y: 9 });
+  });
 });
 
 describe("openTownFacility", () => {

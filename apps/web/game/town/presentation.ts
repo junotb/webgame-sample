@@ -7,7 +7,7 @@ import type { GridMap } from "../grid";
 import { drawAdventurer } from "../monsters";
 import { createFPView } from "../fpview";
 import type { FPEntity, FPTheme, SurfacePick } from "../fpview";
-import { tileSprite } from "../tiles";
+import { tileSprite, tileTex } from "../tiles";
 import type { TileName } from "../tiles";
 import type { CompiledTown } from "./compile";
 import type { TownPose } from "./navigation";
@@ -28,6 +28,27 @@ const hash01 = (x: number, y: number, a: number, b: number): number => {
   return s - Math.floor(s);
 };
 
+type CrossvaleGroundKind = "grass" | "paving" | "cobble";
+
+function crossvaleGroundKind(x: number, y: number): CrossvaleGroundKind {
+  const mainRoad = x >= 11 && x <= 16;
+  const square = x >= 9 && x <= 18 && y >= 9 && y <= 15;
+  const gateRoad = y >= 14 && y <= 15;
+  const guildLane = y >= 6 && y <= 8 && x >= 7 && x <= 20;
+  const tradeLane = y >= 16 && y <= 18 && x >= 7 && x <= 20;
+  const carriageLane = y >= 19 && x >= 11 && x <= 24;
+  if (square) return "cobble";
+  if (mainRoad || gateRoad || guildLane || tradeLane || carriageLane) return "paving";
+  return "grass";
+}
+
+function crossvaleFloor(x: number, y: number): SurfacePick {
+  const kind = crossvaleGroundKind(x, y);
+  if (kind === "cobble") return { base: "village_cobble" };
+  if (kind === "paving") return { base: "village_paving" };
+  return { base: hash01(x, y, 91.7, 53.3) < 0.28 ? "village_grass_alt" : "village_grass" };
+}
+
 const FACILITY_EMBLEM_TILE: Partial<Record<TownFacilityId, TileName>> = {
   weapon: "facility_emblem_weapon",
   armor: "facility_emblem_armor",
@@ -41,21 +62,22 @@ const FACILITY_EMBLEM_TILE: Partial<Record<TownFacilityId, TileName>> = {
 
 interface FacilityFacade {
   wall: TileName;
+  roof: TileName;
   door: TileName;
   window?: TileName;
 }
 
 const FACILITY_FACADE: Record<TownFacilityId, FacilityFacade> = {
-  weapon: { wall: "village_wall_brick", door: "village_door_wood", window: "village_window_wide" },
-  armor: { wall: "village_wall_stone", door: "village_door_arch", window: "village_window_small" },
-  item: { wall: "village_wall_plaster", door: "village_door_wood", window: "village_window_wide" },
-  inn: { wall: "village_wall_timber", door: "village_door_wood", window: "village_window_flower" },
-  stable: { wall: "village_wall_timber", door: "village_door_wood" },
-  bountyGuild: { wall: "village_wall_brick", door: "village_door_wood", window: "village_window_small" },
-  elementsGuild: { wall: "village_wall_plaster", door: "village_door_arch", window: "village_window_arch" },
-  spiritGuild: { wall: "village_wall_stone", door: "village_door_arch", window: "village_window_arch" },
-  temple: { wall: "village_wall_stone", door: "village_door_arch", window: "village_window_arch" },
-  throne: { wall: "village_wall_stone", door: "village_door_arch", window: "village_window_wide" },
+  weapon: { wall: "village_wall_brick", roof: "village_roof_red", door: "village_door_wood", window: "village_window_wide" },
+  armor: { wall: "village_wall_stone", roof: "village_roof_blue", door: "village_door_arch", window: "village_window_small" },
+  item: { wall: "village_wall_plaster", roof: "village_roof_red", door: "village_door_wood", window: "village_window_wide" },
+  inn: { wall: "village_wall_timber", roof: "village_roof_red", door: "village_door_wood", window: "village_window_flower" },
+  stable: { wall: "village_wall_timber", roof: "village_roof_red", door: "village_door_wood" },
+  bountyGuild: { wall: "village_wall_brick", roof: "village_roof_red", door: "village_door_wood", window: "village_window_small" },
+  elementsGuild: { wall: "village_wall_plaster", roof: "village_roof_blue", door: "village_door_arch", window: "village_window_arch" },
+  spiritGuild: { wall: "village_wall_stone", roof: "village_roof_blue", door: "village_door_arch", window: "village_window_arch" },
+  temple: { wall: "village_wall_stone", roof: "village_roof_blue", door: "village_door_arch", window: "village_window_arch" },
+  throne: { wall: "village_wall_stone", roof: "village_roof_blue", door: "village_door_arch", window: "village_window_wide" },
 };
 
 interface GridOffset { dx: number; dy: number }
@@ -90,35 +112,65 @@ function createTheme(town: TownData, spatial: CompiledTown<NpcDef>): FPTheme {
     const sides = facilityFacadePositions(town, facility);
     const emblem = FACILITY_EMBLEM_TILE[facility.id];
     if (emblem && sides[0])
-      facadeWalls.set(`${sides[0].x},${sides[0].y}`, { base: facade.wall, decal: emblem });
+      facadeWalls.set(`${sides[0].x},${sides[0].y}`, { base: facade.wall, decal: emblem, cap: facade.roof });
     const windowStart = emblem ? 1 : 0;
     if (facade.window) for (const position of sides.slice(windowStart))
-      facadeWalls.set(`${position.x},${position.y}`, { base: facade.wall, decal: facade.window });
+      facadeWalls.set(`${position.x},${position.y}`, { base: facade.wall, decal: facade.window, cap: facade.roof });
   }
+
+  /* 문에서 가까운 벽은 같은 건물로 간주해 재료가 블록 전체에서 일관되게 보이게 한다. */
+  const buildingWalls = new Map<string, TownFacilityDef>();
+  for (let y = 0; y < town.map.h; y++) for (let x = 0; x < town.map.w; x++) {
+    if (cellAt(town.map, x, y) !== "wall") continue;
+    let nearest: TownFacilityDef | undefined;
+    let nearestDistance = Infinity;
+    for (const facility of town.facilities) {
+      const distance = Math.max(Math.abs(x - facility.x), Math.abs(y - facility.y));
+      if (distance <= 5 && distance < nearestDistance) {
+        nearest = facility;
+        nearestDistance = distance;
+      }
+    }
+    if (nearest) buildingWalls.set(`${x},${y}`, nearest);
+  }
+
   return {
-    floorAt: (x, y): SurfacePick =>
-      ({ base: "floor", decal: hash01(x, y, 91.7, 53.3) < 0.5 ? "pave_decal" : "pave2_decal" }),
+    floorAt: (x, y): SurfacePick => town.id === "crossvale"
+      ? crossvaleFloor(x, y)
+      : { base: "floor", decal: hash01(x, y, 91.7, 53.3) < 0.5 ? "pave_decal" : "pave2_decal" },
     wallAt: (x, y): SurfacePick => {
       const facility = spatial.facilityAt(x, y);
       if (facility) {
         const facade = FACILITY_FACADE[facility.id];
-        return { base: facade.wall, decal: facade.door };
+        return { base: facade.wall, decal: facade.door, cap: facade.roof };
       }
       const facadeWall = facadeWalls.get(`${x},${y}`);
       if (facadeWall) return facadeWall;
+      const owner = buildingWalls.get(`${x},${y}`);
+      if (owner) {
+        const facade = FACILITY_FACADE[owner.id];
+        const exposed = CARDINAL_OFFSETS.some(({ dx, dy }) =>
+          cellAt(town.map, x + dx, y + dy) !== "wall");
+        const window = exposed && facade.window && hash01(x, y, 37.1, 83.9) < 0.38
+          ? facade.window : undefined;
+        return { base: facade.wall, decal: window, cap: facade.roof };
+      }
       const h = hash01(x, y, 17.3, 71.9);
-      if (h < 0.14) return { base: "village_wall_plaster", decal: "village_window_small" };
-      if (h < 0.28) return { base: "village_wall_brick" };
-      if (h < 0.38) return { base: "village_wall_timber" };
-      return { base: "village_wall_plaster" };
+      if (h < 0.14) return { base: "village_wall_plaster", decal: "village_window_small", cap: "village_roof_red" };
+      if (h < 0.28) return { base: "village_wall_brick", cap: "village_roof_red" };
+      if (h < 0.38) return { base: "village_wall_timber", cap: "village_roof_red" };
+      return { base: "village_wall_plaster", cap: "village_roof_blue" };
     },
     torchAt: (x, y) => !facadeWalls.has(`${x},${y}`) && hash01(x, y, 29.1, 47.7) < 0.05,
-    ceiling: "ceiling",
-    water: "water",
+    ceiling: town.id === "crossvale" ? null : "ceiling",
+    water: town.id === "crossvale" ? "village_water" : "water",
     stairs: { base: "floor", decal: "stairs_decal" },
-    floorTint: 0x93a85a,
+    floorTint: town.id === "crossvale" ? 0xffffff : 0x93a85a,
+    waterTint: town.id === "crossvale" ? 0xd7fff1 : undefined,
     wallTint: 0xffffff,
     ceilingTint: 0x73834e,
+    /* 긴 대로 끝의 건물도 미리 실루엣이 보이게 한다. */
+    viewDistance: 9,
   };
 }
 
@@ -198,8 +250,8 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
     if (!["tree", "bush", "flower", "mushroom"].includes(deco.id)) continue;
     const tile: TileName = deco.id === "tree"
       ? treeTiles[(deco.x + deco.y) % treeTiles.length]
-      : deco.id === "bush" ? "bush_01"
-        : deco.id === "flower" ? "flower_01" : "mushroom_01";
+      : deco.id === "bush" ? ((deco.x + deco.y) % 2 ? "bush_01" : "bush_02")
+        : deco.id === "flower" ? ((deco.x + deco.y) % 2 ? "flower_01" : "flower_02") : "mushroom_01";
     const node = new PIXI.Container();
     const sprite = tileSprite(tile); sprite.anchor.set(0.5, 1); node.addChild(sprite);
     const tall = deco.id === "tree";
@@ -208,6 +260,39 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
       worldH: tall ? 0.98 : deco.id === "bush" ? 0.34 : 0.16,
       baseH: tall ? 112 : deco.id === "bush" ? 32 : 16,
     });
+  }
+
+  /* 통행·조사를 방해하지 않는 작은 바닥 장식을 초지에 결정적으로 배치한다. */
+  if (town.id === "crossvale") {
+    const occupied = new Set<string>();
+    const reserve = (x: number, y: number) => occupied.add(`${x},${y}`);
+    town.facilities.forEach((entry) => reserve(entry.x, entry.y));
+    town.decos.forEach((entry) => reserve(entry.x, entry.y));
+    town.gates.forEach((entry) => reserve(entry.x, entry.y));
+    npcs.forEach((entry) => reserve(entry.gx, entry.gy));
+    Object.values(town.starts).forEach((entry) => { if (entry) reserve(entry.x, entry.y); });
+
+    for (let y = 1; y < town.map.h - 1; y++) for (let x = 1; x < town.map.w - 1; x++) {
+      if (cellAt(town.map, x, y) !== "floor" || crossvaleGroundKind(x, y) !== "grass"
+        || occupied.has(`${x},${y}`)) continue;
+      const roll = hash01(x, y, 13.7, 61.3);
+      let tile: TileName | undefined;
+      let scale = 1.4, worldH = 0.12, baseH = 20;
+      if (roll < 0.11) tile = hash01(x, y, 31.1, 17.9) < 0.5 ? "flower_01" : "flower_02";
+      else if (roll < 0.16) tile = "mushroom_01";
+      else if (roll < 0.22) {
+        tile = hash01(x, y, 47.3, 29.5) < 0.5 ? "bush_01" : "bush_02";
+        scale = 0.9; worldH = 0.18; baseH = 28;
+      }
+      if (!tile) continue;
+
+      const node = new PIXI.Container();
+      const sprite = tileSprite(tile, scale);
+      sprite.anchor.set(0.5, 1);
+      sprite.x = Math.round((hash01(x, y, 71.9, 23.7) - 0.5) * 12);
+      node.addChild(sprite);
+      entities.push({ id: `ground-deco:${x},${y}`, x, y, node, worldH, baseH });
+    }
   }
 
   for (const gate of town.gates) {
@@ -279,7 +364,7 @@ function createMinimap(
           .fill(statuses.includes("done") ? C.elite : 0xffffff);
       }
     }
-    for (const deco of town.decos)
+    for (const deco of town.decos.filter((entry) => entry.interactive !== false))
       graphics.rect(deco.x * cellSize + 1, deco.y * cellSize + 1, cellSize - 3, cellSize - 3)
         .fill(deco.id === "fountain" ? 0x4f9fd0 : deco.id === "statue" ? 0x9a96b0 : 0x8a7430);
     for (const gate of town.gates)
@@ -306,8 +391,17 @@ export function createTownPresentation(
   spatial: CompiledTown<NpcDef>,
   initialTime: { phase: TownTimePhase; label: string },
 ): TownPresentation {
-  const background = new PIXI.Graphics();
-  background.rect(0, 0, W, H).fill(C.night);
+  const background = new PIXI.Container();
+  const backgroundFill = new PIXI.Graphics();
+  backgroundFill.rect(0, 0, W, H).fill(C.night);
+  background.addChild(backgroundFill);
+  const valleyBackground = town.id === "crossvale"
+    ? new PIXI.Sprite(tileTex("crossvale_valley_bg")) : null;
+  if (valleyBackground) {
+    valleyBackground.width = W;
+    valleyBackground.height = H;
+    background.addChild(valleyBackground);
+  }
   root.addChild(background);
 
   const visualMap: GridMap = {
@@ -325,7 +419,11 @@ export function createTownPresentation(
   const districtLabel = txt("", 16, C.border, { serif: true, weight: "700", shadow: true });
   districtLabel.anchor.set(0.5, 0); districtLabel.x = W / 2; districtLabel.y = 64; root.addChild(districtLabel);
   let time = initialTime;
-  const applyTime = () => { lighting.alpha = time.phase === "night" ? 0.32 : time.phase === "evening" ? 0.14 : 0; };
+  const applyTime = () => {
+    if (valleyBackground) valleyBackground.tint = time.phase === "night" ? 0x78829b
+      : time.phase === "evening" ? 0xe6b39b : 0xffffff;
+    lighting.alpha = time.phase === "night" ? 0.32 : time.phase === "evening" ? 0.14 : 0;
+  };
   applyTime();
 
   return {

@@ -62,7 +62,9 @@ export interface TownDecoDef {
   x: number;
   y: number;
   text: string;
-  /** 나무·덤불만 통행을 막고, 꽃·버섯은 지나갈 수 있다. */
+  /** false이면 렌더링만 하고 조사 대상에는 등록하지 않는다. 기본 true */
+  interactive?: boolean;
+  /** 큰 구조물만 통행을 막는다. 기본 false */
   blocking?: boolean;
 }
 

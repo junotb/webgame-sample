@@ -18,7 +18,7 @@ describe.each(townIds)("마을 맵 규칙 — %s", (id) => {
   const t = TOWNS[id];
   const compiled = compileTown(t, npcsOf(id));
   const blocked = () => new Set([
-    ...t.decos.map((d) => `${d.x},${d.y}`),
+    ...t.decos.filter((d) => d.blocking).map((d) => `${d.x},${d.y}`),
     ...npcsOf(id).map((n) => `${n.gx},${n.gy}`),
   ]);
 
@@ -33,8 +33,10 @@ describe.each(townIds)("마을 맵 규칙 — %s", (id) => {
   it("모든 배치를 좌표 인덱스로 같은 객체에 연결한다", () => {
     for (const facility of t.facilities)
       expect(compiled.facilityAt(facility.x, facility.y)).toBe(facility);
-    for (const deco of t.decos)
-      expect(compiled.decoAt(deco.x, deco.y)).toBe(deco);
+    for (const deco of t.decos) {
+      expect(compiled.decoAt(deco.x, deco.y)).toBe(deco.interactive === false ? undefined : deco);
+      expect(compiled.blockedAt(deco.x, deco.y)).toBe(deco.blocking === true);
+    }
     for (const gate of t.gates)
       expect(compiled.gateAt(gate.x, gate.y)).toBe(gate);
     for (const npc of npcsOf(id))

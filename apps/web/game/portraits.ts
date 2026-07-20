@@ -1,6 +1,6 @@
 /* =====================================================================
  * portraits.ts — 캐릭터 초상화 에셋 (64×64 픽셀아트, nearest 스케일)
- *  파일명: male01~23 / female01~25. 인덱스는 1-based (남성 → 여성 순).
+ *  파일명: male_01~23 / female_01~25. 인덱스는 1-based (남성 → 여성 순).
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 
@@ -9,8 +9,8 @@ export const FEMALE_COUNT = 25;
 
 /** 1-based 인덱스 순서의 파일명(확장자 제외) 목록 */
 export const PORTRAITS: string[] = [
-  ...Array.from({ length: MALE_COUNT }, (_, k) => `male${String(k + 1).padStart(2, "0")}`),
-  ...Array.from({ length: FEMALE_COUNT }, (_, k) => `female${String(k + 1).padStart(2, "0")}`),
+  ...Array.from({ length: MALE_COUNT }, (_, k) => `male_${String(k + 1).padStart(2, "0")}`),
+  ...Array.from({ length: FEMALE_COUNT }, (_, k) => `female_${String(k + 1).padStart(2, "0")}`),
 ];
 export const PORTRAIT_COUNT = PORTRAITS.length;
 
@@ -21,7 +21,7 @@ export async function loadPortraits(): Promise<void> {
   await PIXI.Assets.load(
     PORTRAITS.map((name, k) => ({
       alias: alias(k + 1),
-      src: `/assets/characters/${name}.png`,
+      src: `/assets/portraits/${name}.png`,
       data: { scaleMode: "nearest" as const },
     })),
   );

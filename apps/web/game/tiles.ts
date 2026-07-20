@@ -1,11 +1,11 @@
 /* =====================================================================
- * tiles.ts — 던전·마을 타일 텍스처 (public/assets/tiles 팩에서 슬라이스)
+ * tiles.ts — 던전·마을 타일 텍스처 (public/assets/world에서 슬라이스)
  *  시트(16px 그리드):
  *   tileset_walls_floor        벽·바닥·계단·창/문 파사드
  *   props_door_chest_animation 문 개폐·상자 프레임 (빌보드용)
  *   props_objects              술통·짐짝 등 소품
  *   tileset_water_coast_animation  물
- *   decorative_wall/floor_cracks   풍화·포장 데칼 (투명부 있음 — 베이스 위에 겹침)
+ *   decor_wall/floor_cracks        풍화·포장 데칼 (투명부 있음 — 베이스 위에 겹침)
  *   fx_fire_brazier_animation      횃불 불꽃 6프레임
  *  *_decal 이름은 오버레이 전용: 단독으로 쓰지 말고 베이스 타일 위에 그린다.
  * ===================================================================== */
@@ -14,22 +14,19 @@ import * as PIXI from "pixi.js";
 export const TILE = 16;
 
 const SHEET_SRC = {
-  walls: "/assets/tiles/tileset_walls_floor.png",
-  doorAnim: "/assets/tiles/props_door_chest_animation.png",
-  props: "/assets/tiles/props_objects.png",
-  water: "/assets/tiles/tileset_water_coast_animation.png",
-  wallCracks: "/assets/tiles/decorative_wall_cracks.png",
-  floorCracks: "/assets/tiles/decorative_floor_cracks.png",
-  brazier: "/assets/tiles/fx_fire_brazier_animation.png",
-  tree1: "/assets/tiles/props_tree_01.png",
-  tree2: "/assets/tiles/props_tree_02.png",
-  tree3: "/assets/tiles/props_tree_03.png",
-  tree4: "/assets/tiles/props_tree_04.png",
-  bush1: "/assets/tiles/props_bush_01.png",
-  bush2: "/assets/tiles/props_bush_02.png",
-  flower1: "/assets/tiles/props_flower_01.png",
-  flower2: "/assets/tiles/props_flower_02.png",
-  mushroom1: "/assets/tiles/props_mushroom_01.png",
+  walls: "/assets/world/tilesets/dungeon/walls_floor.png",
+  doorAnim: "/assets/world/props/buildings/door_chest_animation.png",
+  props: "/assets/world/props/common/objects.png",
+  water: "/assets/world/tilesets/nature/water_coast_animation.png",
+  wallCracks: "/assets/world/decals/wall/cracks.png",
+  floorCracks: "/assets/world/decals/floor/cracks.png",
+  brazier: "/assets/world/effects/fire/brazier_animation.png",
+  facilityEmblems: "/assets/world/props/buildings/facility_emblems.png",
+  villageFacades: "/assets/world/tilesets/village/facades.png",
+  trees: "/assets/world/props/nature/trees.png",
+  bushes: "/assets/world/props/nature/bushes.png",
+  flowers: "/assets/world/props/nature/flowers.png",
+  mushrooms: "/assets/world/props/nature/mushrooms.png",
 } as const;
 type SheetName = keyof typeof SHEET_SRC;
 
@@ -59,16 +56,38 @@ const FRAMES = {
   chest_obj: { s: "doorAnim", x: 0, y: 128, w: 32, h: 32 },
   barrel_obj: { s: "props", x: 96, y: 64, w: 16, h: 32 },
   crate_obj: { s: "props", x: 256, y: 0, w: 32, h: 32 },
-  /* ---- 목가적 마을·필드 자연물 (개별 PNG 원본 크기) ---- */
-  tree_01: { s: "tree1", x: 0, y: 0, w: 96, h: 112 },
-  tree_02: { s: "tree2", x: 0, y: 0, w: 96, h: 112 },
-  tree_03: { s: "tree3", x: 0, y: 0, w: 96, h: 112 },
-  tree_04: { s: "tree4", x: 0, y: 0, w: 96, h: 112 },
-  bush_01: { s: "bush1", x: 0, y: 0, w: 32, h: 32 },
-  bush_02: { s: "bush2", x: 0, y: 0, w: 32, h: 32 },
-  flower_01: { s: "flower1", x: 0, y: 0, w: 16, h: 16 },
-  flower_02: { s: "flower2", x: 0, y: 0, w: 16, h: 16 },
-  mushroom_01: { s: "mushroom1", x: 0, y: 0, w: 16, h: 16 },
+  /* ---- 마을 기능성 건물 벽면 엠블럼 (4×2, 96×96 프레임) ---- */
+  facility_emblem_weapon: { s: "facilityEmblems", x: 0, y: 0, w: 96, h: 96 },
+  facility_emblem_armor: { s: "facilityEmblems", x: 96, y: 0, w: 96, h: 96 },
+  facility_emblem_item: { s: "facilityEmblems", x: 192, y: 0, w: 96, h: 96 },
+  facility_emblem_inn: { s: "facilityEmblems", x: 288, y: 0, w: 96, h: 96 },
+  facility_emblem_stable: { s: "facilityEmblems", x: 0, y: 96, w: 96, h: 96 },
+  facility_emblem_bounty: { s: "facilityEmblems", x: 96, y: 96, w: 96, h: 96 },
+  facility_emblem_elements: { s: "facilityEmblems", x: 192, y: 96, w: 96, h: 96 },
+  facility_emblem_spirit: { s: "facilityEmblems", x: 288, y: 96, w: 96, h: 96 },
+  /* ---- 마을 외관 (style_48 공통 아틀라스) ---- */
+  village_wall_brick: { s: "villageFacades", x: 0, y: 0, w: 96, h: 96 },
+  village_wall_plaster: { s: "villageFacades", x: 96, y: 0, w: 96, h: 96 },
+  village_wall_stone: { s: "villageFacades", x: 192, y: 0, w: 96, h: 96 },
+  village_wall_timber: { s: "villageFacades", x: 288, y: 0, w: 96, h: 96 },
+  village_roof_red: { s: "villageFacades", x: 0, y: 96, w: 96, h: 96 },
+  village_roof_blue: { s: "villageFacades", x: 96, y: 96, w: 96, h: 96 },
+  village_window_arch: { s: "villageFacades", x: 0, y: 480, w: 48, h: 96 },
+  village_window_small: { s: "villageFacades", x: 48, y: 528, w: 48, h: 48 },
+  village_window_wide: { s: "villageFacades", x: 96, y: 528, w: 96, h: 48 },
+  village_window_flower: { s: "villageFacades", x: 0, y: 576, w: 48, h: 96 },
+  village_door_wood: { s: "villageFacades", x: 48, y: 576, w: 48, h: 96 },
+  village_door_arch: { s: "villageFacades", x: 96, y: 576, w: 48, h: 96 },
+  /* ---- 목가적 마을·필드 자연물 (종류별 atlas, 프레임은 원본 크기 유지) ---- */
+  tree_01: { s: "trees", x: 0, y: 0, w: 96, h: 112 },
+  tree_02: { s: "trees", x: 96, y: 0, w: 96, h: 112 },
+  tree_03: { s: "trees", x: 0, y: 112, w: 96, h: 112 },
+  tree_04: { s: "trees", x: 96, y: 112, w: 96, h: 112 },
+  bush_01: { s: "bushes", x: 0, y: 0, w: 32, h: 32 },
+  bush_02: { s: "bushes", x: 32, y: 0, w: 32, h: 32 },
+  flower_01: { s: "flowers", x: 0, y: 0, w: 16, h: 16 },
+  flower_02: { s: "flowers", x: 16, y: 0, w: 16, h: 16 },
+  mushroom_01: { s: "mushrooms", x: 0, y: 0, w: 16, h: 16 },
 } as const satisfies Record<string, FrameDef>;
 export type TileName = keyof typeof FRAMES;
 

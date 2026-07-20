@@ -1,5 +1,5 @@
 /* =====================================================================
- * monsters.ts — 몬스터 스프라이트 (assets/monsters 이미지 + 절차적 폴백)
+ * monsters.ts — 몬스터 스프라이트 (assets/monsters/icons 이미지 + 절차적 폴백)
  *  + 모험가(파티) 절차적 스프라이트
  * ===================================================================== */
 import * as PIXI from "pixi.js";
@@ -13,7 +13,7 @@ export async function loadMonsterIcons(): Promise<void> {
   await PIXI.Assets.load(
     MONSTER_ICONS.map(({ nameEn }) => ({
       alias: alias(nameEn),
-      src: `/assets/monsters/${nameEn}.png`,
+      src: `/assets/monsters/icons/${nameEn.toLowerCase()}.png`,
       data: { scaleMode: "nearest" as const },
     })),
   );

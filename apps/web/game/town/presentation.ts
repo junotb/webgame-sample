@@ -11,7 +11,7 @@ import { tileSprite } from "../tiles";
 import type { TileName } from "../tiles";
 import type { CompiledTown } from "./compile";
 import type { TownPose } from "./navigation";
-import type { TownData, TownFacilityId } from "./types";
+import type { TownData, TownFacilityDef, TownFacilityId } from "./types";
 import type { TownTimePhase } from "./world-state";
 
 export interface TownPresentation {
@@ -28,26 +28,96 @@ const hash01 = (x: number, y: number, a: number, b: number): number => {
   return s - Math.floor(s);
 };
 
-function createTheme(spatial: CompiledTown<NpcDef>): FPTheme {
-  const besideDoor = (x: number, y: number): boolean =>
-    !!spatial.facilityAt(x - 1, y) || !!spatial.facilityAt(x + 1, y);
+const FACILITY_EMBLEM_TILE: Partial<Record<TownFacilityId, TileName>> = {
+  weapon: "facility_emblem_weapon",
+  armor: "facility_emblem_armor",
+  item: "facility_emblem_item",
+  inn: "facility_emblem_inn",
+  stable: "facility_emblem_stable",
+  bountyGuild: "facility_emblem_bounty",
+  elementsGuild: "facility_emblem_elements",
+  spiritGuild: "facility_emblem_spirit",
+};
+
+interface FacilityFacade {
+  wall: TileName;
+  door: TileName;
+  window?: TileName;
+}
+
+const FACILITY_FACADE: Record<TownFacilityId, FacilityFacade> = {
+  weapon: { wall: "village_wall_brick", door: "village_door_wood", window: "village_window_wide" },
+  armor: { wall: "village_wall_stone", door: "village_door_arch", window: "village_window_small" },
+  item: { wall: "village_wall_plaster", door: "village_door_wood", window: "village_window_wide" },
+  inn: { wall: "village_wall_timber", door: "village_door_wood", window: "village_window_flower" },
+  stable: { wall: "village_wall_timber", door: "village_door_wood" },
+  bountyGuild: { wall: "village_wall_brick", door: "village_door_wood", window: "village_window_small" },
+  elementsGuild: { wall: "village_wall_plaster", door: "village_door_arch", window: "village_window_arch" },
+  spiritGuild: { wall: "village_wall_stone", door: "village_door_arch", window: "village_window_arch" },
+  temple: { wall: "village_wall_stone", door: "village_door_arch", window: "village_window_arch" },
+  throne: { wall: "village_wall_stone", door: "village_door_arch", window: "village_window_wide" },
+};
+
+interface GridOffset { dx: number; dy: number }
+
+const CARDINAL_OFFSETS: readonly GridOffset[] = [
+  { dx: 0, dy: -1 },
+  { dx: 1, dy: 0 },
+  { dx: 0, dy: 1 },
+  { dx: -1, dy: 0 },
+];
+
+function facilityFacadePositions(town: TownData, facility: TownFacilityDef): Array<{ x: number; y: number }> {
+  const floorSides = CARDINAL_OFFSETS.filter(({ dx, dy }) =>
+    cellAt(town.map, facility.x + dx, facility.y + dy) === "floor");
+  const front = floorSides.find(({ dx, dy }) =>
+    cellAt(town.map, facility.x - dx, facility.y - dy) === "wall") ?? floorSides[0];
+  if (!front) return [];
+
+  const lateral = [
+    { dx: -front.dy, dy: front.dx },
+    { dx: front.dy, dy: -front.dx },
+  ];
+  return lateral
+    .map(({ dx, dy }) => ({ x: facility.x + dx, y: facility.y + dy }))
+    .filter(({ x, y }) => cellAt(town.map, x, y) === "wall");
+}
+
+function createTheme(town: TownData, spatial: CompiledTown<NpcDef>): FPTheme {
+  const facadeWalls = new Map<string, SurfacePick>();
+  for (const facility of town.facilities) {
+    const facade = FACILITY_FACADE[facility.id];
+    const sides = facilityFacadePositions(town, facility);
+    const emblem = FACILITY_EMBLEM_TILE[facility.id];
+    if (emblem && sides[0])
+      facadeWalls.set(`${sides[0].x},${sides[0].y}`, { base: facade.wall, decal: emblem });
+    const windowStart = emblem ? 1 : 0;
+    if (facade.window) for (const position of sides.slice(windowStart))
+      facadeWalls.set(`${position.x},${position.y}`, { base: facade.wall, decal: facade.window });
+  }
   return {
     floorAt: (x, y): SurfacePick =>
       ({ base: "floor", decal: hash01(x, y, 91.7, 53.3) < 0.5 ? "pave_decal" : "pave2_decal" }),
     wallAt: (x, y): SurfacePick => {
-      if (spatial.facilityAt(x, y)) return { base: "wall", decal: "door_closed_obj" };
-      if (besideDoor(x, y)) return { base: "wall" };
+      const facility = spatial.facilityAt(x, y);
+      if (facility) {
+        const facade = FACILITY_FACADE[facility.id];
+        return { base: facade.wall, decal: facade.door };
+      }
+      const facadeWall = facadeWalls.get(`${x},${y}`);
+      if (facadeWall) return facadeWall;
       const h = hash01(x, y, 17.3, 71.9);
-      if (h < 0.16) return { base: "wall", decal: "wall_window_decal" };
-      if (h < 0.34) return { base: "wall", decal: "wall_worn2_decal" };
-      return { base: "wall" };
+      if (h < 0.14) return { base: "village_wall_plaster", decal: "village_window_small" };
+      if (h < 0.28) return { base: "village_wall_brick" };
+      if (h < 0.38) return { base: "village_wall_timber" };
+      return { base: "village_wall_plaster" };
     },
-    torchAt: (x, y) => besideDoor(x, y) || hash01(x, y, 29.1, 47.7) < 0.05,
+    torchAt: (x, y) => !facadeWalls.has(`${x},${y}`) && hash01(x, y, 29.1, 47.7) < 0.05,
     ceiling: "ceiling",
     water: "water",
     stairs: { base: "floor", decal: "stairs_decal" },
     floorTint: 0x93a85a,
-    wallTint: 0x9a8062,
+    wallTint: 0xffffff,
     ceilingTint: 0x73834e,
   };
 }
@@ -61,10 +131,10 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
   for (const facility of town.facilities) {
     const node = new PIXI.Container();
     const label = txt(facility.name, 12, C.border, { weight: "700", shadow: true });
-    label.anchor.set(0.5, 1); label.y = -134; node.addChild(label);
+    label.anchor.set(0.5, 1); label.y = -108; node.addChild(label);
     entities.push({
       id: `door-label:${facility.x},${facility.y}`,
-      x: facility.x, y: facility.y, node, worldH: 0.92, baseH: 128,
+      x: facility.x, y: facility.y, node, worldH: 0.8, baseH: 112,
     });
   }
 
@@ -244,7 +314,7 @@ export function createTownPresentation(
     ...town.map,
     cells: town.map.cells.map((cell) => cell === "door" ? "wall" : cell),
   };
-  const view = createFPView(createTheme(spatial));
+  const view = createFPView(createTheme(town, spatial));
   root.addChild(view.root);
   const lighting = new PIXI.Graphics();
   lighting.rect(0, 0, W, H).fill({ color: 0x17102d, alpha: 1 });

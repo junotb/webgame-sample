@@ -1,99 +1,50 @@
 # 04 — 데이터 레퍼런스
 
-출처: `src/game/data.ts`. 수치 변경 시 이 문서를 함께 갱신할 것. 밸런스는 **4인 파티 기준**으로 조정되어 있다.
+이 문서는 데이터 값을 복제한 표 대신, 각 데이터의 기준 파일과 검증 위치를 안내한다. 수치와 항목 개수는 아래 TypeScript 정의를 직접 확인한다.
 
-## 파티 슬롯 (`PARTY_SLOTS`)
+## 기준 파일
 
-슬롯은 `{ id, name }`만 정의한다 — 초상화·직업·추가 기술·능력치는 전부 캐릭터 생성 화면(`scenes/create.ts`)에서 정하고, `CreationConfig[]`로 `newGame()`에 전달된다. 외형색(`color`/`accent`)은 현재 클래스에서 파생(`CLASSES[classId]`).
+| 데이터 | 기준 파일 | 주요 검증 |
+| --- | --- | --- |
+| 능력치 | `game/defs/attrs.ts` | `growth.test.ts`, `equip.test.ts` |
+| 숙련과 랭크 | `game/defs/skills.ts` | `growth.test.ts` |
+| 클래스 트리 | `game/defs/classes.ts` | `growth.test.ts` |
+| 전투 어빌리티 | `game/defs/abilities.ts` | `battle-engine.test.ts` |
+| 피해 타입과 저항 | `game/defs/damage.ts` | `damage.test.ts` |
+| 적과 몬스터 아이콘 카탈로그 | `game/defs/enemies.ts` | `battle-engine.test.ts`, `assets.test.ts` |
+| 장비 슬롯 | `game/defs/equip.ts` | `equip.test.ts` |
+| 상점 | `game/defs/shop.ts` | `equip.test.ts`, UI 타입 검사 |
+| 희귀도·접사·전리품 | `game/defs/loot.ts` | `loot.test.ts` |
+| 파티 슬롯과 프리셋 | `game/defs/party.ts` | `growth.test.ts`, `assets.test.ts` |
+| NPC | `game/defs/npcs.ts` | `npcs.test.ts`, `assets.test.ts` |
+| 의뢰 | `game/defs/quests.ts` | `quests.test.ts` |
+| 파티 상태와 상태 명령 | `game/state.ts` | `store.test.ts` 및 시스템별 테스트 |
+| 세이브 스키마 | `game/persistence.ts` | `persistence.test.ts` |
+| 던전과 필드 맵 | `game/dungeon.ts`, `game/fieldmaps.ts` | `grid.test.ts`, `fieldmaps.test.ts` |
+| 마을 | `game/town/crossvale.ts`, `game/town/evermore.ts` | `town-data.test.ts`, `town-compile.test.ts` |
+| 기능성 건물 | `game/town/types.ts`, 마을별 `facilities` | `town-content.test.ts`, `town-navigation.test.ts` |
+| 타일 시트와 프레임 | `game/tiles.ts` | `assets.test.ts` |
+| 초상화 | `game/portraits.ts` | `assets.test.ts` |
 
-| id | 이름 |
-|---|---|
-| aeren | 에런 |
-| lien | 리엔 |
-| cassius | 카시우스 |
-| mira | 미라 |
+모든 정의는 `game/defs/index.ts`에서 재수출한다. 새 정의 파일을 만들었다면 필요한 항목을 이 배럴 파일에 추가한다.
 
-공통 초기값: Lv1, HP `40+체력×3` / MP `4+지능+지혜`, 무기 "낡은 검"(+0), 방어구 "여행자 옷"(+0). 초기 소지: 120G, 치유 물약 ×3, 마나 물약 ×2. 생성 분배: 기본 10, 포인트 10, 범위 8~18.
+## 안정적으로 유지할 관계
 
-## 몬스터 (`ENEMY_DEFS`)
+- `ClassId`와 `CLASSES`의 키는 일치해야 한다.
+- 클래스의 `from` 연결은 기초 → 1차 → 2차 트리를 이뤄야 한다.
+- 어빌리티의 `skill`은 존재하는 `SkillId`를 사용해야 한다.
+- 적의 `img`는 `MONSTER_ICONS.nameEn`에 등록되어야 한다.
+- NPC와 파티 프리셋의 초상화 인덱스는 실제 파일 범위 안에 있어야 한다.
+- 의뢰의 선행 조건과 시설 연결은 존재하는 ID를 참조해야 한다.
+- 마을 시설은 문 셀 위에 있고 접근 가능한 정면 칸을 가져야 한다.
+- `game/tiles.ts`에 등록한 모든 시트는 `public/assets/`에 존재해야 한다.
 
-| id | 이름 | tier | HP | atk | def | spd | exp | gold | shape/big |
-|---|---|---|---|---|---|---|---|---|---|
-| slime | 점액 괴물 | 일반 | 46 | 10 | 1 | 5 | 16 | 10 | slime |
-| goblin | 고블린 | 일반 | 58 | 13 | 2 | 9 | 22 | 16 | goblin |
-| wolf | 다이어울프 | 일반 | 72 | 16 | 2 | 13 | 30 | 20 | wolf |
-| skeleton | 스켈레톤 | 일반 | 66 | 14 | 4 | 8 | 28 | 22 | skel |
-| orc | 오크 워로드 | 정예 | 780 | 32 | 9 | 10 | 150 | 220 | orc ×1.35 |
-| lord | 숲의 군주 그림바크 | 보스 | 3400 | 42 | 10 | 11 | 450 | 800 | lord ×1.7 |
-| ancient | 고대 정령 아스테리온 | 에픽 | 6000 | 50 | 12 | 15 | 999 | 2000 | ancient ×1.8 |
+## 데이터 변경 절차
 
-밸런스 근거(시뮬레이션 300회 기준, `memberStats`/`battle.ts` 공식 그대로 복제):
-- 오크(정예): Lv3(1차 전직+w1/a1)에서 평균 HP손실 ~20%로 팽팽, Lv6(2차 전직)이면 무난.
-- 그림바크(보스): **Lv6(2차 전직 직후) 미만에서는 사실상 승산 없음** — 2차 전직으로 달인 랭크(rankMult 2.3배)를 얻어야 정면돌파 가능하도록 의도적으로 설계. Lv6에서 평균 9~10라운드, HP손실 ~18%.
-- 아스테리온(에픽, 솔로): Lv6에서도 거의 승산 없고 Lv7부터 이길 수 있음(단, 라운드 수가 25~30으로 길어 다소 늘어지는 편 — 솔로 유닛이라 턴 수 자체가 적어서 생기는 구조적 한계, 필요시 라운드당 2행동 부여 등으로 개선 여지 있음).
-- 위 근거로 전투불능 위험이 실재하는 구간이 명확히 생김: Lv6 미만에서 보스에게 도전하면 높은 확률로 전멸.
+1. 기준 정의 파일을 수정한다.
+2. 해당 데이터가 참조하는 ID와 에셋 경로를 확인한다.
+3. 가장 가까운 단위 테스트를 수정하거나 추가한다.
+4. `npm test -- --run`과 `npm run typecheck`를 실행한다.
+5. 구조나 변경 절차가 달라진 경우에만 이 문서를 수정한다.
 
-- 고정 조우 편성: 정예 = `["orc","goblin"]`, 보스 = `["lord","wolf","wolf"]`, 에픽 = `["ancient"]`.
-- exp는 편성 합산을 **전원**이 획득. 보스/에픽은 35% 확률 광역(×0.65).
-- shape는 `monsters.ts drawMonster()`의 분기 키. 새 몬스터는 shape 추가 필요.
-
-## 전투 어빌리티 (`ABILITIES`) — 17종
-
-`skill`의 랭크가 `min` 이상인 멤버에게 노출. 위력에 `RANK_MULT[현재랭크]`가 곱해진다.
-
-| id | 스킬(min) | 이름 | MP | pow×hits | kind | 특수 |
-|---|---|---|---|---|---|---|
-| slash | 날붙이(1) | 강타 | 3 | 1.4×1 | phys | |
-| dblcut | 날붙이(2) | 이연격 | 6 | 0.95×2 | phys | |
-| bladedance | 날붙이(3) | 검무 | 12 | 0.85×3 | phys | |
-| crush | 둔기(1) | 분쇄격 | 4 | 1.55×1 | phys | |
-| pierce | 창(1) | 관통 찌르기 | 4 | 1.5×1 | phys | 방어 절반 무시 |
-| flurry | 맨손(1) | 연환권 | 5 | 0.8×2 | phys | |
-| fatalpalm | 맨손(3) | 백보신권 | 11 | 2.5×1 | phys | |
-| aimshot | 활(1) | 정밀 사격 | 4 | 1.5×1 | phys | crit 25% (×1.7) |
-| knife | 투척(1) | 단검 투척 | 3 | 1.25×1 | phys | |
-| fireball | 원소(1) | 화염구 | 5 | 1.6×1 | mag | |
-| chainlt | 원소(2) | 연쇄 번개 | 9 | 1.1×1 | mag | **전체** |
-| meteor | 원소(3) | 메테오 | 16 | 1.8×1 | mag | **전체** |
-| psyshock | 영혼(1) | 정신 충격 | 5 | 1.45×1 | mag | |
-| heal | 영혼(1) | 치유 | 6 | 1.2 | heal | 아군 단일, 지혜×1.8×rankMult×pow |
-| holy | 빛(1) | 성스러운 빛 | 7 | 1.6×1 | mag | |
-| shadow | 어둠(1) | 암흑구 | 6 | 1.7×1 | mag | |
-| drain | 어둠(2) | 생명 흡수 | 9 | 1.3×1 | mag | 피해 50% 흡수 |
-
-기본 공격(코드 상 `BASIC_ATTACK`): MP 0, pow 1.0, rankMult 1 고정.
-
-## 상점 (`SHOP_WEAPONS` / `SHOP_ARMORS` / `SHOP_ITEMS`)
-
-| 구분 | 품목 | 효과 | 가격 |
-|---|---|---|---|
-| 무기 | 강철 검 / 은장 검 / 룬 블레이드 | atk +5 / +11 / +19 | 120 / 420 / 980 G |
-| 방어구 | 사슬 갑옷 / 판금 갑옷 / 룬 아머 | def +4 / +9 / +15 | 110 / 400 / 950 G |
-| 도구 | 치유 물약 | 아군 1명 HP 60 (전투불능 부활 가능) | 30 G |
-| 도구 | 마나 물약 | 아군 1명 MP 25 | 45 G |
-
-- 장비는 멤버별 단일 슬롯(무기 1/방어구 1) 교체식, 되팔기 없음. 여관 30G(전원 완전 회복).
-
-## 클래스 데이터 요약 (`CLASSES`)
-
-기초·1차 클래스의 `ranks`(기본 랭크, max 병합됨). 생성 시 고른 추가 기술 2개가 랭크 1로 더해진다:
-
-| 클래스 | ranks |
-|---|---|
-| 파이터 (기초) | 날붙이1 갑옷1 |
-| 스콜라 (기초) | 원소1 영혼1 |
-| 소드맨 | 날붙이2 창1 둔기1 투척1 갑옷1 방패1 회피1 |
-| 스펠소드 | 둔기1 활1 날붙이1 갑옷1 방패1 회피1 원소2 영혼1 빛1 어둠1 |
-| 메이지 | 원소2 빛1 어둠1 영혼1 인지1 둔기1 |
-| 애콜라이트 | 영혼2 빛1 어둠1 맨손1 회피1 방패1 날붙이1 |
-
-2차 8클래스의 masters/experts는 [02-systems.md §2](./02-systems.md) 트리 참고 (확정 사양).
-
-## 이벤트 노드 스키마 (`scenes/event.ts`)
-
-```ts
-EventNode { name?, portrait?: "hero"|"elder"|"dark", text, choices?, run? }
-EventChoice { label, effect?, goto?: number | "end" | "none" }
-```
-- `goto` 생략 = 다음 노드. `"end"` = onEnd 콜백. **`"none"` = effect가 직접 씬 전환하므로 이벤트 씬은 아무것도 하지 않음** (전환 덮어쓰기 버그 방지용 — 삭제 금지).
-- 스토리 본문은 `scenes/story.ts` (서장 `introEvent` / 종장 `endingEvent` / 외전 `epicClearEvent`).
+밸런스 수치표가 필요하면 문서에 수동 복사하지 않고 정의 파일에서 생성하는 스크립트나 테스트 리포트를 추가하는 방식을 우선한다.

@@ -19,7 +19,7 @@ export interface EnemyInflict {
 }
 
 /* ---- 몬스터 아이콘 카탈로그 ----
- * assets/monsters/<nameEn>.png 파일과 1:1 대응 (assets.test가 강제).
+ * assets/monsters/icons/<lowercase nameEn>.png 파일과 1:1 대응 (assets.test가 강제).
  * EnemyDef.img 는 반드시 여기의 nameEn을 사용한다. */
 export interface MonsterIconDef {
   nameKo: string;
@@ -89,7 +89,7 @@ export interface EnemyDef {
   tier: Tier;
   /** 이미지 없을 때의 절차적 그리기 폴백 */
   shape: "slime" | "goblin" | "wolf" | "skel" | "orc" | "lord" | "ancient";
-  /** MONSTER_ICONS.nameEn — assets/monsters/<nameEn>.png */
+  /** MONSTER_ICONS.nameEn — assets/monsters/icons/<lowercase nameEn>.png */
   img: string;
   color: number;
   big?: number;

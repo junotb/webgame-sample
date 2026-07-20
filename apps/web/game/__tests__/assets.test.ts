@@ -10,11 +10,11 @@ import { SHEET_FILES } from "../tiles";
 describe("몬스터 아이콘 카탈로그", () => {
   it("카탈로그와 assets/monsters 파일은 1:1로 대응한다", () => {
     const files = new Set(
-      readdirSync("public/assets/monsters")
+      readdirSync("public/assets/monsters/icons")
         .filter((f) => f.endsWith(".png"))
         .map((f) => f.replace(/\.png$/, "")),
     );
-    const names = new Set(MONSTER_ICONS.map((m) => m.nameEn));
+    const names = new Set(MONSTER_ICONS.map((m) => m.nameEn.toLowerCase()));
     expect(names.size, "nameEn 중복").toBe(MONSTER_ICONS.length);
     for (const n of names) expect(files.has(n), `파일 없음: ${n}.png`).toBe(true);
     for (const f of files) expect(names.has(f), `카탈로그 누락: ${f}.png`).toBe(true);
@@ -52,7 +52,7 @@ describe("에셋 참조", () => {
     for (const i of idxs) {
       const name = PORTRAITS[i - 1];
       expect(name, `portrait ${i}`).toBeTruthy();
-      expect(existsSync(`public/assets/characters/${name}.png`), name).toBe(true);
+      expect(existsSync(`public/assets/portraits/${name}.png`), name).toBe(true);
     }
   });
 });

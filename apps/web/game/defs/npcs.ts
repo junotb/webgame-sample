@@ -6,7 +6,7 @@ import type { TownContentRequirement } from "../town/types";
 
 /* ---- NPC ----
  * 울티마식 주제 대화: 말을 걸면 [의뢰]/[보고](퀘스트) · 대화하기(주제 선택).
- * 초상화는 characters 폴더 1-based 인덱스 (portraits.ts와 동일 규칙). */
+ * 초상화는 portraits 폴더 1-based 인덱스 (portraits.ts와 동일 규칙). */
 export interface NpcTopicDef {
   id: string;
   /** 주제 선택지에 뜨는 키워드 */

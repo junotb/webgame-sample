@@ -1,55 +1,110 @@
 # 05 — 확장 가이드
 
-새 콘텐츠를 추가할 때의 표준 절차. **공통 원칙: 데이터는 `data.ts`, 규칙은 `state.ts`, 연출은 씬** — 이 분리를 깨지 않는다.
+공통 원칙은 **정의는 `game/defs/`, 규칙은 `game/core/`와 `game/state.ts`, 표현은 `game/scenes/`와 `game/ui/`**에 둔다는 것이다.
 
 ## 새 몬스터 추가
 
-1. `data.ts` `ENEMY_DEFS`에 항목 추가 (id, 스탯, `tier`, `shape`, `big?`).
-2. 새 실루엣이 필요하면 `monsters.ts` `drawMonster()`에 shape 분기 추가 (기존 shape 재사용 가능).
-3. 등장 경로 연결:
-   - 랜덤 조우: `explore.ts` `randomGroup()`의 레벨별 pool에 id 추가.
-   - 심볼(정예/보스/에픽): `explore.ts`에서 `symbolNode(ENEMY_DEFS.신규id)` + `addObj({... lane, x, act: () => nav.battle([...], { symbol?: ... }) })`. 처치 플래그가 필요하면 `state.ts` `ExploreState.defeated`에 키 추가.
-4. 4인 파티 기준 밸런스 확인: 일반 몹 HP 45~75선, 심볼은 광역기(35%, ×0.65)가 자동 적용됨.
+1. 런타임 아이콘을 `public/assets/monsters/icons/<semantic_name>.png`에 추가한다.
+2. `game/defs/enemies.ts`의 `MONSTER_ICONS`에 한글명과 영문명을 등록한다.
+3. 같은 파일의 `ENEMY_DEFS`에 스탯, 티어, 아이콘 이름과 공격 규칙을 추가한다.
+4. 새 절차적 폴백 외형이 필요하면 `EnemyDef.shape`와 `game/monsters.ts`의 그리기 분기를 함께 확장한다.
+5. 출현 위치를 던전·필드·이벤트 데이터에 연결한다.
+6. `assets.test.ts`와 `battle-engine.test.ts`를 실행한다.
+
+아이콘 파일명은 `nameEn.toLowerCase()`와 일치해야 한다. 파일명 규칙은 [06-assets.md](./06-assets.md)를 따른다.
 
 ## 새 전투 어빌리티 추가
 
-1. `data.ts` `ABILITIES`에 추가 — `skill`(17종 중 하나)과 `min`(요구 랭크)만 맞추면 **해당 랭크 보유 멤버에게 자동 노출**된다 (`memberAbilities`).
-2. 사용 가능한 필드: `pow/hits/all/pierce/crit/drain`, `kind: "phys"|"mag"|"heal"`. 새 특수 효과가 필요하면 `battle.ts` `execAllyAttack()`(공격) 또는 `onAllyTap()`(치유 계열)에 분기 추가.
-3. `heal` kind는 아군 대상 선택 플로우를 자동으로 탄다. `all`은 대상 선택 없이 전체 적에 즉시 발동.
+1. `game/defs/abilities.ts`에 `AbilityDef`을 추가한다.
+2. 기존 필드로 표현할 수 없는 효과라면 먼저 `AbilityDef` 타입을 확장한다.
+3. 판정은 `game/core/battle-engine.ts`와 필요한 순수 규칙 모듈에 구현한다.
+4. 화면 효과와 로그 표현은 `game/scenes/explore/combat-presenter.ts` 또는 관련 UI에 추가한다.
+5. 명중, 피해, 상태이상, MP 소비와 대상 선택을 테스트한다.
 
-## 새 클래스/스킬 변경 (⚠️ 확정 사양 — 변경 전 합의 필요)
+씬에만 판정 분기를 추가하지 않는다. 플레이와 단위 테스트가 같은 전투 규칙을 사용해야 한다.
 
-- 클래스: `data.ts` `CLASSES`에 추가. `from`으로 트리 연결, `masters/experts`(+`"LD"`), `ld: true` 여부. `classOptions()`는 `tier===2 && from===현재클래스`로 자동 탐색하므로 별도 등록 불필요.
-- 변경 후 반드시 [02-systems.md §7](./02-systems.md)의 로직 테스트를 갱신·재실행할 것.
+## 새 클래스나 숙련 추가
+
+숙련을 추가할 때:
+
+1. `game/defs/skills.ts`의 `SkillId`와 `SKILLS`를 함께 수정한다.
+2. 해당 숙련을 사용하는 클래스, 어빌리티, 필드 스킬을 확인한다.
+3. `memberRanks()`, 훈련 UI와 성장 테스트의 영향을 검토한다.
+
+클래스를 추가할 때:
+
+1. `game/defs/classes.ts`의 `ClassId`와 `CLASSES`를 함께 수정한다.
+2. `from`, `tier`, 기본 숙련 또는 최종 숙련을 정의한다.
+3. 빛·어둠 선택이 필요하면 `ld`와 `LD` 숙련을 일관되게 사용한다.
+4. 전직 옵션, 성장 경로, 파티 프리셋과 UI를 확인한다.
+5. 클래스 트리와 전직 테스트를 갱신한다.
+
+현재 2→4→8 트리는 게임 진행의 핵심 구조이므로 단순 콘텐츠 추가가 아니라 사양 변경으로 취급한다.
 
 ## 새 필드 스킬 추가
 
-1. `data.ts` `FIELD_SKILLS`에 정의 (id, 요구 skill/min, mp).
-2. `state.ts` `FieldSkillEntry`의 id 유니온과 `hud.ts` `FieldHandlers` 타입에 id 추가.
-3. `explore.ts` `buildPartyHUD(..., { fieldHandlers: { 신규id() {...} } })`에 핸들러 구현. MP 차감은 메뉴(`openFieldSkillMenu`)가 처리하므로 핸들러에서 하지 않는다.
+1. `game/defs/abilities.ts`의 필드 스킬 타입과 정의에 ID를 추가한다.
+2. 필드 스킬 메뉴가 사용하는 핸들러 타입을 갱신한다.
+3. 해당 씬에서 실제 효과를 구현한다.
+4. MP 소비와 사용할 수 없는 조건을 UI가 아닌 공통 규칙으로 검증할 수 있는지 검토한다.
+5. 성장 및 탐험 테스트를 추가한다.
 
-## 새 씬(모드) 추가
+## 기존 마을에 시설 추가
 
-1. `scenes/신규.ts`에 `export function 신규Scene(...): SceneHandle` 빌더 작성 (03-architecture.md 생명주기 준수 — overlayRoot에 올린 건 dispose에서 제거, ticker는 remove).
-2. `index.ts`에서 `nav.신규 = (...args) => switchScene(() => 신규Scene(...args));` 배선.
-3. 다른 씬에서는 `nav.신규(...)`로만 호출. **씬 파일을 직접 import하지 않는다.**
+1. `game/town/types.ts`의 `TownFacilityId`에 ID를 추가한다.
+2. `TownFacilityDef`에 이름, 문 좌표, 담당자와 필요한 콘텐츠를 정의한다.
+3. `game/town/crossvale.ts` 또는 `evermore.ts`의 시설 목록에 배치한다.
+4. `game/town/facilities.ts`와 `game/scenes/town.ts`의 처리기를 연결한다.
+5. 외관이 새 종류라면 `public/assets/world/props/buildings/`에 엠블럼 또는 간판을 추가하고 `game/tiles.ts`에 프레임을 등록한다.
+6. 마을 컴파일·콘텐츠·내비게이션 테스트를 실행한다.
 
-## 맵 확장 (레인/갈림길/오브젝트)
+시설 좌표는 반드시 문 셀이어야 하고 인접한 접근 가능 바닥이 있어야 한다. 간판이나 엠블럼을 문 위에 덮어씌우지 않는다는 시각 규칙도 지킨다.
 
-- `explore.ts` 상단 상수만으로 조정 가능: `WORLD_W`, `LANE_Y`/`LANE_SCALE`(레인 수 변경 시 `tryLane` 클램프 `0~2`와 터치 버튼도 수정), `JUNCTIONS`(x, w).
-- 오브젝트는 `addObj({ id, x, lane, node, radius, prompt, act, hidden?, bob? })`. **상호작용은 같은 레인에서만** 판정됨을 잊지 말 것. 숨김 오브젝트는 `hidden()` + seek 핸들러에 발견 로직 추가.
-- 신규 맵(스테이지)을 만들려면 exploreScene을 맵 정의 파라미터를 받는 형태로 일반화하는 것을 권장 (`ExploreState`에 맵 id 추가).
+## 새 마을 추가
 
-## 세이브/로드·백엔드 연동 (다음 단계 권장 구현)
+1. `game/town/types.ts`의 `TownId`와 필요한 진입 지점을 확장한다.
+2. 기존 마을 파일을 참고해 맵, 시설, 장식, 성문과 구역을 정의한다.
+3. `compileTown()`을 통과하도록 좌표와 도달 가능성을 맞춘다.
+4. NPC와 의뢰의 마을 ID 연결을 갱신한다.
+5. 씬 진입 경로와 월드 상태를 연결한다.
+6. 마을 데이터, 컴파일, 콘텐츠, 내비게이션과 월드 상태 테스트를 추가한다.
 
-- 직렬화 대상은 `G: GameState` 하나로 완결 (PIXI 참조 없음). `JSON.stringify(G)` 가능.
-- 삽입 지점: `index.ts`의 nav 배선을 감싸 씬 전환 시 자동 저장, `boot()`에서 로드 후 `nav.town()` 재개.
-- .NET 백엔드 도입 시: `data.ts` 타입 → 마스터 데이터 DTO, `GameState` → 세이브 스키마, `gainExpParty/doClassChange` 등 뮤테이션 → API 호출로 치환.
+## 새 씬 추가
 
-## 알려진 제약 (v0.2)
+1. `game/scenes/<name>.ts`에 `SceneHandle`을 반환하는 빌더를 만든다.
+2. ticker, listener와 구독은 `SceneScope`에 등록한다.
+3. `game/core.ts`의 `GameNavigator`에 라우트 타입을 추가한다.
+4. `game/index.ts`의 `boot()`에서 `switchScene()`으로 배선한다.
+5. 다른 씬은 새 씬을 직접 import하지 않고 `nav`를 호출한다.
+6. `overlayRoot`에 남기는 객체가 있다면 `dispose()`에서 정리한다.
 
-- 저장 기능 없음 — 새로고침 시 초기화.
-- 모바일: 터치 패드로 플레이 가능하나 레이아웃 최적화 미완.
-- `wait()`는 씬이 파괴되어도 콜백이 1회 실행됨 — 콜백 안에서 파괴된 객체를 만질 경우 `destroyed` 체크 필요 (tween은 자동 가드).
-- 장비 슬롯은 무기/방어구 각 1개, 인벤토리·되팔기 없음.
-- 적은 광역 외 스킬/상태이상 없음. 아군 버프는 축복(공격 ×1.25)뿐.
+## 새 에셋 추가
+
+1. 원본을 `assets-source/temp/`에서 검토한다.
+2. 의미 기반 파일명과 역할 기반 디렉터리로 `assets-source/`에 정리한다.
+3. 실제 게임에 필요한 가공본만 `public/assets/`에 둔다.
+4. 타일·몬스터·초상화 카탈로그 중 해당 등록 지점을 갱신한다.
+5. 픽셀 스케일, 투명도, 프레임 크기와 테마 일관성을 확인한다.
+6. `assets.test.ts`를 실행한다.
+
+상세 기준은 [06-assets.md](./06-assets.md)를 따른다.
+
+## 세이브 상태 변경
+
+`GameState`의 저장 형태를 변경하면 다음을 함께 처리한다.
+
+1. 새 게임 생성값과 상태 검증 갱신
+2. `SAVE_VERSION` 증가 여부 결정
+3. 이전 세이브를 지원한다면 명시적인 마이그레이션 추가
+4. 지원하지 않는 버전에 대한 오류 유지
+5. `persistence.test.ts`에 직렬화·역직렬화·버전 테스트 추가
+
+## 완료 전 검증
+
+```bash
+cd apps/web
+npm run typecheck
+npm run lint
+npm test -- --run
+npm run build
+```

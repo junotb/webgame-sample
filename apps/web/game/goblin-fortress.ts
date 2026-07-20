@@ -1,12 +1,14 @@
 /* =====================================================================
- * dungeon.ts — 할로우베일 계곡 지하미궁 맵 데이터 (24×24 그리드)
- *  '#'벽 '.'바닥 '+'문 '~'물(차단·장식) '>'계단
+ * goblin-fortress.ts — 고블린 요새(동굴 미궁) 맵 데이터 (24×24 그리드)
+ *  계곡 안쪽으로 파고든 고블린들의 소굴. 동굴 몬스터와 고블린 무리,
+ *  상위직 고블린과 고블린 로드가 미궁 곳곳에 자리 잡았다.
+ *  '#'벽(암반) '.'바닥 '+'문 '~'물(차단·장식) '>'계단
  *  scripts 없이 정적 데이터 — 생성기(시드42)로 만들어 연결성 검증 완료:
  *  모든 바닥 칸이 입구에서 도달 가능, 차단형 POI 배치 후에도 고립 칸 0
  * ===================================================================== */
 import { Facing, GridMap, parseMap } from "./grid";
 
-export const DUNGEON_ROWS = [
+export const FORTRESS_ROWS = [
   "########################",
   "#######.......##########",
   "##....#######.##......##",
@@ -33,7 +35,7 @@ export const DUNGEON_ROWS = [
   "########################",
 ] as const;
 
-export const dungeonMap: GridMap = parseMap([...DUNGEON_ROWS]);
+export const fortressMap: GridMap = parseMap([...FORTRESS_ROWS]);
 
 /** 파티 시작 위치 (남쪽 입구, 북향) */
 export const START = { x: 11, y: 21, facing: 0 as Facing };
@@ -64,7 +66,8 @@ export interface SpawnDef {
   /** 심볼(정예/보스/에픽)은 defeated 플래그로 영구 처치 */
   symbol?: "orc" | "lord" | "ancient";
 }
-/** 일반 몹 — 마을에서 재진입 시 리스폰. 남쪽 얕은 구역 slime/goblin, 북쪽 심부 wolf/skeleton */
+/** 일반 몹 — 마을에서 재진입 시 리스폰. 남쪽 어귀 동굴 슬라임·고블린 전사,
+ *  북쪽 심부로 갈수록 고블린 늑대기수와 동굴 망령이 배회한다 */
 export const NORMAL_SPAWNS: SpawnDef[] = [
   { id: "n1", defId: "goblin", x: 5, y: 13 },
   { id: "n2", defId: "wolf", x: 14, y: 7 },
@@ -78,7 +81,8 @@ export const NORMAL_SPAWNS: SpawnDef[] = [
   { id: "n10", defId: "skeleton", x: 3, y: 7 },
   { id: "n11", defId: "wolf", x: 21, y: 10 },
 ];
-/** 심볼 몹 — 오크(중앙 홀 길목), 군주(북동 보스방), 고대 정령(물의 방 — 군주 처치 후 등장) */
+/** 심볼 몹 — 고블린 광신도(중앙 홀 길목), 고블린 로드(북동 알현실),
+ *  동굴 깊이 잠든 고대의 존재(물의 방 — 로드 처치 후 깨어남) */
 export const SYMBOL_SPAWNS: SpawnDef[] = [
   { id: "orc", defId: "orc", x: 12, y: 11, symbol: "orc" },
   { id: "lord", defId: "lord", x: 18, y: 3, symbol: "lord" },

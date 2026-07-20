@@ -75,9 +75,16 @@ export const MONSTER_ICONS: MonsterIconDef[] = [
   { nameKo: "껑충쥐",       nameEn: "Hopperrat"    },
   { nameKo: "흰깃새",       nameEn: "Whitewing"    },
   { nameKo: "이끼두꺼비",   nameEn: "Mosstoad"     },
+  /* ---- 고블린 요새 로스터 (assets-source rasak 고블린 스프라이트에서 슬라이스) ---- */
+  { nameKo: "고블린 전사",   nameEn: "Goblinfighter" },
+  { nameKo: "고블린 늑대기수", nameEn: "Goblinrider"  },
+  { nameKo: "고블린 광신도", nameEn: "Goblinfanatic" },
+  { nameKo: "고블린 로드",   nameEn: "Goblinlord"    },
 ];
 
 export type Tier = "일반" | "정예" | "보스" | "에픽";
+/** 단일 프레임 몬스터에 적용하는 코드 기반 움직임 유형 */
+export type MonsterMotion = "slime" | "flying" | "plant" | "beast" | "ghost" | "humanoid";
 export interface EnemyDef {
   name: string;
   hp: number;
@@ -89,6 +96,8 @@ export interface EnemyDef {
   tier: Tier;
   /** 이미지 없을 때의 절차적 그리기 폴백 */
   shape: "slime" | "goblin" | "wolf" | "skel" | "orc" | "lord" | "ancient";
+  /** 프레임 시트 없이 몸체 변형으로 표현하는 기본 모션 */
+  motion: MonsterMotion;
   /** MONSTER_ICONS.nameEn — assets/monsters/icons/<lowercase nameEn>.png */
   img: string;
   color: number;
@@ -144,6 +153,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     gold: 10,
     tier: "일반",
     shape: "slime",
+    motion: "slime",
     img: "Glareslime",
     color: 0x6ea86a,
     /* 물렁한 몸 — 날붙이·찌르기는 흘리고, 둔기와 불에 약하다 */
@@ -152,7 +162,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     inflict: { status: "poison", chance: 0.3, save: "vital", turns: 3, power: 4 }, // 산성 점액
   },
   goblin: {
-    name: "칼잡이 난쟁이",
+    name: "고블린 전사",
     hp: 58,
     atk: 13,
     def: 2,
@@ -161,14 +171,15 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     gold: 16,
     tier: "일반",
     shape: "goblin",
-    img: "Bladedwarf",
-    color: 0xb05a3c,
+    motion: "humanoid",
+    img: "Goblinfighter",
+    color: 0x6f8a3c,
     /* 동굴살이 — 불에 겁먹고, 어둠엔 익숙하다 */
     res: { fire: 1.25, dark: 0.75 },
-    atkType: "slash", // 녹슨 칼
+    atkType: "slash", // 이 빠진 칼과 방패
   },
   wolf: {
-    name: "어금니 멧돼지",
+    name: "고블린 늑대기수",
     hp: 72,
     atk: 16,
     def: 2,
@@ -177,11 +188,12 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     gold: 20,
     tier: "일반",
     shape: "wolf",
-    img: "Tuskboar",
-    color: 0x8a3a30,
-    /* 두꺼운 가죽 — 찌르기에 관통당하고, 불을 두려워한다 */
+    motion: "beast",
+    img: "Goblinrider",
+    color: 0x9a9aa0,
+    /* 사나운 굴늑대 — 찌르기에 약하고, 불길 앞에선 겁을 먹는다 */
     res: { pierce: 1.5, fire: 1.25 },
-    atkType: "pierce", // 엄니 돌진
+    atkType: "pierce", // 늑대의 송곳니 돌격
   },
   skeleton: {
     name: "냉기 망령",
@@ -193,6 +205,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     gold: 22,
     tier: "일반",
     shape: "skel",
+    motion: "ghost",
     img: "Frostwraith",
     color: 0x7fc8dc,
     /* 냉기 언데드 — 뼈는 둔기에 바스러지고 빛·불에 정화된다. 찌르기·냉기·어둠은 무의미 */
@@ -201,7 +214,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     inflict: { status: "paralyze", chance: 0.25, save: "vital", turns: 2 }, // 얼어붙는 한기
   },
   orc: {
-    name: "집게버섯 우두머리",
+    name: "고블린 광신도",
     hp: 780,
     atk: 32,
     def: 9,
@@ -210,15 +223,16 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     gold: 220,
     tier: "정예",
     shape: "orc",
-    img: "Pincercap",
-    color: 0xb83a2e,
+    motion: "humanoid",
+    img: "Goblinfanatic",
+    color: 0x8a6a3c,
     big: 1.35,
-    /* 버섯 균사체 — 불에 크게 타오르고, 물·땅 기운은 되레 자양분이 된다 */
-    res: { fire: 2.0, water: 0.5, earth: 0.5 },
-    atkType: "pierce", // 집게 찌르기
+    /* 광기에 물든 상위 고블린 — 성스러운 빛에 약하고, 어둠 의식에 익숙하다 */
+    res: { light: 1.5, dark: 0.75, fire: 1.25 },
+    atkType: "slash", // 제례용 곡도
   },
   lord: {
-    name: "숲의 군주 그림바크",
+    name: "고블린 로드 그름바크",
     hp: 3400,
     atk: 42,
     def: 10,
@@ -227,13 +241,14 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     gold: 800,
     tier: "보스",
     shape: "lord",
-    img: "Cindertree",
-    color: 0x3e5a3a,
+    motion: "humanoid",
+    img: "Goblinlord",
+    color: 0xc05a7a,
     big: 1.7,
-    /* 잿불의 고목 — 불·바람은 몸에 익었으나, 물과 성스러운 빛엔 약하다 */
-    res: { fire: 0.5, wind: 0.5, water: 1.75, light: 1.5, pierce: 0.75 },
-    atkType: "fire", // 잿불 숨결
-    inflict: { status: "fear", chance: 0.3, save: "wit", turns: 2 }, // 마을을 태운 위압
+    /* 요새의 지배자 — 어둠의 주술에 통달했으나, 성스러운 빛 앞에선 움츠러든다 */
+    res: { dark: 0.5, light: 1.5, fire: 1.25, pierce: 0.75 },
+    atkType: "dark", // 주술의 저주
+    inflict: { status: "fear", chance: 0.3, save: "wit", turns: 2 }, // 소굴을 짓누르는 위압
   },
   ancient: {
     name: "고대 정령 아스테리온",
@@ -245,6 +260,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     gold: 2000,
     tier: "에픽",
     shape: "ancient",
+    motion: "ghost",
     img: "Crystalbloom",
     color: 0x9a6ff0,
     big: 1.8,

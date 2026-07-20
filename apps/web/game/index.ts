@@ -13,7 +13,7 @@ import { G, newGame } from "./state";
 import { titleScene } from "./scenes/title";
 import { createScene } from "./scenes/create";
 import { townScene } from "./scenes/town";
-import { exploreScene } from "./scenes/explore";
+import { goblinFortressScene } from "./scenes/explore";
 import { fieldScene } from "./scenes/field";
 import { FieldId } from "./fieldmaps";
 import { endingEvent, epicClearEvent, letterEvent, prologueEvent } from "./scenes/story";
@@ -36,7 +36,7 @@ export async function boot(
   };
   nav.town = (spawn?: TownSpawn) => switchScene(() => townScene(spawn));
   nav.letter = () => switchScene(letterEvent);
-  nav.explore = () => switchScene(exploreScene);
+  nav.explore = () => switchScene(goblinFortressScene);
   nav.field = (id: FieldId) => switchScene(() => fieldScene(id));
   nav.ending = () => switchScene(endingEvent);
   nav.epicClear = () => switchScene(epicClearEvent);

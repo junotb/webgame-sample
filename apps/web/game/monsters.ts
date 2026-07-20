@@ -23,25 +23,143 @@ export async function loadMonsterIcons(): Promise<void> {
 const MONSTER_SIZE = 104;
 
 /** 발밑(0,0) 기준 컨테이너. 이미지가 없으면 절차적 그리기로 폴백 */
-export function drawMonster(def: EnemyDef, scale = 1): PIXI.Container {
+export type MonsterMotionAction = "spawn" | "attack" | "hit" | "death";
+
+/** 단일 프레임 몬스터를 움직이는 렌더 노드와 제어 함수 */
+export interface MonsterView extends PIXI.Container {
+  tickMotion(deltaMS: number): void;
+  playMotion(action: MonsterMotionAction, onDone?: () => void): void;
+}
+
+const ACTION_DURATION: Record<MonsterMotionAction, number> = {
+  spawn: 260,
+  attack: 300,
+  hit: 280,
+  death: 420,
+};
+
+function motionPhase(name: string): number {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  return (Math.abs(hash) % 628) / 100;
+}
+
+/** 발밑을 원점으로 삼고 그림자와 몸체를 따로 변형하는 몬스터 노드 */
+export function drawMonster(def: EnemyDef, scale = 1): MonsterView {
+  const root = new PIXI.Container() as MonsterView;
+  const shadow = new PIXI.Graphics();
+  shadow.ellipse(0, 2, MONSTER_SIZE * 0.42, 12).fill({ color: 0x000000, alpha: 0.35 });
+  const body = new PIXI.Container();
   const tex = PIXI.Assets.get<PIXI.Texture>(alias(def.img));
   if (tex) {
-    const c = new PIXI.Container();
-    const shadow = new PIXI.Graphics();
-    shadow.ellipse(0, 2, MONSTER_SIZE * 0.42, 12).fill({ color: 0x000000, alpha: 0.35 });
-    c.addChild(shadow);
     const sp = new PIXI.Sprite(tex);
     sp.anchor.set(0.5, 1);
     sp.width = MONSTER_SIZE; sp.height = MONSTER_SIZE;
-    c.addChild(sp);
-    c.scale.set(scale);
-    return c;
+    body.addChild(sp);
+  } else {
+    body.addChild(drawMonsterShape(def));
   }
-  return drawMonsterShape(def, scale);
+  root.addChild(shadow, body);
+  root.scale.set(scale);
+
+  let elapsed = motionPhase(def.img) * 1000;
+  let action: MonsterMotionAction | null = "spawn";
+  let actionElapsed = 0;
+  let actionDone: (() => void) | undefined;
+
+  root.playMotion = (next, onDone) => {
+    if (action === "death") return;
+    action = next;
+    actionElapsed = 0;
+    actionDone = onDone;
+    root.visible = true;
+  };
+
+  root.tickMotion = (deltaMS) => {
+    elapsed += deltaMS;
+    const wave = Math.sin(elapsed / 310);
+    let x = 0, y = 0, sx = 1, sy = 1, rotation = 0, alpha = 1;
+    let shadowScale = 1, shadowAlpha = 0.35;
+
+    if (def.motion === "slime") {
+      sx = 1 + wave * 0.035;
+      sy = 1 - wave * 0.028;
+      y = Math.max(0, wave) * 1.2;
+      shadowScale = 1 + wave * 0.025;
+    } else if (def.motion === "flying") {
+      y = -5 + wave * 3;
+      rotation = wave * 0.025;
+      shadowScale = 0.86 + wave * 0.035;
+      shadowAlpha = 0.25;
+    } else if (def.motion === "plant") {
+      rotation = wave * 0.018;
+      sx = 1 - wave * 0.01;
+      sy = 1 + wave * 0.016;
+    } else if (def.motion === "beast") {
+      y = -Math.max(0, wave) * 1.8;
+      rotation = wave * 0.01;
+      sy = 1 - Math.max(0, wave) * 0.012;
+    } else if (def.motion === "ghost") {
+      y = -4 + wave * 2.5;
+      rotation = wave * 0.012;
+      alpha = 0.9 + wave * 0.07;
+      shadowScale = 0.8 + wave * 0.04;
+      shadowAlpha = 0.2;
+    } else {
+      sy = 1 + wave * 0.012;
+      sx = 1 - wave * 0.006;
+      y = Math.max(0, wave) * 0.5;
+    }
+
+    if (action) {
+      actionElapsed += deltaMS;
+      const duration = ACTION_DURATION[action];
+      const p = Math.min(1, actionElapsed / duration);
+      if (action === "spawn") {
+        const appear = 0.78 + p * 0.22;
+        y += (1 - p) * 10;
+        sx *= appear; sy *= appear; alpha *= p;
+      } else if (action === "attack") {
+        const lunge = Math.sin(p * Math.PI);
+        y -= lunge * 11;
+        sx *= 1 + lunge * 0.11; sy *= 1 + lunge * 0.11;
+        shadowScale *= 1 + lunge * 0.08;
+      } else if (action === "hit") {
+        const recoil = 1 - p;
+        x += Math.sin(p * Math.PI * 8) * 6 * recoil;
+        rotation += Math.sin(p * Math.PI * 5) * 0.045 * recoil;
+      } else {
+        y += p * 16;
+        rotation += p * (def.motion === "beast" ? 0.12 : 0.04);
+        sx *= 1 - p * 0.45; sy *= 1 - p * 0.65;
+        alpha *= 1 - p;
+        shadowAlpha *= 1 - p;
+      }
+
+      if (p >= 1) {
+        const finished = action;
+        const done = actionDone;
+        action = null;
+        actionDone = undefined;
+        if (finished === "death") root.visible = false;
+        done?.();
+      }
+    }
+
+    body.position.set(Math.round(x), Math.round(y));
+    body.scale.set(sx, sy);
+    body.rotation = rotation;
+    body.alpha = alpha;
+    shadow.scale.set(shadowScale, 1);
+    shadow.alpha = shadowAlpha;
+  };
+
+  root.tickMotion(0);
+  return root;
 }
 
 /** 절차적 폴백 (이미지 로드 전/누락 시) */
-function drawMonsterShape(def: EnemyDef, scale = 1): PIXI.Graphics {
+function drawMonsterShape(def: EnemyDef): PIXI.Graphics {
   const g = new PIXI.Graphics();
   const col = def.color;
   if (def.shape === "slime") {
@@ -93,7 +211,6 @@ function drawMonsterShape(def: EnemyDef, scale = 1): PIXI.Graphics {
     }
     g.stroke({ width: 2, color: 0xffffff, alpha: 0.5 });
   }
-  g.scale.set(scale);
   return g;
 }
 

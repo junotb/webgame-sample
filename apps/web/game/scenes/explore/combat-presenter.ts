@@ -3,9 +3,10 @@ import { C, H, W, tween, txt, wait } from "../../core";
 import { BattleEvent } from "../../core/battle-engine";
 import { STATUS_COLOR, STATUS_NAME } from "../../core/statuses";
 import { visualRandom } from "../../core/random";
+import type { MonsterView } from "../../monsters";
 import { GridEnemy, Member } from "../../state";
 
-export interface EnemyVisualRef { node: PIXI.Container; }
+export interface EnemyVisualRef { node: PIXI.Container; monster: MonsterView; }
 
 export function createCombatPresenter(opts: {
   root: PIXI.Container;
@@ -32,6 +33,7 @@ export function createCombatPresenter(opts: {
 
   function flashEnemy(enemy: GridEnemy): void {
     const visual = enemyVisuals.get(enemy.id); if (!visual) return;
+    visual.monster.playMotion("hit");
     const nodes: (PIXI.Graphics | PIXI.Sprite)[] = [];
     const walk = (container: PIXI.Container) => container.children.forEach((child) => {
       if (child instanceof PIXI.Graphics || child instanceof PIXI.Sprite) nodes.push(child);
@@ -72,7 +74,8 @@ export function createCombatPresenter(opts: {
     }
   }
 
-  function presentEnemy(events: BattleEvent[], fallbackName: string): void {
+  function presentEnemy(events: BattleEvent[], attackerId: string, fallbackName: string): void {
+    enemyVisuals.get(attackerId)?.monster.playMotion("attack");
     const lines: string[] = [];
     for (const event of events) {
       const member = "target" in event ? memberOf(event.target) : undefined;

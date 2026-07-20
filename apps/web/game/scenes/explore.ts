@@ -27,10 +27,11 @@ import {
   DIR, FACING_NAME, RelativeMove, cellAt, chebyshev, enemyStep, hasLOS,
   moveTarget, passable, rightOf, rotateFacing,
 } from "../grid";
-import { POIS, PoiDef, START, dungeonMap } from "../goblin-fortress";
+import { POIS, PoiDef, START, fortressMap } from "../goblin-fortress";
 import { FPEntity, createFPView } from "../fpview";
 import { tileSprite } from "../tiles";
 import { drawMonster } from "../monsters";
+import type { MonsterView } from "../monsters";
 import { buildPartyHUD, pickMember } from "../hud";
 import { EventNode, eventOverlay } from "./event";
 import { createCombatPresenter } from "./explore/combat-presenter";
@@ -42,11 +43,11 @@ const MAG_RANGE = 6;             // 마법 사거리
 const REVEAL_R = 4;              // 미니맵 안개 걷힘 반경
 const VEIL_TURNS = 30;           // 어둠의 장막 지속 턴
 
-export function exploreScene(): SceneHandle {
+export function goblinFortressScene(): SceneHandle {
   const scope = new SceneScope();
-  setModeBadge("탐험 모드 — 할로우베일 계곡", C.green);
+  setModeBadge("탐험 모드 — 고블린 요새", C.green);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
-  const map = dungeonMap;
+  const map = fortressMap;
   const E = G.explore;
   /* 마을·전멸 후 진입: 입구에서 시작 + 일반 몹 리스폰 */
   respawnEnemies();
@@ -62,13 +63,21 @@ export function exploreScene(): SceneHandle {
   root.addChild(fp.root);
 
   /* ---- 엔티티 노드 (씬 소유, fpview가 배치) ---- */
-  interface EnemyVis { e: GridEnemy; node: PIXI.Container; info: PIXI.Text; hpT: PIXI.Text; }
+  interface EnemyVis {
+    e: GridEnemy;
+    node: PIXI.Container;
+    monster: MonsterView;
+    info: PIXI.Text;
+    hpT: PIXI.Text;
+  }
   const enemyVis = new Map<string, EnemyVis>();
+  const dyingEnemies = new Set<string>();
   for (const e of E.enemies) {
     if (!e.alive) continue;
     const def = ENEMY_DEFS[e.defId];
     const node = new PIXI.Container();
-    node.addChild(drawMonster(def, def.big ?? 1));
+    const monster = drawMonster(def, def.big ?? 1);
+    node.addChild(monster);
     const tierCol = def.tier === "정예" ? C.elite : def.tier === "보스" ? C.boss
       : def.tier === "에픽" ? C.epic : C.text;
     const info = txt(
@@ -79,7 +88,7 @@ export function exploreScene(): SceneHandle {
     hpT.anchor.set(0.5); hpT.y = info.y + 16; node.addChild(hpT);
     node.eventMode = "static"; node.cursor = "pointer";
     node.on("pointertap", () => onEnemyTap(e));
-    enemyVis.set(e.id, { e, node, info, hpT });
+    enemyVis.set(e.id, { e, node, monster, info, hpT });
   }
   function redrawEnemyInfo(): void {
     for (const v of enemyVis.values()) {
@@ -157,7 +166,7 @@ export function exploreScene(): SceneHandle {
       });
     }
     for (const e of E.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive && !dyingEnemies.has(e.id)) continue;
       const v = enemyVis.get(e.id); if (!v) continue;
       const big = ENEMY_DEFS[e.defId].big ?? 1;
       out.push({ id: e.id, x: e.x, y: e.y, node: v.node, worldH: 0.6 * big, baseH: 110 * big });
@@ -414,7 +423,7 @@ export function exploreScene(): SceneHandle {
     const front = alive.filter((m) => !m.back);
     const pool = enemyMelee(def) && front.length ? front : alive;
     const events = combat.gridEnemyAct(e.id, pool.map((m) => m.id));
-    combatPresenter.presentEnemy(events, def.name);
+    combatPresenter.presentEnemy(events, e.id, def.name);
     hud.redraw();
   }
 
@@ -454,7 +463,7 @@ export function exploreScene(): SceneHandle {
     inCombat = false;
     combat?.gridExit();
     combat = null;
-    setModeBadge("탐험 모드 — 할로우베일 계곡", C.green);
+    setModeBadge("탐험 모드 — 고블린 요새", C.green);
     const revived = G.party.filter((m) => m.hp <= 0);
     if (revived.length) {
       revived.forEach((m) => { m.hp = 1; });
@@ -736,6 +745,17 @@ export function exploreScene(): SceneHandle {
 
   function killEnemy(e: GridEnemy): void {
     e.alive = false;
+    dyingEnemies.add(e.id);
+    const visual = enemyVis.get(e.id);
+    if (visual) {
+      visual.info.visible = false;
+      visual.hpT.visible = false;
+      visual.node.eventMode = "none";
+    }
+    visual?.monster.playMotion("death", () => {
+      dyingEnemies.delete(e.id);
+      if (!disposed) refresh();
+    });
     const def = ENEMY_DEFS[e.defId];
     G.gold += def.gold;
     let line = `${def.name}을(를) 쓰러뜨렸다! 경험치 +${def.exp}, ${def.gold} G`;
@@ -782,15 +802,15 @@ export function exploreScene(): SceneHandle {
     E.lordIntroSeen = true;
     phase = "end"; // 이벤트가 끝날 때까지 탐험 입력 차단
     const nodes: EventNode[] = [
-      { name: "???", portrait: "dark", text: "…작은 것들이 숲의 심장까지 기어들어 왔군. 왕국이 부서지던 밤, 나는 이 숲과 하나가 되었다." },
+      { name: "???", portrait: "dark", text: "…쥐새끼들이 내 소굴 깊은 곳까지 기어들어 왔군. 이 요새의 돌 하나하나가 내 것이다." },
       {
-        name: "에런", portrait: "hero", text: "마을을 위협하는 게 너인가. 넷이서 왔다 — 여기서 끝내겠다.",
+        name: "에런", portrait: "hero", text: "마을을 약탈하고 사람들을 가둔 게 너인가. 넷이서 왔다 — 여기서 끝내겠다.",
         choices: [
           { label: "무기를 뽑는다 (전투 개시)", goto: 2 },
           { label: "물러난다", effect: () => { G._fled = true; }, goto: "end" },
         ],
       },
-      { name: "숲의 군주 그림바크", portrait: "dark", text: "좋다… 계곡에 발 들인 작은 불꽃들이 어디까지 타오르는지 보여다오!" },
+      { name: "고블린 로드 그름바크", portrait: "dark", text: "좋다… 요새에 발 들인 작은 불꽃들이 어디까지 타오르는지 보여다오!" },
     ];
     wait(350, () => {
       if (disposed) return;
@@ -808,7 +828,7 @@ export function exploreScene(): SceneHandle {
           enterCombat();
           startPartyRound();
         } else phase = "free";
-      }, { caption: "숲의 심장" });
+      }, { caption: "요새의 알현실" });
     });
   }
 
@@ -839,7 +859,7 @@ export function exploreScene(): SceneHandle {
     const p = poiBlocking(fx, fy);
     if (!p) { log("아무것도 없다."); return; }
     if (p.kind === "sign") {
-      toast("「북서쪽 방에 나그네의 보물이. 북동쪽 심부, 문 너머에 숲의 군주가 잠들어 있다」", C.dim);
+      toast("「북서쪽 방에 나그네의 보물이. 북동쪽 심부, 문 너머 알현실에 고블린 로드가 도사린다」", C.dim);
       return;
     }
     if (p.id === "c1" && !E.chestOpened.c1) {
@@ -917,8 +937,11 @@ export function exploreScene(): SceneHandle {
   mkPad("▶", PX0 + 120, PY0 + 60, () => tryMove("sr"));
   mkPad("✦", PX0 + 180, PY0 + 30, () => interact());
 
-  /* ---- ticker: 횃불 플리커만 (이동은 이산 스텝) ---- */
-  const ticker = (t: PIXI.Ticker) => { fp.tick(t.deltaMS); };
+  /* ---- ticker: 환경 효과 + 단일 프레임 몬스터 모션 ---- */
+  const ticker = (t: PIXI.Ticker) => {
+    fp.tick(t.deltaMS);
+    for (const visual of enemyVis.values()) visual.monster.tickMotion(t.deltaMS);
+  };
   scope.ticker(ticker);
 
   /* ---- 초기화 ---- */

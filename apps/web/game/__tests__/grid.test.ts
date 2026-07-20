@@ -3,7 +3,7 @@ import {
   DIR, Facing, adjacent, backOf, cellAt, chebyshev, enemyStep, hasLOS,
   leftOf, moveTarget, parseMap, passable, rightOf, rotateFacing,
 } from "../grid";
-import { DUNGEON_ROWS, NORMAL_SPAWNS, POIS, START, SYMBOL_SPAWNS, dungeonMap } from "../goblin-fortress";
+import { FORTRESS_ROWS, NORMAL_SPAWNS, POIS, START, SYMBOL_SPAWNS, fortressMap } from "../goblin-fortress";
 
 describe("방향 수학", () => {
   it("좌/우/뒤 회전", () => {
@@ -131,30 +131,30 @@ describe("적 AI 스텝", () => {
 
 describe("던전 데이터 무결성", () => {
   it("24×24, 시작 지점은 통행 가능", () => {
-    expect(dungeonMap.w).toBe(24);
-    expect(dungeonMap.h).toBe(24);
-    expect(passable(dungeonMap, START.x, START.y)).toBe(true);
+    expect(fortressMap.w).toBe(24);
+    expect(fortressMap.h).toBe(24);
+    expect(passable(fortressMap, START.x, START.y)).toBe(true);
   });
   it("모든 통행 칸이 시작 지점에서 도달 가능", () => {
-    const seen = new Set<number>([START.y * dungeonMap.w + START.x]);
+    const seen = new Set<number>([START.y * fortressMap.w + START.x]);
     const q = [[START.x, START.y]];
     while (q.length) {
       const [x, y] = q.pop()!;
       for (const d of DIR) {
         const nx = x + d.dx, ny = y + d.dy;
-        const idx = ny * dungeonMap.w + nx;
-        if (passable(dungeonMap, nx, ny) && !seen.has(idx)) { seen.add(idx); q.push([nx, ny]); }
+        const idx = ny * fortressMap.w + nx;
+        if (passable(fortressMap, nx, ny) && !seen.has(idx)) { seen.add(idx); q.push([nx, ny]); }
       }
     }
-    for (let y = 0; y < dungeonMap.h; y++)
-      for (let x = 0; x < dungeonMap.w; x++)
-        if (passable(dungeonMap, x, y))
-          expect(seen.has(y * dungeonMap.w + x), `(${x},${y}) 도달 불가`).toBe(true);
+    for (let y = 0; y < fortressMap.h; y++)
+      for (let x = 0; x < fortressMap.w; x++)
+        if (passable(fortressMap, x, y))
+          expect(seen.has(y * fortressMap.w + x), `(${x},${y}) 도달 불가`).toBe(true);
   });
   it("POI·스폰이 전부 통행 가능한 칸 위에 있다", () => {
-    for (const p of POIS) expect(passable(dungeonMap, p.x, p.y), p.id).toBe(true);
+    for (const p of POIS) expect(passable(fortressMap, p.x, p.y), p.id).toBe(true);
     for (const s of [...NORMAL_SPAWNS, ...SYMBOL_SPAWNS])
-      expect(passable(dungeonMap, s.x, s.y), s.id).toBe(true);
+      expect(passable(fortressMap, s.x, s.y), s.id).toBe(true);
   });
   it("스폰 좌표가 서로 겹치지 않는다", () => {
     const all = [...NORMAL_SPAWNS, ...SYMBOL_SPAWNS, ...POIS.filter((p) => p.blocking)];
@@ -162,7 +162,7 @@ describe("던전 데이터 무결성", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
   it("ASCII 행이 전부 같은 길이", () => {
-    for (const r of DUNGEON_ROWS) expect(r.length).toBe(24);
+    for (const r of FORTRESS_ROWS) expect(r.length).toBe(24);
   });
 });
 

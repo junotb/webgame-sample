@@ -10,7 +10,7 @@ import {
 import { abilityMod } from "./core/dice";
 import { Store } from "./core/store";
 import { StatusInstance } from "./core/statuses";
-import { NORMAL_SPAWNS, START, SYMBOL_SPAWNS, dungeonMap } from "./goblin-fortress";
+import { NORMAL_SPAWNS, START, SYMBOL_SPAWNS, fortressMap } from "./goblin-fortress";
 import type { TownId } from "./town/types";
 
 export interface Member {
@@ -150,7 +150,7 @@ export function newGame(configs: CreationConfig[]): void {
     townWorld: { day: 1, minuteOfDay: 8 * 60, visits: {} },
     explore: {
       x: START.x, y: START.y, facing: START.facing,
-      explored: new Array(dungeonMap.w * dungeonMap.h).fill(false),
+      explored: new Array(fortressMap.w * fortressMap.h).fill(false),
       enemies: spawnEnemies({ orc: false, lord: false, ancient: false }),
       chestOpened: { c1: false, hidden: false },
       revealed: { hidden: false },

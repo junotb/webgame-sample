@@ -181,7 +181,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
       keeperSays(f.keeper, unlocked
         ? `${destName}까지 ${CARRIAGE_FARE} G예요. 준비됐으면 바로 출발하죠.`
         : "서쪽 좁은 계곡에서 산적들이 마차를 덮치고 있어요. 현상금 길드의 의뢰를 받고 그 무리를 소탕한 뒤 보고해 주세요. 그전에는 운행할 수 없습니다."),
-      15, C.text, { lh: 24 });
+      15, C.text, { wrap: 568, lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
     function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }
     const go = button(`${destName}(으)로 출발 — ${CARRIAGE_FARE} G`, 340, 50, () => {
@@ -193,7 +193,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
       fullFlash(0x000000, 800, () => nav.town("carriage"));
     }, { size: 16, border: C.border });
     if (!unlocked) go.setDisabled(true);
-    go.x = p.x + 26; go.y = p.y + 150; rootS.addChild(go);
+    go.x = p.x + 26; go.y = Math.max(p.y + 150, ds.y + ds.height + 16); rootS.addChild(go);
     const closeBtn = button("나가기", 110, 40, close, { size: 15 });
     closeBtn.x = p.x + 620 - 136; closeBtn.y = p.y + 300 - 56; rootS.addChild(closeBtn);
   }
@@ -210,7 +210,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
     const ds = txt(
       keeperSays(f.keeper, "군주께서 뜻을 잘 받으셨습니다. 크로스베일의 일은 여러분께 맡기겠다고 하시는군요."),
-      15, C.text, { lh: 24 });
+      15, C.text, { wrap: 568, lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
     const closeBtn = button("물러난다", 130, 44, () => {
       overlayOpen = false; rootS.destroy({ children: true });
@@ -312,7 +312,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
     const ds = txt(
       keeperSays(f.keeper, "어디 불편한 곳이 있나요? 독이나 저주가 남아 있다면 제가 살펴볼게요."),
-      15, C.text, { lh: 24 });
+      15, C.text, { wrap: 588, lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
     const cure = button("정화 의식 — 상태이상 회복 (무료)", 340, 48, () => {
       /* 지속형 상태이상은 아직 없다(전투 상태는 전투 종료 시 소멸).

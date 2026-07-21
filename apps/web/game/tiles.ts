@@ -37,6 +37,9 @@ const SHEET_SRC = {
   goblinSky2: "/assets/world/backgrounds/goblin_valley_sky_02.png",
   goblinSky3: "/assets/world/backgrounds/goblin_valley_sky_03.png",
   barbarianOutpost: "/assets/world/tilesets/outposts/barbarian.png",
+  townStructures: "/assets/world/tilesets/town/structures.png",
+  stoneGate: "/assets/world/props/buildings/stone_gate_animation.png",
+  fenceGate: "/assets/world/props/village/fence_gate_animation.png",
   beachOutpost: "/assets/world/tilesets/outposts/beach.png",
   valleyRocks: "/assets/world/tilesets/nature/rocks.png",
   hunterCamp: "/assets/world/props/outposts/huntercamp_small.png",
@@ -97,39 +100,50 @@ const FRAMES = {
   village_grass_alt: { s: "villageGround", x: 48, y: 48, w: 48, h: 48 },
   village_paving: { s: "villageGround", x: 144, y: 48, w: 48, h: 48 },
   village_cobble: { s: "villageGround", x: 240, y: 48, w: 48, h: 48 },
+  village_cobble_alt: { s: "villageGround", x: 192, y: 48, w: 48, h: 48 },
   village_water: { s: "villageWater", x: 0, y: 64, w: 48, h: 48 },
   crossvale_valley_bg: { s: "townBackgrounds", x: 0, y: 0, w: 576, h: 324 },
   /* ---- 목가적 마을·필드 자연물 (종류별 atlas, 프레임은 원본 크기 유지) ---- */
-  tree_01: { s: "trees", x: 0, y: 0, w: 96, h: 112 },
-  tree_02: { s: "trees", x: 96, y: 0, w: 96, h: 112 },
-  tree_03: { s: "trees", x: 0, y: 112, w: 96, h: 112 },
-  tree_04: { s: "trees", x: 96, y: 112, w: 96, h: 112 },
-  bush_01: { s: "bushes", x: 0, y: 0, w: 32, h: 32 },
-  bush_02: { s: "bushes", x: 32, y: 0, w: 32, h: 32 },
-  flower_01: { s: "flowers", x: 0, y: 0, w: 16, h: 16 },
-  flower_02: { s: "flowers", x: 16, y: 0, w: 16, h: 16 },
-  mushroom_01: { s: "mushrooms", x: 0, y: 0, w: 16, h: 16 },
+  /* 자연물 프레임은 투명 여백을 잘라낸 실경계 — anchor(0.5,1) 빌보드가 바닥에 붙는다 */
+  tree_01: { s: "trees", x: 3, y: 7, w: 91, h: 102 },
+  tree_02: { s: "trees", x: 104, y: 1, w: 77, h: 110 },
+  tree_03: { s: "trees", x: 19, y: 123, w: 62, h: 90 },
+  tree_04: { s: "trees", x: 130, y: 143, w: 29, h: 61 },
+  bush_01: { s: "bushes", x: 1, y: 5, w: 30, h: 24 },
+  bush_02: { s: "bushes", x: 33, y: 5, w: 30, h: 24 },
+  flower_01: { s: "flowers", x: 1, y: 4, w: 14, h: 9 },
+  flower_02: { s: "flowers", x: 17, y: 4, w: 13, h: 9 },
+  mushroom_01: { s: "mushrooms", x: 2, y: 2, w: 11, h: 12 },
   /* ---- 고블린 요새(동굴) 표면 — cave/ground.png의 이음매 없는 암반 블록에서 슬라이스 ---- */
   cave_floor: { s: "cave", x: 88, y: 208, w: 16, h: 16 },   // 회색 암반 바닥
   cave_wall: { s: "cave", x: 272, y: 440, w: 32, h: 28 },   // 갈색 암벽
   cave_ceiling: { s: "cave", x: 80, y: 470, w: 32, h: 24 }, // 어두운 암반 천장
   /* ---- 마을 구조물 프롭 (빌보드) ---- */
-  fountain_obj: { s: "fountainProp", x: 0, y: 0, w: 92, h: 40 }, // 둥근 돌 분수 (시선 높이에 맞춰 납작하게)
-  well_obj: { s: "wellProp", x: 0, y: 0, w: 52, h: 58 },         // 지붕 달린 돌우물
+  fountain_obj: { s: "fountainProp", x: 0, y: 0, w: 92, h: 68 }, // 둥근 돌 분수 (원본 전체 — 눕힌 느낌은 그릴 때 세로로 눌러서 낸다)
+  well_obj: { s: "wellProp", x: 2, y: 8, w: 50, h: 48 },         // 지붕 달린 돌우물 (투명 여백 제외)
   /* ---- 고블린 계곡길 — 야영지·해안 전용 비주얼 ---- */
   goblin_sky_base: { s: "goblinSky1", x: 0, y: 0, w: 576, h: 324 },
   goblin_sky_cloud_back: { s: "goblinSky2", x: 0, y: 0, w: 576, h: 324 },
   goblin_sky_cloud_near: { s: "goblinSky3", x: 0, y: 0, w: 576, h: 324 },
-  bandit_hideout_obj: { s: "hunterCamp", x: 0, y: 0, w: 192, h: 240 },
-  goblin_tent_obj: { s: "barbarianOutpost", x: 248, y: 0, w: 164, h: 146 },
-  goblin_totem_obj: { s: "barbarianOutpost", x: 48, y: 352, w: 48, h: 112 },
+  bandit_hideout_obj: { s: "hunterCamp", x: 10, y: 28, w: 182, h: 192 }, // 투명 여백 제외
+  goblin_tent_obj: { s: "barbarianOutpost", x: 240, y: 192, w: 140, h: 107 },
+  /* 뿔해골 뼈 토템 — 이전 좌표(48,352)는 머리·장대·해골 세 조각을 걸쳐 잘라 조각이 떠 보였다 */
+  goblin_totem_obj: { s: "barbarianOutpost", x: 52, y: 628, w: 48, h: 140 },
   goblin_bone_gate_obj: { s: "barbarianOutpost", x: 8, y: 476, w: 80, h: 100 },
   shore_boat_obj: { s: "beachOutpost", x: 624, y: 194, w: 144, h: 72 },
   shore_dock_obj: { s: "beachOutpost", x: 624, y: 592, w: 144, h: 176 },
-  valley_rock_obj: { s: "valleyRocks", x: 288, y: 0, w: 96, h: 96 },
-  campfire_obj_0: { s: "outdoorCampfire", x: 0, y: 0, w: 48, h: 64 },
-  campfire_obj_1: { s: "outdoorCampfire", x: 48, y: 0, w: 48, h: 64 },
-  campfire_obj_2: { s: "outdoorCampfire", x: 96, y: 0, w: 48, h: 64 },
+  valley_rock_obj: { s: "valleyRocks", x: 297, y: 6, w: 80, h: 69 }, // 투명 여백 제외
+  /* ---- 맵 입구 프롭 (빌보드, 투명 여백 제외 실경계) ---- */
+  ruin_column_obj: { s: "townStructures", x: 488, y: 0, w: 37, h: 96 },  // 이끼 낀 홈기둥
+  ruin_pillar_obj: { s: "townStructures", x: 488, y: 96, w: 38, h: 96 }, // 이끼 덮인 각기둥
+  ruin_stump_obj: { s: "townStructures", x: 385, y: 96, w: 47, h: 48 },  // 부러진 기둥 밑동
+  stone_gate_obj: { s: "stoneGate", x: 24, y: 303, w: 100, h: 80 },      // 열린 석문 — 문 안이 뚫려 뒤 풍경이 보인다
+  fence_gate_obj: { s: "fenceGate", x: 480, y: 48, w: 48, h: 42 },       // 닫힌 나무 울타리문
+  fence_wing_obj: { s: "fenceGate", x: 48, y: 72, w: 48, h: 24 },        // 좌우 울타리 날개 (중앙 빈칸이 문 자리)
+  /* 캠프파이어 3프레임 — 흔들림이 안 튀도록 세 프레임 공통 실경계로 자른다 */
+  campfire_obj_0: { s: "outdoorCampfire", x: 12, y: 24, w: 22, h: 24 },
+  campfire_obj_1: { s: "outdoorCampfire", x: 60, y: 24, w: 22, h: 24 },
+  campfire_obj_2: { s: "outdoorCampfire", x: 108, y: 24, w: 22, h: 24 },
 } as const satisfies Record<string, FrameDef>;
 export type TileName = keyof typeof FRAMES;
 

@@ -23,8 +23,9 @@ export interface FPEntity {
   baseH?: number;
 }
 
-/** 표면 = 베이스 타일 + 선택적 오버레이 데칼·벽 상단 지붕 띠 */
-export interface SurfacePick { base: TileName; decal?: TileName; cap?: TileName }
+/** 표면 = 베이스 타일 + 선택적 오버레이 데칼·벽 상단 지붕 띠.
+ *  tint는 이 표면에만 곱하는 색조 — 같은 타일로 재질 차이(포석/흙길 등)를 낼 때 쓴다. */
+export interface SurfacePick { base: TileName; decal?: TileName; cap?: TileName; tint?: number }
 
 export interface FPTheme {
   floorAt(x: number, y: number): SurfacePick;
@@ -34,6 +35,10 @@ export interface FPTheme {
   ceiling: TileName | null;
   water: TileName;
   stairs: SurfacePick;
+  /** 벽 위로 얹는 지붕 높이(벽 높이 1.0 기준). 지정하면 cap을 벽면 띠가 아니라
+   *  벽 상단에서 안쪽으로 기울어 올라가는 실제 지붕면으로 그린다. 하늘이 보이는
+   *  야외 마을 전용 — 천장이 있는 실내 테마에서는 지정하지 않는다. */
+  roofHeight?: number;
   /** 테마별 색조. 지정하지 않으면 원본 타일 색을 유지한다. */
   floorTint?: number;
   waterTint?: number;
@@ -76,14 +81,18 @@ const CX = 640;          // 소실점 x
 const CY = 320;          // 지평선 y
 const NEAR = 0.28;       // 최소 근접 거리 (카메라 칸 클리핑)
 const FLAME_MS = 110;    // 횃불 프레임 간격
+const ROOF_DEPTH = 0.34; // 용마루가 벽면보다 건물 안쪽으로 물러나는 깊이(칸)
+const ROOF_HIP = 0.32;   // 건물 끝 칸에서 용마루를 안쪽으로 접는 폭 — 우진각 모임
+const ROOF_EAVE = 0.06;  // 끝 칸 처마가 벽 밖으로 나오는 폭(칸)
 
 /** 가시 거리 끝에서도 실루엣이 남도록 깊이에 비례해 감쇠한다. */
 const fog = (dist: number, viewDistance: number) =>
   Math.max(0.18, Math.min(1, 1.12 - (0.9 * dist) / viewDistance));
-/** 원근 투영: (거리, 횡 오프셋) → 화면 x / 벽 상·하단 y */
+/** 원근 투영: (거리, 횡 오프셋) → 화면 x / (거리, 높이) → 화면 y (바닥 0, 벽 상단 1) */
 const px = (dist: number, lat: number) => CX + (FOCAL * lat) / dist;
-const topY = (dist: number) => CY - (FOCAL * 0.5) / dist;
-const botY = (dist: number) => CY + (FOCAL * 0.5) / dist;
+const yAt = (dist: number, h: number) => CY + (FOCAL * (0.5 - h)) / dist;
+const topY = (dist: number) => yAt(dist, 1);
+const botY = (dist: number) => yAt(dist, 0);
 
 export interface FPView {
   root: PIXI.Container;
@@ -102,12 +111,19 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
   let flames: { sp: PIXI.Sprite; phase: number }[] = [];
   let glowT = 0;
   const viewDistance = Math.max(1, Math.floor(theme.viewDistance ?? DEFAULT_MAXD));
+  const roofH = theme.roofHeight ?? 0;
 
   const shade = (color: number, amount: number): number => {
     const r = Math.round(((color >> 16) & 0xff) * amount);
     const g = Math.round(((color >> 8) & 0xff) * amount);
     const b = Math.round((color & 0xff) * amount);
     return (r << 16) | (g << 8) | b;
+  };
+  const mulColor = (a: number, b: number): number => {
+    const r = Math.round((((a >> 16) & 0xff) * ((b >> 16) & 0xff)) / 255);
+    const g = Math.round((((a >> 8) & 0xff) * ((b >> 8) & 0xff)) / 255);
+    const bl = Math.round(((a & 0xff) * (b & 0xff)) / 255);
+    return (r << 16) | (g << 8) | bl;
   };
 
   function quad(tex: PIXI.Texture, c: number[], tint: number): PIXI.PerspectiveMesh {
@@ -121,14 +137,16 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
   }
   /** 베이스 + 데칼 2겹 */
   function surfQuad(pick: SurfacePick, c: number[], tint: number): void {
-    quad(tileTex(pick.base), c, tint);
-    if (pick.decal) quad(tileTex(pick.decal), c, tint);
+    const t = pick.tint === undefined ? tint : mulColor(tint, pick.tint);
+    quad(tileTex(pick.base), c, t);
+    if (pick.decal) quad(tileTex(pick.decal), c, t);
   }
 
-  /** 벽 상단 약 30%에 지붕 재질을 얹고, 문·창·표식은 그 위에 그린다. */
+  /** 벽 상단 약 30%에 지붕 재질을 얹고, 문·창·표식은 그 위에 그린다.
+   *  (roofHeight 테마에서는 cap을 벽 위 지붕면으로 따로 그리므로 띠를 생략한다) */
   function wallQuad(pick: SurfacePick, c: number[], tint: number): void {
     quad(tileTex(pick.base), c, tint);
-    if (pick.cap) {
+    if (pick.cap && !theme.roofHeight) {
       const ratio = 0.3;
       const rightX = c[2] + (c[4] - c[2]) * ratio;
       const rightY = c[3] + (c[5] - c[3]) * ratio;
@@ -197,6 +215,19 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
           wallQuad(wp, j > 0
             ? [xF, fT, xN, nT, xN, nB, xF, fB]
             : [xN, nT, xF, fT, xF, fB, xN, nB], sFog);
+          /* 처마(벽 상단)에서 건물 안쪽으로 기울어 오르는 지붕면.
+           * 건물이 끝나는 깊이 쪽은 용마루를 접어 우진각으로 마감한다. */
+          if (wp.cap && roofH > 0) {
+            const latRidge = lat + Math.sign(j) * ROOF_DEPTH;
+            const ahead = mapXY(d - 1, j), behind = mapXY(d + 1, j);
+            const nR = near + (cellAt(map, ahead.mx, ahead.my) === "wall" ? 0 : ROOF_HIP);
+            const fR = far - (cellAt(map, behind.mx, behind.my) === "wall" ? 0 : ROOF_HIP);
+            const xRN = px(nR, latRidge), yRN = yAt(nR, 1 + roofH);
+            const xRF = px(fR, latRidge), yRF = yAt(fR, 1 + roofH);
+            quad(tileTex(wp.cap), j > 0
+              ? [xRF, yRF, xRN, yRN, xN, nT, xF, fT]
+              : [xRN, yRN, xRF, yRF, xF, fT, xN, nT], sFog);
+          }
         }
       }
 
@@ -220,7 +251,7 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
             geom.addChild(s);
           };
           mkFace(wp.base);
-          if (wp.cap) {
+          if (wp.cap && roofH <= 0) {
             const cap = new PIXI.Sprite(tileTex(wp.cap));
             cap.x = xL; cap.y = yT;
             cap.width = xR - xL; cap.height = (yB - yT) * 0.3;
@@ -228,6 +259,21 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
             geom.addChild(cap);
           }
           if (wp.decal) mkFace(wp.decal);
+          /* 지붕 — 벽 상단 처마에서 안쪽(깊이 +)으로 물러나며 올라간다.
+           * 옆 칸이 벽이 아니면(건물 모서리) 그쪽 용마루를 접고 처마를 조금 내민다. */
+          if (wp.cap && roofH > 0) {
+            const ridgeD = face + ROOF_DEPTH;
+            const left = mapXY(d, j - 1), right = mapXY(d, j + 1);
+            const hipL = cellAt(map, left.mx, left.my) === "wall" ? 0 : ROOF_HIP;
+            const hipR = cellAt(map, right.mx, right.my) === "wall" ? 0 : ROOF_HIP;
+            const ridgeY = yAt(ridgeD, 1 + roofH);
+            quad(tileTex(wp.cap), [
+              px(ridgeD, j - 0.5 + hipL), ridgeY,
+              px(ridgeD, j + 0.5 - hipR), ridgeY,
+              px(face, j + 0.5 + (hipR ? ROOF_EAVE : 0)), yT,
+              px(face, j - 0.5 - (hipL ? ROOF_EAVE : 0)), yT,
+            ], tint);
+          }
           /* 횃불 — 불꽃 스프라이트 + 광원 (가운데 열만 광원) */
           if (theme.torchAt(mx, my)) {
             const fl = new PIXI.Sprite(flameTex(0));

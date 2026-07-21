@@ -7,7 +7,10 @@ import {
   C, H, SceneHandle, SceneScope, W, nav, panel, sceneRoot, setModeBadge, tween, txt,
 } from "../core";
 import { carriageUnlocked, questNotify, questStatus, updateText } from "../core/quests";
-import { FIELDS, FieldData, FieldDeco, FieldExit, FieldId } from "../fieldmaps";
+import {
+  EntranceVisual, FIELD_ENTRANCE_KIND, TOWN_ENTRANCE_KIND, entranceNode,
+} from "../entrances";
+import { FIELDS, FieldData, FieldDeco, FieldExit, FieldId, FieldTarget } from "../fieldmaps";
 import { DIR, Facing, RelativeMove, moveTarget, passable, rotateFacing } from "../grid";
 import { FPEntity, FPTheme, createFPView } from "../fpview";
 import { G } from "../state";
@@ -38,10 +41,10 @@ function fieldBuilding(style: Extract<NonNullable<FieldDeco["visual"]>, { kind: 
   }
 
   if (style === "goblin_camp") {
-    const tent = tileSprite("goblin_tent_obj", 1);
+    const tent = tileSprite("goblin_tent_obj", 1.35);
     tent.anchor.set(0.5, 1);
     node.addChild(g, tent);
-    return { node, worldH: 0.94, baseH: 146 };
+    return { node, worldH: 0.94, baseH: 144 };
   }
 
   if (style === "cage_full" || style === "cage_empty") {
@@ -64,7 +67,7 @@ function fieldBuilding(style: Extract<NonNullable<FieldDeco["visual"]>, { kind: 
     const totem = tileSprite("goblin_totem_obj", 1);
     totem.anchor.set(0.5, 1);
     node.addChild(g, totem);
-    return { node, worldH: 0.98, baseH: 112 };
+    return { node, worldH: 0.98, baseH: 140 };
   }
 
   if (style === "campfire") {
@@ -201,25 +204,23 @@ export function fieldScene(id: FieldId): SceneHandle {
   const ents: FPEntity[] = fieldNodes.map(({ entity }) => entity);
   const monsterViews = fieldNodes.flatMap(({ monster }) => monster ? [monster] : []);
   const fieldTicks = fieldNodes.flatMap(({ tick }) => tick ? [tick] : []);
-  F.exits.forEach((exit) => {
-    const node = new PIXI.Container();
-    const fortressGate = F.id === "goblinValley" && exit.target.kind === "explore";
-    if (fortressGate) {
+  /* 출구 비주얼 — 목적지 테마의 입구(요새는 뼈문, 나머지는 entranceNode) */
+  function exitVisual(target: FieldTarget): EntranceVisual {
+    if (target.kind === "explore") {
+      const node = new PIXI.Container();
       const gate = tileSprite("goblin_bone_gate_obj", 1.25);
       gate.anchor.set(0.5, 1);
       node.addChild(gate);
-    } else {
-      const g = new PIXI.Graphics();
-      g.rect(-34, -104, 18, 104).rect(16, -104, 18, 104).fill(0x5e4930);
-      g.rect(-40, -116, 80, 16).fill(0x3b2e21);
-      node.addChild(g);
+      return { node, worldH: 1.05, baseH: 132 };
     }
+    return entranceNode(target.kind === "town"
+      ? TOWN_ENTRANCE_KIND[target.id] : FIELD_ENTRANCE_KIND[target.id]);
+  }
+  F.exits.forEach((exit) => {
+    const { node, worldH, baseH } = exitVisual(exit.target);
     const label = txt(exit.label, 12, C.text, { weight: "700", shadow: true });
-    label.anchor.set(0.5, 1); label.y = fortressGate ? -132 : -122; node.addChild(label);
-    ents.push({
-      id: `exit:${exit.x},${exit.y}`, x: exit.x, y: exit.y, node,
-      worldH: fortressGate ? 1.05 : 0.95, baseH: fortressGate ? 132 : 116,
-    });
+    label.anchor.set(0.5, 1); label.y = -(baseH + 10); node.addChild(label);
+    ents.push({ id: `exit:${exit.x},${exit.y}`, x: exit.x, y: exit.y, node, worldH, baseH });
   });
 
   const logP = panel(700, 46, { alpha: 0.82 }); logP.x = (W - 700) / 2; logP.y = 12; root.addChild(logP);

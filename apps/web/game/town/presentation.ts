@@ -4,6 +4,7 @@ import { questStatus } from "../core/quests";
 import type { NpcDef } from "../defs";
 import { FACING_NAME, cellAt } from "../grid";
 import type { GridMap } from "../grid";
+import { FIELD_ENTRANCE_KIND, entranceNode } from "../entrances";
 import { drawAdventurer } from "../monsters";
 import { createFPView } from "../fpview";
 import type { FPEntity, FPTheme, SurfacePick } from "../fpview";
@@ -28,24 +29,38 @@ const hash01 = (x: number, y: number, a: number, b: number): number => {
   return s - Math.floor(s);
 };
 
-type CrossvaleGroundKind = "grass" | "paving" | "cobble";
+type CrossvaleGroundKind = "grass" | "road" | "plaza";
+
+/* 크로스베일은 이름 그대로 교차로 마을 — 남문~신전의 남북 대로와 서문~동문의
+ * 동서 가로가 분수 광장에서 만나고, 시설 문 앞까지는 좁은 골목만 닿는다.
+ * 나머지는 전부 초지: 변경 마을답게 돌보다 풀이 많아야 한다. */
+const CROSSVALE_LANES: ReadonlyArray<{ y: number; x1: number; x2: number }> = [
+  { y: 7, x1: 8, x2: 11 }, { y: 7, x1: 15, x2: 19 },   // 자아 길드 · 원소 길드
+  { y: 12, x1: 8, x2: 11 }, { y: 12, x1: 15, x2: 19 }, // 현상금 길드 · 무기점
+  { y: 17, x1: 8, x2: 11 }, { y: 17, x1: 15, x2: 19 }, // 도구점 · 방어구점
+  { y: 19, x1: 15, x2: 23 },                           // 마굿간·여관 골목
+];
 
 function crossvaleGroundKind(x: number, y: number): CrossvaleGroundKind {
-  const mainRoad = x >= 11 && x <= 16;
-  const square = x >= 9 && x <= 18 && y >= 9 && y <= 15;
-  const gateRoad = y >= 14 && y <= 15;
-  const guildLane = y >= 6 && y <= 8 && x >= 7 && x <= 20;
-  const tradeLane = y >= 16 && y <= 18 && x >= 7 && x <= 20;
-  const carriageLane = y >= 19 && x >= 11 && x <= 24;
-  if (square) return "cobble";
-  if (mainRoad || gateRoad || guildLane || tradeLane || carriageLane) return "paving";
+  const dx = x - 13.5, dy = y - 10.5;
+  if (dx * dx * 0.7 + dy * dy <= 9.5) return "plaza";  // 분수 중심의 원형 광장
+  if (x >= 12 && x <= 14 && y >= 5) return "road";     // 남북 대로 (남문~신전 앞)
+  if (y === 14) return "road";                         // 동서 가로 (서문~동문)
+  if (CROSSVALE_LANES.some((lane) => y === lane.y && x >= lane.x1 && x <= lane.x2)) return "road";
   return "grass";
 }
 
+/* 같은 자갈돌 타일에 색조만 달리해 재질을 가른다 — 광장은 밝은 회백 포석,
+ * 길은 흙먼지 앉은 갈색 자갈길. 파랗게 도드라지던 벽돌 포장은 쓰지 않는다. */
+const PLAZA_TINT = 0xf0e4d2;
+const ROAD_TINT = 0xd9b184;
+
 function crossvaleFloor(x: number, y: number): SurfacePick {
   const kind = crossvaleGroundKind(x, y);
-  if (kind === "cobble") return { base: "village_cobble" };
-  if (kind === "paving") return { base: "village_paving" };
+  if (kind !== "grass") {
+    const base = hash01(x, y, 91.7, 53.3) < 0.5 ? "village_cobble" : "village_cobble_alt";
+    return { base, tint: kind === "plaza" ? PLAZA_TINT : ROAD_TINT };
+  }
   return { base: hash01(x, y, 91.7, 53.3) < 0.28 ? "village_grass_alt" : "village_grass" };
 }
 
@@ -163,6 +178,8 @@ function createTheme(town: TownData, spatial: CompiledTown<NpcDef>): FPTheme {
     },
     torchAt: (x, y) => !facadeWalls.has(`${x},${y}`) && hash01(x, y, 29.1, 47.7) < 0.05,
     ceiling: town.id === "crossvale" ? null : "ceiling",
+    /* 하늘이 보이는 야외 마을에서만 벽 위에 지붕을 얹는다(실내는 천장이 대신한다). */
+    roofHeight: town.id === "crossvale" ? 0.45 : undefined,
     water: town.id === "crossvale" ? "village_water" : "water",
     stairs: { base: "floor", decal: "stairs_decal" },
     floorTint: town.id === "crossvale" ? 0xffffff : 0x93a85a,
@@ -193,11 +210,14 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
   const fountain = town.decos.find((deco) => deco.id === "fountain");
   if (fountain) {
     const node = new PIXI.Container();
-    const shadow = new PIXI.Graphics();
-    shadow.ellipse(0, 2, 52, 11).fill({ color: 0x000000, alpha: 0.3 });
-    const sprite = tileSprite("fountain_obj", 2); sprite.anchor.set(0.5, 1);
-    node.addChild(shadow, sprite);
-    entities.push({ id: "fountain", x: fountain.x, y: fountain.y, node, worldH: 0.42, baseH: 80 });
+    /* 원본에 접지 그림자가 그려져 있어 별도 그림자는 두지 않는다.
+     * 원화는 약 31° 부감이라 눈높이(바닥 위 0.5칸)에서 보면 너무 위에서 내려다본 꼴이 된다.
+     * 세로를 0.45배로 눌러 두어 칸 거리에서 보는 각도(≈13°)의 납작한 수반으로 맞춘다.
+     * baseH는 눌린 뒤 실제 픽셀 높이(68 × 0.9), worldH는 가로폭이 약 한 칸이 되는 값. */
+    const sprite = tileSprite("fountain_obj", 2); sprite.scale.set(2, 0.9);
+    sprite.anchor.set(0.5, 1);
+    node.addChild(sprite);
+    entities.push({ id: "fountain", x: fountain.x, y: fountain.y, node, worldH: 0.32, baseH: 61 });
   }
 
   const well = town.decos.find((deco) => deco.id === "well");
@@ -284,17 +304,12 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
     }
   }
 
+  /* 외곽길 입구 — 이어지는 필드의 풍경을 미리 보여 주는 테마 입구 */
   for (const gate of town.gates) {
-    const node = new PIXI.Container();
-    const g = new PIXI.Graphics();
-    g.rect(-34, -116, 18, 116).rect(16, -116, 18, 116).fill(0x5a4939);
-    g.rect(-38, -128, 76, 16).fill(0x3f3329);
-    g.rect(-34, -116, 18, 116).rect(16, -116, 18, 116)
-      .stroke({ width: 2, color: C.border, alpha: 0.28 });
-    node.addChild(g);
+    const { node, worldH, baseH } = entranceNode(FIELD_ENTRANCE_KIND[gate.target]);
     const label = txt(gate.label, 12, C.text, { weight: "700", shadow: true });
-    label.anchor.set(0.5, 1); label.y = -134; node.addChild(label);
-    entities.push({ id: `gate:${gate.id}`, x: gate.x, y: gate.y, node, worldH: 1, baseH: 120 });
+    label.anchor.set(0.5, 1); label.y = -(baseH + 10); node.addChild(label);
+    entities.push({ id: `gate:${gate.id}`, x: gate.x, y: gate.y, node, worldH, baseH });
   }
 
   const npcMarks: Array<() => void> = [];
@@ -340,7 +355,9 @@ function createMinimap(
       const kind = cellAt(map, x, y);
       const color = kind === "wall" ? 0x35304a
         : kind === "water" ? 0x2c4a6e
-          : kind === "door" ? 0x7a5a34 : 0x6e6552;
+          : kind === "door" ? 0x7a5a34
+            : town.id !== "crossvale" ? 0x6e6552
+              : { grass: 0x50673d, road: 0x87704f, plaza: 0x968b78 }[crossvaleGroundKind(x, y)];
       graphics.rect(x * cellSize, y * cellSize, cellSize - 1, cellSize - 1).fill(color);
     }
     for (const facility of town.facilities) {

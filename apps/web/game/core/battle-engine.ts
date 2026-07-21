@@ -4,6 +4,7 @@
  * Member(HP/MP)와 items는 참조로 받아 직접 갱신한다 (기존 동작 유지).
  * ===================================================================== */
 import {
+  DamageType,
   ENEMY_DEFS, EnemyDef, RANK_NAME, ResistBand, ResistTable, Tier,
   SKILLS, attackDamageType, attackDamageTypes, enemyAC, enemyAcc, enemyInflictDC,
   enemySave, enemyStatusImmune,
@@ -53,7 +54,7 @@ export type BattleEvent =
   /** 공격 전진/복귀 연출 지점 */
   | { t: "lunge"; unit: UnitId }
   | { t: "return"; unit: UnitId }
-  | { t: "hit"; unit: UnitId; target: UnitId; amount: number; crit: boolean; mag: boolean; resist?: ResistBand }
+  | { t: "hit"; unit: UnitId; target: UnitId; amount: number; crit: boolean; mag: boolean; resist?: ResistBand; dtype: DamageType }
   /** 지속 피해(중독 등) — 자기 턴 시작에 발생 */
   | { t: "tick"; unit: UnitId; amount: number; status: BattleStatusId }
   /** 행동 불가(수면/마비)로 턴을 건너뜀 */
@@ -477,7 +478,7 @@ export class BattleEngine {
         if (executable) dealt = e.hp;
         e.hp -= dealt;
         totalDealt += dealt;
-        ev.push({ t: "hit", unit: actor.id, target: e.id, amount: dealt, crit: roll.crit, mag: a.kind === "mag", resist: roll.resist });
+        ev.push({ t: "hit", unit: actor.id, target: e.id, amount: dealt, crit: roll.crit, mag: a.kind === "mag", resist: roll.resist, dtype });
         if (executable) ev.push({ t: "log", text: `${e.def.name} 처형!` });
         if (roll.resist === "weak") ev.push({ t: "log", text: `약점을 찔렀다! ${e.def.name}에게 큰 피해!` });
         else if (roll.resist === "resist") ev.push({ t: "log", text: `${e.def.name}은(는) 피해를 견뎌냈다.` });
@@ -674,13 +675,14 @@ export class BattleEngine {
       }
       const baseStats = memberStats(t.m);
       const s: Stats = { ...baseStats, def: baseStats.def + defenseStatusBonus(t.statuses) };
+      const atkDtype: DamageType = e.def.atkType ?? "bludgeon";
       const roll = rollEnemyHit(Math.round(e.atk * attackStatusMult(e.statuses)), s, {
         aoe,
         guarding: !!findStatus(t.statuses, "guard"),
         attackerFeared: feared,
         acc: enemyAcc(e.def),
         targetAC: s.evAC,
-        dtype: e.def.atkType ?? "bludgeon",
+        dtype: atkDtype,
         res: this.combinedResist(memberResist(t.m), t.statuses),
       }, this.rng);
       if (!roll.hit) {
@@ -689,7 +691,7 @@ export class BattleEngine {
       }
       const dealt = this.absorbBarrier(t, roll.dmg, ev);
       t.m.hp = Math.max(0, t.m.hp - dealt);
-      ev.push({ t: "hit", unit: e.id, target: t.id, amount: dealt, crit: false, mag: false, resist: roll.resist });
+      ev.push({ t: "hit", unit: e.id, target: t.id, amount: dealt, crit: false, mag: false, resist: roll.resist, dtype: atkDtype });
       if (roll.resist === "resist") ev.push({ t: "log", text: `${t.m.name}이(가) 피해를 흘려냈다.` });
       else if (roll.resist === "immune") ev.push({ t: "log", text: `${t.m.name}에게는 통하지 않는다!` });
       else if (roll.resist === "weak") ev.push({ t: "log", text: `${t.m.name}의 약점! 피해가 커졌다!` });

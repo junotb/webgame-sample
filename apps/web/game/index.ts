@@ -9,6 +9,7 @@ import {
 import { loadPortraits } from "./portraits";
 import { loadMonsterIcons } from "./monsters";
 import { loadTiles } from "./tiles";
+import { loadBattleFx } from "./battle-fx";
 import { G, newGame } from "./state";
 import { titleScene } from "./scenes/title";
 import { createScene } from "./scenes/create";
@@ -24,7 +25,7 @@ export async function boot(
   fonts: { displayFont: string; bodyFont: string },
 ): Promise<() => void> {
   await initPixi(el, fonts);
-  await Promise.all([loadPortraits(), loadTiles(), loadMonsterIcons()]);
+  await Promise.all([loadPortraits(), loadTiles(), loadMonsterIcons(), loadBattleFx()]);
   attachInput();
 
   /* nav 배선 — 씬 간 순환 import 방지 라우터 */

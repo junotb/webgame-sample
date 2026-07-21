@@ -3,6 +3,7 @@ import { C, H, W, tween, txt, wait } from "../../core";
 import { BattleEvent } from "../../core/battle-engine";
 import { STATUS_COLOR, STATUS_NAME } from "../../core/statuses";
 import { visualRandom } from "../../core/random";
+import { spawnImpactBurst } from "../../battle-fx";
 import type { MonsterView } from "../../monsters";
 import { GridEnemy, Member } from "../../state";
 
@@ -64,6 +65,8 @@ export function createCombatPresenter(opts: {
         else if (event.resist === "immune") popDamage(enemy, "무효!", C.dim);
         popDamage(enemy, event.amount, event.resist === "immune" ? C.dim : event.mag ? 0xb99cff : 0xffffff);
         flashEnemy(enemy);
+        const visual = enemyVisuals.get(enemy.id);
+        if (visual) spawnImpactBurst(root, visual.node.x, visual.node.y - 130 * visual.node.scale.y, event.dtype);
       } else if (event.t === "save" && enemy) popDamage(enemy, "내성!", C.epic);
       else if (event.t === "status" && enemy) {
         popDamage(enemy, event.on ? STATUS_NAME[event.status] : `${STATUS_NAME[event.status]} 해제`, STATUS_COLOR[event.status] ?? C.epic);
@@ -96,7 +99,11 @@ export function createCombatPresenter(opts: {
     const heading = events.find((event): event is Extract<BattleEvent, { t: "log" }> => event.t === "log")?.text
       ?? `${fallbackName}의 공격!`;
     log(`${heading} ${lines.join("  ")}`);
-    if (events.some((event) => event.t === "hit")) partyHitFlash();
+    const firstHit = events.find((event): event is Extract<BattleEvent, { t: "hit" }> => event.t === "hit");
+    if (firstHit) {
+      partyHitFlash();
+      spawnImpactBurst(root, W / 2, H / 2, firstHit.dtype);
+    }
   }
 
   return { popDamage, presentAlly, presentEnemy };

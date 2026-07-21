@@ -214,13 +214,16 @@ function drawMonsterShape(def: EnemyDef): PIXI.Graphics {
   return g;
 }
 
-/** 모험가(파티 멤버) 스프라이트 — 망토색/포인트색으로 개성 부여 */
+/** 모험가(파티 멤버) 스프라이트 — 망토색/포인트색으로 개성 부여.
+ *  y=0이 접지점: 마을 1인칭 빌보드가 발밑 기준으로 세우므로 실루엣이 0까지 닿아야 뜬 느낌이 없다. */
 export function drawAdventurer(cloak: number, accent: number, scale = 1): PIXI.Graphics {
   const g = new PIXI.Graphics();
   g.ellipse(0, 2, 18, 5).fill({ color: 0x000000, alpha: 0.35 });
   g.circle(0, -58, 13).fill(0x2c2440);
-  g.roundRect(-14, -48, 28, 42, 9).fill(cloak);
-  g.rect(10, -38, 4, 30).fill({ color: accent, alpha: 0.95 });
+  g.rect(-9, -6, 7, 6).fill(0x2c2440);
+  g.rect(2, -6, 7, 6).fill(0x2c2440);
+  g.roundRect(-14, -48, 28, 46, 9).fill(cloak);
+  g.rect(10, -38, 4, 34).fill({ color: accent, alpha: 0.95 });
   g.circle(0, -58, 13).stroke({ width: 1.5, color: accent, alpha: 0.55 });
   g.scale.set(scale);
   return g;

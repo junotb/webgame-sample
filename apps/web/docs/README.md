@@ -8,12 +8,10 @@
 
 | 문서 | 내용 | 이럴 때 읽기 |
 | --- | --- | --- |
-| [01-overview.md](./01-overview.md) | 게임 흐름과 주요 화면 | 처음 온보딩할 때 |
-| [02-systems.md](./02-systems.md) | 파티·성장·전투·탐험의 핵심 규칙 | 게임 규칙을 수정할 때 |
-| [03-architecture.md](./03-architecture.md) | 현재 모듈 구조와 런타임 경계 | 코드 구조나 씬을 변경할 때 |
-| [04-data-reference.md](./04-data-reference.md) | 데이터별 기준 파일과 검증 테스트 | 정의와 수치를 찾을 때 |
-| [05-extension-guide.md](./05-extension-guide.md) | 콘텐츠 추가 절차 | 몬스터·시설·씬을 추가할 때 |
-| [06-assets.md](./06-assets.md) | 에셋 디렉터리·명명·런타임 반영 규칙 | 이미지와 타일셋을 다룰 때 |
+| [01-game-design.md](./01-game-design.md) | 게임 컨셉·흐름, 시스템 규칙, 데이터 기준 파일 | 처음 온보딩할 때, 게임 규칙·데이터를 수정할 때 |
+| [02-architecture.md](./02-architecture.md) | 모듈 구조, 런타임 경계, 씬 생명주기 | 코드 구조나 씬을 변경할 때 |
+| [03-content-and-assets.md](./03-content-and-assets.md) | 콘텐츠 추가 절차와 에셋 관리 규칙 | 몬스터·시설·씬·이미지를 추가할 때 |
+| [04-asset-manifest.md](./04-asset-manifest.md) | 런타임 에셋 ← 원본 출처 매핑 | 시트를 재합성하거나 원본을 찾을 때 |
 
 ## 프로젝트 한 줄 요약
 
@@ -26,15 +24,18 @@
 3. 런타임 에셋은 `public/assets/`, 편집·보관용 원본은 `assets-source/`를 기준으로 한다.
 4. 문서에 버전 번호나 데이터 개수를 불필요하게 고정하지 않는다.
 5. 구조나 개발 절차가 바뀌었을 때만 관련 문서를 함께 수정한다.
+6. 같은 내용을 여러 문서에 복제하지 않는다. 정본 하나를 두고 나머지는 링크한다.
 
 ## 실행과 검증
 
-`apps/web`에서 실행한다.
+모든 명령은 `apps/web`에서 실행한다. 다른 문서에서 "전체 검증"은 이 블록을 가리킨다.
 
 ```bash
-npm run dev
+npm run dev          # 개발 서버
 npm run typecheck
 npm run lint
 npm test -- --run
 npm run build
 ```
+
+에셋만 변경했다면 `npm test -- --run game/__tests__/assets.test.ts`로 좁혀 실행할 수 있다.

@@ -5,15 +5,16 @@
  *  이끼 낀 석주, 계곡길은 거석과 고블린 토템, 마을길은 울타리문, 성길은 석문.
  * ===================================================================== */
 import * as PIXI from "pixi.js";
+import type { DungeonId } from "./dungeons";
 import type { FieldId } from "./fieldmaps";
 import type { TownId } from "./town/types";
 import { TileName, tileSprite } from "./tiles";
 
-export type EntranceKind = "forest" | "ruins" | "valley" | "town" | "castle";
+export type EntranceKind = "forest" | "ruins" | "valley" | "town" | "castle" | "coast";
 
 /** 필드로 나가는 입구 — 필드의 지형 테마를 예고한다. */
 export const FIELD_ENTRANCE_KIND: Record<FieldId, EntranceKind> = {
-  ruinedTemple: "ruins",
+  coastRoad: "coast",
   goblinValley: "valley",
   hermanForest: "forest",
 };
@@ -22,6 +23,31 @@ export const FIELD_ENTRANCE_KIND: Record<FieldId, EntranceKind> = {
 export const TOWN_ENTRANCE_KIND: Record<TownId, EntranceKind> = {
   crossvale: "town",
   evermore: "castle",
+};
+
+/** 던전으로 들어가는 입구 — 던전 어귀의 재질을 예고한다. */
+export const DUNGEON_ENTRANCE_KIND: Record<DungeonId, EntranceKind> = {
+  fortress: "valley",
+  fortressB1: "valley", // 필드에서 직접 잇지 않는 지하층 — 요새와 같은 재질
+  temple: "ruins",
+};
+
+/** 입구 주변 외곽 벽 스킨 — 출구를 감싼 벽을 목적지 재질로 갈아입히고,
+ *  진행 방향 벽면에는 문/아치를 걸어 벽에 뚫린 통로처럼 보이게 한다. */
+export interface EntranceWallSkin {
+  /** 입구를 감싸는 외곽 벽 재질 */
+  base: TileName;
+  /** 진행 방향 벽면에 거는 문/아치 데칼 */
+  gate: TileName;
+}
+
+export const ENTRANCE_WALL_SKIN: Record<EntranceKind, EntranceWallSkin> = {
+  forest: { base: "village_wall_timber", gate: "door_obj" },
+  ruins: { base: "temple_wall_ornate", gate: "door_obj" },
+  valley: { base: "cave_wall", gate: "door_obj" },
+  town: { base: "village_wall_brick", gate: "village_door_wood" },
+  castle: { base: "village_wall_stone", gate: "village_door_arch" },
+  coast: { base: "village_wall_plaster", gate: "door_obj" },
 };
 
 export interface EntranceVisual {
@@ -87,6 +113,13 @@ const BUILDERS: Record<EntranceKind, () => EntranceVisual> = {
   castle: () => assemble(66, [
     { tile: "stone_gate_obj", x: 0 },
   ], 1.15, 160),
+  /** 해안길 — 삭은 선착장과 뒤집힌 나룻배, 갯메꽃이 바닷길을 예고한다. */
+  coast: () => assemble(62, [
+    { tile: "shore_dock_obj", x: -36, scale: 0.42 },
+    { tile: "shore_boat_obj", x: 34, scale: 0.55 },
+    { tile: "flower_01", x: 8 },
+    { tile: "flower_02", x: -8 },
+  ], 0.7, 84),
 };
 
 /** 목적지 테마에 맞는 입구 노드를 새로 만든다 (호출마다 새 인스턴스). */

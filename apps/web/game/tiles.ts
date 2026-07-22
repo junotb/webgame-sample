@@ -44,6 +44,20 @@ const SHEET_SRC = {
   valleyRocks: "/assets/world/tilesets/nature/rocks.png",
   hunterCamp: "/assets/world/props/outposts/huntercamp_small.png",
   outdoorCampfire: "/assets/world/props/outdoor/campfire_01_animation.png",
+  templeInside: "/assets/world/tilesets/temple/inside_01.png",
+  templeWalls: "/assets/world/tilesets/temple/walls_grey.png",
+  templeGround: "/assets/world/tilesets/temple/ground.png",
+  templeOutpost: "/assets/world/tilesets/outposts/temple.png",
+  cryptTombs: "/assets/world/tilesets/crypt/tombs.png",
+  templeFire: "/assets/world/effects/lights/temple_fire_animation.png",
+  sandGround: "/assets/world/tilesets/biomes/sand_ground.png",
+  coastSky1: "/assets/world/backgrounds/coast_road_sky_01.png",
+  coastSky2: "/assets/world/backgrounds/coast_road_sky_02.png",
+  coastSky3: "/assets/world/backgrounds/coast_road_sky_03.png",
+  evermoreSky1: "/assets/world/backgrounds/evermore_sky_01.png",
+  evermoreSky2: "/assets/world/backgrounds/evermore_sky_02.png",
+  royalHallWall: "/assets/world/backgrounds/royal_hall_wall.png",
+  royalFountain: "/assets/world/props/structures/royal_fountain.png",
 } as const;
 type SheetName = keyof typeof SHEET_SRC;
 
@@ -144,6 +158,37 @@ const FRAMES = {
   campfire_obj_0: { s: "outdoorCampfire", x: 12, y: 24, w: 22, h: 24 },
   campfire_obj_1: { s: "outdoorCampfire", x: 60, y: 24, w: 22, h: 24 },
   campfire_obj_2: { s: "outdoorCampfire", x: 108, y: 24, w: 22, h: 24 },
+  /* ---- 서녘 해안길 — 모래·하늘·버려진 어촌 프롭 ---- */
+  sand_floor: { s: "sandGround", x: 0, y: 0, w: 48, h: 48 },        // 물결 모래
+  coast_sky_base: { s: "coastSky1", x: 0, y: 0, w: 576, h: 324 },
+  coast_sky_cloud_back: { s: "coastSky2", x: 0, y: 0, w: 576, h: 324 },
+  coast_sky_cloud_near: { s: "coastSky3", x: 0, y: 0, w: 576, h: 324 },
+  shore_netline_obj: { s: "beachOutpost", x: 632, y: 0, w: 136, h: 192 }, // 생선 널린 건조줄
+  shore_net_obj: { s: "beachOutpost", x: 520, y: 88, w: 112, h: 80 },    // 낮은 그물 울짱
+  /* ---- 에버모어 성 — 푸른 황혼 하늘(정적 베이스 + 흐르는 구름)·왕도 프롭 ---- */
+  evermore_sky_base: { s: "evermoreSky1", x: 0, y: 0, w: 576, h: 324 },
+  evermore_sky_clouds: { s: "evermoreSky2", x: 0, y: 0, w: 576, h: 324 },
+  royal_hall_wall: { s: "royalHallWall", x: 0, y: 0, w: 576, h: 324 },   // 알현실 이벤트 일러스트
+  royal_fountain_obj: { s: "royalFountain", x: 0, y: 0, w: 285, h: 171 }, // 왕도 대분수 (배경 원화에서 추출)
+  /* ---- 버려진 사원 — 회색 석조 표면 (temple/walls_grey·ground, 48px 그리드) ---- */
+  temple_wall: { s: "templeWalls", x: 208, y: 296, w: 32, h: 28 },        // 벽돌 석벽
+  temple_wall_ornate: { s: "templeWalls", x: 396, y: 152, w: 32, h: 28 }, // 그리스 문양 벽
+  temple_ceiling: { s: "templeWalls", x: 400, y: 8, w: 32, h: 24 },
+  temple_floor: { s: "templeGround", x: 120, y: 312, w: 48, h: 48 },       // 매끈한 판석
+  temple_floor_crack: { s: "templeGround", x: 120, y: 480, w: 48, h: 48 }, // 갈라진 판석
+  /* ---- 사원 프롭 (빌보드, 투명 여백 제외 실경계) ---- */
+  temple_gate_obj: { s: "templeOutpost", x: 0, y: 370, w: 340, h: 395 },   // 회색 대신전 정면
+  temple_shrine_obj: { s: "templeOutpost", x: 0, y: 150, w: 300, h: 220 }, // 작은 석조 사당
+  temple_pillar_obj: { s: "templeInside", x: 194, y: 178, w: 44, h: 174 }, // 홈 파인 석주
+  temple_brazier_obj: { s: "templeInside", x: 113, y: 8, w: 55, h: 130 },  // 불 밝힌 성화대
+  temple_altar_obj: { s: "templeInside", x: 483, y: 240, w: 139, h: 250 }, // 뱀 문양 옥좌 제단
+  temple_relic_obj: { s: "templeInside", x: 640, y: 560, w: 88, h: 100 },  // 둥근 문장 성물
+  crypt_tomb_obj: { s: "cryptTombs", x: 577, y: 24, w: 94, h: 69 },        // 뿔 달린 석관
+  crypt_cross_obj: { s: "cryptTombs", x: 481, y: 576, w: 55, h: 112 },     // 십자 묘석
+  /* 혼불 성화 3프레임 — 푸른 불꽃 받침, 세 프레임 공통 실경계 */
+  soulflame_obj_0: { s: "templeFire", x: 298, y: 131, w: 28, h: 61 },
+  soulflame_obj_1: { s: "templeFire", x: 346, y: 131, w: 28, h: 61 },
+  soulflame_obj_2: { s: "templeFire", x: 394, y: 131, w: 28, h: 61 },
 } as const satisfies Record<string, FrameDef>;
 export type TileName = keyof typeof FRAMES;
 

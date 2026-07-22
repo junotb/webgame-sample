@@ -72,7 +72,7 @@ export const CROSSVALE_FACILITIES: TownFacilityDef[] = [
     id: "spiritGuild", name: "자아 길드", x: 7, y: 7,
     trains: ["spirit", "mind", "body"],
     classes: ["acolyte", "priest", "monk"],
-    keeper: { name: "에다", role: "영혼술 교관", portrait: 37,
+    keeper: { name: "에다", role: "영혼술 교관", portrait: 42,
       greetings: [
         "기척이 꽤 또렷하네요. 영혼의 소리에 귀 기울일 준비가 됐다면, 제가 첫걸음을 봐 드리죠.",
         "잠깐 눈을 감아 보세요. 방금 스친 바람이 정말 바람이었는지, 함께 확인해 볼까요?",
@@ -192,7 +192,7 @@ export const CROSSVALE_DECOS: TownDecoDef[] = [
 
 /* ---- 마을 외곽길 (밟고 [Z] → 주변 필드) ---- */
 export const CROSSVALE_GATES: TownGateDef[] = [
-  { id: "west", x: 1, y: 14, label: "서문 — 잊힌 사원의 길", prompt: "[Z] 서쪽으로 — 잊힌 사원", target: "ruinedTemple" },
+  { id: "west", x: 1, y: 14, label: "서문 — 서녘 해안길", prompt: "[Z] 서쪽으로 — 해안길", target: "coastRoad" },
   { id: "south", x: 13, y: 22, label: "남문 — 고블린 계곡길", prompt: "[Z] 남쪽으로 — 고블린 계곡길", target: "goblinValley" },
   { id: "east", x: 26, y: 14, label: "동문 — 헤르만의 은둔림", prompt: "[Z] 동쪽으로 — 헤르만의 숲", target: "hermanForest" },
 ];

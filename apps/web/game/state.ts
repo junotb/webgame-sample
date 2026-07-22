@@ -10,7 +10,11 @@ import {
 import { abilityMod } from "./core/dice";
 import { Store } from "./core/store";
 import { StatusInstance } from "./core/statuses";
-import { NORMAL_SPAWNS, START, SYMBOL_SPAWNS, fortressMap } from "./goblin-fortress";
+import {
+  BASEMENT_NORMAL_SPAWNS, BASEMENT_START, BASEMENT_SYMBOL_SPAWNS,
+  NORMAL_SPAWNS, START, SYMBOL_SPAWNS, SpawnDef, basementMap, fortressMap,
+} from "./goblin-fortress";
+import { TEMPLE_NORMAL_SPAWNS, TEMPLE_START, TEMPLE_SYMBOL_SPAWNS, templeMap } from "./abandoned-temple";
 import type { TownId } from "./town/types";
 
 export interface Member {
@@ -51,7 +55,7 @@ export interface GridEnemy {
   id: string; defId: string;
   x: number; y: number;
   hp: number; alive: boolean;
-  symbol?: "orc" | "lord" | "ancient";
+  symbol?: string;
   /** 전투 상태이상 (중독/수면/마비/공포 등) — 전투 이탈 시 비워진다 */
   statuses: StatusInstance[];
 }
@@ -63,11 +67,14 @@ export interface ExploreState {
   /** 맵 w*h flat 배열 — 미니맵 안개 걷힘 */
   explored: boolean[];
   enemies: GridEnemy[];
-  chestOpened: { c1: boolean; hidden: boolean };
-  revealed: { hidden: boolean };
-  defeated: { orc: boolean; lord: boolean; ancient: boolean };
-  /** 보스 조우 대화를 본 적 있는가 (재조우 시 대화 생략) */
-  lordIntroSeen: boolean;
+  /** POI id → 열림 여부 */
+  chestOpened: Record<string, boolean>;
+  /** 숨김 POI id → 발견 여부 */
+  revealed: Record<string, boolean>;
+  /** 심볼 id → 영구 처치 여부 */
+  defeated: Record<string, boolean>;
+  /** 심볼 id → 보스 조우 대화를 본 적 있는가 (재조우 시 대화 생략) */
+  introSeen: Record<string, boolean>;
   /** 어둠의 장막 남은 턴 수 (어그로 반경 축소) */
   veil: number;
 }
@@ -94,7 +101,13 @@ export interface GameState {
   town: TownId;
   /** 마을 방문과 휴식으로 흐르는 월드 시계 (구버전 세이브는 최초 접근 시 생성) */
   townWorld?: { day: number; minuteOfDay: number; visits: Partial<Record<TownId, number>> };
+  /** 던전별 탐험 상태 — explore: 고블린 요새 지상 / basement: 요새 지하 / temple: 버려진 사원 */
   explore: ExploreState;
+  basement: ExploreState;
+  temple: ExploreState;
+  /** 필드 배치 전투(정예·퀘스트 몬스터) 처치 기록 — "필드id:데코id" → 처치한 월드 날짜.
+   *  respawnDays가 지나면 다시 나타난다. */
+  fieldFights: Record<string, number>;
   flags: {
     intro: boolean; ending: boolean; letter: boolean;
     bishopDefeated: boolean; goblinOrders: boolean;
@@ -156,16 +169,10 @@ export function newGame(configs: CreationConfig[]): void {
     blessedNext: false,
     town: "crossvale",
     townWorld: { day: 1, minuteOfDay: 8 * 60, visits: {} },
-    explore: {
-      x: START.x, y: START.y, facing: START.facing,
-      explored: new Array(fortressMap.w * fortressMap.h).fill(false),
-      enemies: spawnEnemies({ orc: false, lord: false, ancient: false }),
-      chestOpened: { c1: false, hidden: false },
-      revealed: { hidden: false },
-      defeated: { orc: false, lord: false, ancient: false },
-      lordIntroSeen: false,
-      veil: 0,
-    },
+    explore: freshFortressState(),
+    basement: freshBasementState(),
+    temple: freshTempleState(),
+    fieldFights: {},
     flags: {
       intro: false, ending: false, letter: false,
       bishopDefeated: false, goblinOrders: false,
@@ -181,15 +188,17 @@ export function partyLevel(): number {
 }
 
 /** 스폰 정의 → 그리드 적 목록. 심볼은 defeated 플래그를 반영해 제외.
- *  (ancient는 lord 처치 후에만 등장 — explore 씬 진입 시 respawnEnemies로 갱신) */
-export function spawnEnemies(defeated: ExploreState["defeated"]): GridEnemy[] {
+ *  (requires 심볼은 그 심볼 처치 후에만 등장 — 던전 씬 진입 시 respawnDungeonEnemies로 갱신) */
+export function spawnEnemies(
+  normals: readonly SpawnDef[], symbols: readonly SpawnDef[], defeated: ExploreState["defeated"],
+): GridEnemy[] {
   const out: GridEnemy[] = [];
-  for (const s of NORMAL_SPAWNS) {
+  for (const s of normals) {
     out.push({ id: s.id, defId: s.defId, x: s.x, y: s.y, hp: ENEMY_DEFS[s.defId].hp, alive: true, statuses: [] });
   }
-  for (const s of SYMBOL_SPAWNS) {
+  for (const s of symbols) {
     if (s.symbol && defeated[s.symbol]) continue;
-    if (s.symbol === "ancient" && !defeated.lord) continue;
+    if (s.requires && !defeated[s.requires]) continue;
     out.push({
       id: s.id, defId: s.defId, x: s.x, y: s.y,
       hp: ENEMY_DEFS[s.defId].hp, alive: true, symbol: s.symbol, statuses: [],
@@ -198,9 +207,33 @@ export function spawnEnemies(defeated: ExploreState["defeated"]): GridEnemy[] {
   return out;
 }
 
+function freshDungeonState(
+  map: { w: number; h: number }, start: { x: number; y: number; facing: 0 | 1 | 2 | 3 },
+  normals: readonly SpawnDef[], symbols: readonly SpawnDef[],
+): ExploreState {
+  return {
+    x: start.x, y: start.y, facing: start.facing,
+    explored: new Array(map.w * map.h).fill(false),
+    enemies: spawnEnemies(normals, symbols, {}),
+    chestOpened: {}, revealed: {}, defeated: {}, introSeen: {},
+    veil: 0,
+  };
+}
+
+/** 새 게임·구버전 세이브 보강용 초기 던전 상태 */
+export function freshFortressState(): ExploreState {
+  return freshDungeonState(fortressMap, START, NORMAL_SPAWNS, SYMBOL_SPAWNS);
+}
+export function freshBasementState(): ExploreState {
+  return freshDungeonState(basementMap, BASEMENT_START, BASEMENT_NORMAL_SPAWNS, BASEMENT_SYMBOL_SPAWNS);
+}
+export function freshTempleState(): ExploreState {
+  return freshDungeonState(templeMap, TEMPLE_START, TEMPLE_NORMAL_SPAWNS, TEMPLE_SYMBOL_SPAWNS);
+}
+
 /** 마을 → 던전 재진입 시 호출: 일반 몹 전부 리스폰 + 심볼 상태 재계산 */
-export function respawnEnemies(): void {
-  G.explore.enemies = spawnEnemies(G.explore.defeated);
+export function respawnDungeonEnemies(state: ExploreState, normals: readonly SpawnDef[], symbols: readonly SpawnDef[]): void {
+  state.enemies = spawnEnemies(normals, symbols, state.defeated);
 }
 
 /* ---- 숙련 병합: 클래스 체인 max 병합 + 생성 시 추가 기술, LD는 멤버 선택 반영 ---- */

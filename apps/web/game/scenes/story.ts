@@ -5,6 +5,7 @@
 import { SceneHandle, nav } from "../core";
 import { G } from "../state";
 import { questNotify, reportQuest } from "../core/quests";
+import { tileTex } from "../tiles";
 import { EventNode, eventOverlay, eventScene } from "./event";
 
 /* ---- 서장: 헤르만의 편지 (크로스베일 도착 후 대화 오버레이) ---- */
@@ -45,42 +46,25 @@ export function letterEvent(): SceneHandle {
     reportQuest("main_deliver_hermans_letter");
     nav.town("throne");
   },
-    { caption: "알현 — 에버모어 성", bgColor: 0x12102a });
+    /* 알현실 일러스트 — 왕궁 홀 원화(royal_hall layer_03)의 깃발 걸린 고딕 회랑 */
+    { caption: "알현 — 에버모어 성", bgColor: 0x12102a, illustration: tileTex("royal_hall_wall") });
 }
 
-/* ---- 엔딩: 보스 처치 → 에픽 해금 ---- */
+/* ---- 그름바크 토벌: 현상금 완수 — 배후의 그림자를 남긴다 ---- */
 export function endingEvent(): SceneHandle {
   const nodes: EventNode[] = [
     {
-      name: "고블린 로드 그름바크", portrait: "dark",
-      text: "훌륭하다… 작은 불꽃들이여. 하나 기억하라 — 나는 겨우 '문지기'였을 뿐. 요새의 밑바닥에서, 연방을 부술 것이 눈을 뜬다…",
+      name: "그름바크 (고블린 주술사)", portrait: "dark",
+      text: "쿨럭… 작은 불꽃들이, 제법이구나. 하나 기억해 두어라 — 크로스베일을 원한 건, 내가 아니다…. 인장의 주인은, 계곡 너머에서 지켜보고 있다…",
     },
     {
       name: "리엔", portrait: "hero",
-      text: "…마력의 흐름이 뒤집히고 있어. 고블린 요새 깊은 곳에서, 아주 오래된 무언가가 깨어났어.",
+      text: "작전 문서의 그 인장…. 고블린들을 움직인 건 따로 있었던 거야. 이 계곡은 시작에 불과했는지도 몰라.",
     },
     {
       name: "에런", portrait: "hero",
-      text: "그렇다면 끝까지 간다. 요새의 안쪽 — 물의 방에 그 기척이 있다. [에픽] 고대 정령 아스테리온… 준비를 마치고 도전하자.",
+      text: "지휘관이 쓰러졌으니 요새와 평야의 고블린들도 곧 흩어질 거다. 크로스베일로 돌아가 현상금 길드에 보고하자.",
     },
   ];
-  return eventScene(nodes, () => nav.explore(), { caption: "종장 — 그러나 계곡은 끝나지 않았다", bgColor: 0x0e0c1c });
-}
-
-/* ---- 에픽 클리어 ---- */
-export function epicClearEvent(): SceneHandle {
-  const nodes: EventNode[] = [
-    {
-      name: "고대 정령 아스테리온", portrait: "dark",
-      text: "……별의 시대 이후, 처음으로 나를 넘어선 자들. 부서진 왕국의 연대기는, 이제 너희 넷의 이름으로 다시 쓰이리라.",
-    },
-    {
-      name: "미라", portrait: "hero",
-      text: "…끝났어. 정말로 끝났어! 돌아가자, 크로스베일로. 다들 기다리고 있을 테니까.",
-    },
-    {
-      text: "— 프로토타입 클리어! 축하합니다 —\n에런·리엔·카시우스·미라의 모험은 여기까지. 이후의 연대기는 다음 버전에서 계속됩니다.",
-    },
-  ];
-  return eventScene(nodes, () => nav.town(), { caption: "외전 — 별을 삼킨 계곡", bgColor: 0x120f26 });
+  return eventScene(nodes, () => nav.town(), { caption: "지하 알현실 — 지휘관의 최후", bgColor: 0x0e0c1c });
 }

@@ -58,14 +58,14 @@ export const EVERMORE_FACILITIES: TownFacilityDef[] = [
       ] } },
   { id: "temple", name: "대성당", title: "대성당 — 연방 대성소", x: 6, y: 8,
     description: "높은 천장 아래 연방 각지에서 온 순례자의 기도가 울린다.",
-    keeper: { name: "성직자 리네", role: "대성당 치유사", portrait: 44,
+    keeper: { name: "성직자 리네", role: "대성당 치유사", portrait: 27,
       greetings: [
         "먼 길을 오셨군요. 잠깐 눈을 감고 숨을 고르세요. 상처는 그다음에 살펴볼게요.",
         "순례자가 아니어도 괜찮아요. 지친 사람이 잠시 기대어 가는 것도 이곳의 역할이니까요.",
         "표정만 봐도 제대로 쉬지 못한 게 보여요. 여기 앉으세요, 차근차근 돌봐 드릴게요.",
       ] } },
   { id: "item", name: "왕도 시장", title: "왕도 시장 — 만물상", x: 21, y: 8,
-    keeper: { name: "셀윈", role: "왕도 상인", portrait: 12,
+    keeper: { name: "셀윈", role: "왕도 상인", portrait: 9,
       greetings: [
         "찾는 게 없으면 말만 하세요. 이 시장에 없는 물건도 사흘이면 구해 오는 게 제 장기니까요.",
         "오늘은 동부에서 온 물건이 꽤 괜찮습니다. 구경만 하셔도 좋으니 천천히 둘러보세요.",

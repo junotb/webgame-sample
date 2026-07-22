@@ -1,4 +1,5 @@
 import * as PIXI from "pixi.js";
+import { AmbientTick, bobSprite, particleField, swaySprite } from "../ambient";
 import { C, H, W, panel, txt } from "../core";
 import { questStatus } from "../core/quests";
 import type { NpcDef } from "../defs";
@@ -22,6 +23,17 @@ export interface TownPresentation {
   refreshNpcMarks(): void;
   visitFacility(id: TownFacilityId): void;
   setTime(time: { phase: TownTimePhase; label: string }): void;
+}
+
+/** 분수 물빛 일렁임 — 수면 밝기와 물기둥 높이를 잔잔히 진동시킨다 */
+function fountainShimmer(sprite: PIXI.Sprite): AmbientTick {
+  const baseScaleY = sprite.scale.y;
+  let elapsed = 0;
+  return (deltaMS) => {
+    elapsed += deltaMS;
+    sprite.alpha = 0.93 + 0.07 * Math.sin(elapsed / 480);
+    sprite.scale.y = baseScaleY * (1 + 0.009 * Math.sin(elapsed / 620));
+  };
 }
 
 const hash01 = (x: number, y: number, a: number, b: number): number => {
@@ -194,8 +206,10 @@ function createTheme(town: TownData, spatial: CompiledTown<NpcDef>): FPTheme {
 function createEntities(town: TownData, npcs: readonly NpcDef[]): {
   entities: FPEntity[];
   refreshNpcMarks: () => void;
+  ambientTicks: AmbientTick[];
 } {
   const entities: FPEntity[] = [];
+  const ambientTicks: AmbientTick[] = [];
 
   for (const facility of town.facilities) {
     const node = new PIXI.Container();
@@ -212,12 +226,21 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
     const node = new PIXI.Container();
     /* 원본에 접지 그림자가 그려져 있어 별도 그림자는 두지 않는다.
      * 원화는 약 31° 부감이라 눈높이(바닥 위 0.5칸)에서 보면 너무 위에서 내려다본 꼴이 된다.
-     * 세로를 0.45배로 눌러 두어 칸 거리에서 보는 각도(≈13°)의 납작한 수반으로 맞춘다.
-     * baseH는 눌린 뒤 실제 픽셀 높이(68 × 0.9), worldH는 가로폭이 약 한 칸이 되는 값. */
-    const sprite = tileSprite("fountain_obj", 2); sprite.scale.set(2, 0.9);
-    sprite.anchor.set(0.5, 1);
-    node.addChild(sprite);
-    entities.push({ id: "fountain", x: fountain.x, y: fountain.y, node, worldH: 0.32, baseH: 61 });
+     * 세로를 눌러 두어 칸 거리에서 보는 각도(≈13°)의 납작한 수반으로 맞춘다. */
+    if (town.id === "evermore") {
+      /* 왕도 대분수 — 분수 홀 원화(scene_01_fountain_hall)에서 추출한 3단 백석 분수 */
+      const sprite = tileSprite("royal_fountain_obj", 1); sprite.scale.set(0.8, 0.52);
+      sprite.anchor.set(0.5, 1);
+      node.addChild(sprite);
+      entities.push({ id: "fountain", x: fountain.x, y: fountain.y, node, worldH: 0.44, baseH: 89 });
+      ambientTicks.push(fountainShimmer(sprite));
+    } else {
+      const sprite = tileSprite("fountain_obj", 2); sprite.scale.set(2, 0.9);
+      sprite.anchor.set(0.5, 1);
+      node.addChild(sprite);
+      entities.push({ id: "fountain", x: fountain.x, y: fountain.y, node, worldH: 0.32, baseH: 61 });
+      ambientTicks.push(fountainShimmer(sprite));
+    }
   }
 
   const well = town.decos.find((deco) => deco.id === "well");
@@ -269,6 +292,11 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
       worldH: tall ? 0.98 : deco.id === "bush" ? 0.34 : 0.16,
       baseH: tall ? 112 : deco.id === "bush" ? 32 : 16,
     });
+    ambientTicks.push(swaySprite(sprite, {
+      amp: tall ? 0.016 : deco.id === "bush" ? 0.03 : 0.05,
+      period: tall ? 3400 : 2200,
+      phase: deco.x * 1.3 + deco.y * 2.1,
+    }));
   }
 
   /* 통행·조사를 방해하지 않는 작은 바닥 장식을 초지에 결정적으로 배치한다. */
@@ -301,6 +329,7 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
       sprite.x = Math.round((hash01(x, y, 71.9, 23.7) - 0.5) * 12);
       node.addChild(sprite);
       entities.push({ id: `ground-deco:${x},${y}`, x, y, node, worldH, baseH });
+      ambientTicks.push(swaySprite(sprite, { amp: 0.05, period: 2100, phase: x * 1.7 + y * 0.9 }));
     }
   }
 
@@ -315,7 +344,10 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
   const npcMarks: Array<() => void> = [];
   for (const npc of npcs) {
     const node = new PIXI.Container();
-    node.addChild(drawAdventurer(npc.color, npc.accent, 1.2));
+    const body = drawAdventurer(npc.color, npc.accent, 1.2);
+    node.addChild(body);
+    /* 제자리 숨쉬기 — NPC마다 위상을 어긋내 광장이 살아 보이게 한다 */
+    ambientTicks.push(bobSprite(body, { pixels: 2, period: 1700 + (npc.gx * 37 + npc.gy * 59) % 600, phase: npc.gx + npc.gy }));
     const name = txt(npc.name, 12, C.border, { weight: "700", shadow: true });
     name.anchor.set(0.5, 0); name.y = 6; node.addChild(name);
     const mark = txt("!", 18, C.elite, { weight: "900", shadow: true });
@@ -330,7 +362,7 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
     entities.push({ id: `npc:${npc.id}`, x: npc.gx, y: npc.gy, node, worldH: 0.62, baseH: 92 });
   }
 
-  return { entities, refreshNpcMarks: () => npcMarks.forEach((refresh) => refresh()) };
+  return { entities, refreshNpcMarks: () => npcMarks.forEach((refresh) => refresh()), ambientTicks };
 }
 
 function createMinimap(
@@ -401,12 +433,27 @@ export function createTownPresentation(
   const backgroundFill = new PIXI.Graphics();
   backgroundFill.rect(0, 0, W, H).fill(C.night);
   background.addChild(backgroundFill);
-  const valleyBackground = town.id === "crossvale"
-    ? new PIXI.Sprite(tileTex("crossvale_valley_bg")) : null;
-  if (valleyBackground) {
-    valleyBackground.width = W;
-    valleyBackground.height = H;
-    background.addChild(valleyBackground);
+  /* 마을별 원경 — 크로스베일: 계곡 원경 / 에버모어: 푸른 황혼 하늘 + 흐르는 구름 */
+  const backdropSprites: PIXI.Container[] = [];
+  let backgroundTick: ((deltaMS: number) => void) | null = null;
+  if (town.id === "crossvale") {
+    const valley = new PIXI.Sprite(tileTex("crossvale_valley_bg"));
+    valley.width = W; valley.height = H;
+    /* 정지화 원경 위에도 옅은 구름막을 흘려 하늘이 살아 있게 한다 */
+    const clouds = new PIXI.TilingSprite({ texture: tileTex("evermore_sky_clouds"), width: W, height: H * 0.5 });
+    clouds.tileScale.set(W / 576, (H * 0.5) / 324);
+    clouds.alpha = 0.35;
+    background.addChild(valley, clouds);
+    backdropSprites.push(valley, clouds);
+    backgroundTick = (deltaMS) => { clouds.tilePosition.x -= deltaMS * 0.004; };
+  } else if (town.id === "evermore") {
+    const sky = new PIXI.Sprite(tileTex("evermore_sky_base"));
+    sky.width = W; sky.height = H;
+    const clouds = new PIXI.TilingSprite({ texture: tileTex("evermore_sky_clouds"), width: W, height: H });
+    clouds.tileScale.set(W / 576, H / 324);
+    background.addChild(sky, clouds);
+    backdropSprites.push(sky, clouds);
+    backgroundTick = (deltaMS) => { clouds.tilePosition.x -= deltaMS * 0.006; };
   }
   root.addChild(background);
 
@@ -416,18 +463,22 @@ export function createTownPresentation(
   };
   const view = createFPView(createTheme(town, spatial));
   root.addChild(view.root);
+  /* 마을 부유 입자 — 야외 크로스베일은 낙엽, 실내형 마을은 빛먼지 */
+  const ambient = particleField(town.id === "crossvale" ? "leaves" : "motes");
+  root.addChild(ambient.node);
   const lighting = new PIXI.Graphics();
   lighting.rect(0, 0, W, H).fill({ color: 0x17102d, alpha: 1 });
   root.addChild(lighting);
-  const { entities, refreshNpcMarks } = createEntities(town, npcs);
+  const { entities, refreshNpcMarks, ambientTicks } = createEntities(town, npcs);
   const visitedFacilities = new Set<TownFacilityId>();
   const redrawMinimap = createMinimap(root, town, npcs, visitedFacilities);
   const districtLabel = txt("", 16, C.border, { serif: true, weight: "700", shadow: true });
   districtLabel.anchor.set(0.5, 0); districtLabel.x = W / 2; districtLabel.y = 64; root.addChild(districtLabel);
   let time = initialTime;
   const applyTime = () => {
-    if (valleyBackground) valleyBackground.tint = time.phase === "night" ? 0x78829b
+    const tint = time.phase === "night" ? 0x78829b
       : time.phase === "evening" ? 0xe6b39b : 0xffffff;
+    for (const sprite of backdropSprites) (sprite as PIXI.Sprite).tint = tint;
     lighting.alpha = time.phase === "night" ? 0.32 : time.phase === "evening" ? 0.14 : 0;
   };
   applyTime();
@@ -439,7 +490,12 @@ export function createTownPresentation(
       redrawMinimap(pose);
       districtLabel.text = `${spatial.districtAt(pose.x, pose.y)?.name ?? town.name} · ${time.label}`;
     },
-    tick: (deltaMS) => view.tick(deltaMS),
+    tick: (deltaMS) => {
+      view.tick(deltaMS);
+      backgroundTick?.(deltaMS);
+      ambient.tick(deltaMS);
+      for (const tickAmbient of ambientTicks) tickAmbient(deltaMS);
+    },
     refreshNpcMarks,
     visitFacility(id) { visitedFacilities.add(id); },
     setTime(next) { time = next; applyTime(); },

@@ -6,8 +6,8 @@
 import {
   DamageType,
   ENEMY_DEFS, EnemyDef, RANK_NAME, ResistBand, ResistTable, Tier,
-  SKILLS, attackDamageType, attackDamageTypes, enemyAC, enemyAcc, enemyInflictDC,
-  enemySave, enemyStatusImmune,
+  SKILLS, attackDamageType, attackDamageTypes, enemyAC, enemyAcc, enemyAttackTypes,
+  enemyInflictDC, enemySave, enemyStatusImmune,
 } from "../defs";
 import { BattleAbility, GridEnemy, Member, Stats, allyAccuracy, equippedWeapon, memberResist, memberStats, rankMult } from "../state";
 import { rollSave } from "./dice";
@@ -661,6 +661,9 @@ export class BattleEngine {
     const feared = isFeared(e.statuses) || !!findStatus(e.statuses, "slow"); // 공포·감속 — 공격이 불리
     const pool = singleTargets?.length ? singleTargets : targets;
     const victims = aoe ? targets : [forced ?? pool[(this.rng() * pool.length) | 0]];
+    /* 복수 속성 사용자는 이번 행동의 속성을 무작위로 고른다 (단일 속성은 난수 소모 없음) */
+    const types = enemyAttackTypes(e.def);
+    const atkDtype: DamageType = types.length > 1 ? types[(this.rng() * types.length) | 0] : types[0];
     for (const v of victims) {
       /* 가로막기 — 유효한 보호자가 있으면 1회 대신 맞는다 */
       let t = v;
@@ -675,7 +678,6 @@ export class BattleEngine {
       }
       const baseStats = memberStats(t.m);
       const s: Stats = { ...baseStats, def: baseStats.def + defenseStatusBonus(t.statuses) };
-      const atkDtype: DamageType = e.def.atkType ?? "bludgeon";
       const roll = rollEnemyHit(Math.round(e.atk * attackStatusMult(e.statuses)), s, {
         aoe,
         guarding: !!findStatus(t.statuses, "guard"),

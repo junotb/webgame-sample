@@ -4,6 +4,7 @@
 import * as PIXI from "pixi.js";
 import { TweenQueue } from "./core/tween-queue";
 import type { FieldId } from "./fieldmaps";
+import type { DungeonId } from "./dungeons";
 import type { TownSpawn } from "./town/types";
 
 export const W = 1280;
@@ -72,10 +73,10 @@ export interface GameNavigator {
   prologue(): void;
   town(spawn?: TownSpawn): void;
   letter(): void;
-  explore(): void;
+  /** at을 주면 입구 대신 그 칸에서 시작 (층간 계단 이동) */
+  explore(id: DungeonId, at?: { x: number; y: number; facing: 0 | 1 | 2 | 3 }): void;
   field(id: FieldId): void;
   ending(): void;
-  epicClear(): void;
 }
 export const nav = {} as GameNavigator;
 

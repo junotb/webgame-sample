@@ -60,19 +60,7 @@ export function dungeonTheme(): FPTheme {
   };
 }
 
-/** 고블린 요새 테마 — 동굴 암반 표면 + 횃불. 균열/이끼 데칼로 거친 굴을 표현하고
- *  따뜻한 색조로 횃불 밝힌 소굴 느낌을 낸다. */
-export function goblinFortressTheme(): FPTheme {
-  return {
-    floorAt: () => ({ base: "cave_floor" }),
-    wallAt: (x, y) => (mossAt(x, y) ? { base: "cave_wall", decal: "wall_worn_decal" } : { base: "cave_wall" }),
-    torchAt,
-    ceiling: "cave_ceiling",
-    water: "water",
-    stairs: { base: "cave_floor", decal: "stairs_decal" },
-    floorTint: 0xb0a58c, waterTint: 0x5a7a86, wallTint: 0xc79a63, ceilingTint: 0x6b5a44,
-  };
-}
+/* 던전별 실제 테마는 dungeons.ts의 레지스트리가 정의한다. */
 
 const DEFAULT_MAXD = 4;  // 기본 전방 가시 깊이(던전)
 const SIDE = 5;          // 16:9 화면 가장자리까지 바닥·벽이 닿는 좌우 가시 폭
@@ -109,6 +97,7 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
   root.addChild(geom, bills);
   let glows: { g: PIXI.Graphics; phase: number }[] = [];
   let flames: { sp: PIXI.Sprite; phase: number }[] = [];
+  let waters: { m: PIXI.Container; phase: number }[] = [];
   let glowT = 0;
   const viewDistance = Math.max(1, Math.floor(theme.viewDistance ?? DEFAULT_MAXD));
   const roofH = theme.roofHeight ?? 0;
@@ -136,10 +125,11 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
     return m;
   }
   /** 베이스 + 데칼 2겹 */
-  function surfQuad(pick: SurfacePick, c: number[], tint: number): void {
+  function surfQuad(pick: SurfacePick, c: number[], tint: number): PIXI.PerspectiveMesh {
     const t = pick.tint === undefined ? tint : mulColor(tint, pick.tint);
-    quad(tileTex(pick.base), c, t);
+    const base = quad(tileTex(pick.base), c, t);
     if (pick.decal) quad(tileTex(pick.decal), c, t);
+    return base;
   }
 
   /** 벽 상단 약 30%에 지붕 재질을 얹고, 문·창·표식은 그 위에 그린다.
@@ -162,6 +152,7 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
     bills.removeChildren(); // 엔티티 노드는 씬 소유 — destroy하지 않는다
     glows = [];
     flames = [];
+    waters = [];
 
     const fwd = DIR[facing];
     const rt = DIR[rightOf(facing)];
@@ -183,13 +174,15 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
           kind === "water" ? { base: theme.water }
             : kind === "stairs" ? theme.stairs
               : theme.floorAt(mx, my);
-        surfQuad(pick, [
+        const surface = surfQuad(pick, [
           px(far, j - 0.5), botY(far),   // top-left (먼 변이 화면상 위)
           px(far, j + 0.5), botY(far),
           px(near, j + 0.5), botY(near),
           px(near, j - 0.5), botY(near),
         ], shade(kind === "water" ? theme.waterTint ?? theme.floorTint ?? 0xffffff
           : theme.floorTint ?? 0xffffff, cFog));
+        /* 물칸은 tick에서 알파를 일렁여 수면 반짝임을 낸다 */
+        if (kind === "water") waters.push({ m: surface, phase: (mx * 5 + my * 9) % 12 });
         if (theme.ceiling) {
           quad(tileTex(theme.ceiling), [
             px(near, j - 0.5), topY(near),
@@ -326,6 +319,8 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
     for (const f of flames) f.sp.texture = flameTex(fi + f.phase);
     for (const t of glows)
       t.g.alpha = 0.09 + 0.05 * Math.sin(glowT / 150 + t.phase);
+    for (const w of waters)
+      w.m.alpha = 0.9 + 0.08 * Math.sin(glowT / 640 + w.phase);
   }
 
   return { root, render, tick };

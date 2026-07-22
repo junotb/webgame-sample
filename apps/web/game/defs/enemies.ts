@@ -75,11 +75,13 @@ export const MONSTER_ICONS: MonsterIconDef[] = [
   { nameKo: "껑충쥐",       nameEn: "Hopperrat"    },
   { nameKo: "흰깃새",       nameEn: "Whitewing"    },
   { nameKo: "이끼두꺼비",   nameEn: "Mosstoad"     },
-  /* ---- 고블린 요새 로스터 (assets-source rasak 고블린 스프라이트에서 슬라이스) ---- */
-  { nameKo: "고블린 전사",   nameEn: "Goblinfighter" },
-  { nameKo: "고블린 늑대기수", nameEn: "Goblinrider"  },
-  { nameKo: "고블린 광신도", nameEn: "Goblinfanatic" },
-  { nameKo: "고블린 로드",   nameEn: "Goblinlord"    },
+  /* ---- 고블린 요새 로스터 (assets-source/characters/sprites/goblins에서 슬라이스) ---- */
+  { nameKo: "고블린 전사",   nameEn: "Goblinfighter"   },
+  { nameKo: "고블린 늑대기수", nameEn: "Goblinrider"    },
+  { nameKo: "고블린 광신도", nameEn: "Goblinfanatic"   },
+  { nameKo: "고블린 주술사", nameEn: "Goblinoccultist" },
+  /* ---- 버려진 사원 로스터 (goblin_occultist 스프라이트에서 슬라이스) ---- */
+  { nameKo: "되살아난 주교", nameEn: "Fallenbishop"    },
 ];
 
 export type Tier = "일반" | "정예" | "보스" | "에픽";
@@ -111,7 +113,7 @@ export interface EnemyDef {
   /** 종족·형태 태그 — 특효와 상태 면역의 예측 가능한 근거 */
   tags: CreatureTag[];
   /** 이미지 없을 때의 절차적 그리기 폴백 */
-  shape: "slime" | "goblin" | "wolf" | "skel" | "orc" | "lord" | "ancient";
+  shape: "slime" | "goblin" | "wolf" | "skel" | "orc" | "lord";
   /** 프레임 시트 없이 몸체 변형으로 표현하는 기본 모션 */
   motion: MonsterMotion;
   /** MONSTER_ICONS.nameEn — assets/monsters/icons/<lowercase nameEn>.png */
@@ -128,6 +130,8 @@ export interface EnemyDef {
   res?: ResistTable;
   /** 이 적의 공격이 아군에게 주는 피해 타입 — 미지정 시 때리기(bludgeon) */
   atkType?: DamageType;
+  /** 복수 속성 사용자 — 공격마다 이 중 하나를 무작위로 쓴다 (atkType보다 우선) */
+  atkTypes?: DamageType[];
   /** 명중 시 확률로 아군에게 거는 상태이상 */
   inflict?: EnemyInflict;
   /** 태그에서 파생되지 않는 개별 상태 면역 */
@@ -162,11 +166,14 @@ export function enemySave(d: EnemyDef): number {
 export function enemyInflictDC(d: EnemyDef): number {
   return 11 + TIER_BONUS[d.tier];
 }
-/** 적의 공격이 근접인가 — 물리 타입(베기/찌르기/때리기)은 근접이라 전열만 노린다.
+/** 이 적이 쓸 수 있는 공격 타입 목록 (atkTypes > atkType > 때리기) */
+export function enemyAttackTypes(d: EnemyDef): DamageType[] {
+  return d.atkTypes?.length ? d.atkTypes : [d.atkType ?? "bludgeon"];
+}
+/** 적의 공격이 근접인가 — 물리 타입(베기/찌르기/때리기)만 쓰면 근접이라 전열만 노린다.
  *  원소·영혼 등 마법 타입 공격은 원거리로 후열까지 닿는다. */
 export function enemyMelee(d: EnemyDef): boolean {
-  const t = d.atkType ?? "bludgeon";
-  return t === "slash" || t === "pierce" || t === "bludgeon";
+  return enemyAttackTypes(d).every((t) => t === "slash" || t === "pierce" || t === "bludgeon");
 }
 
 /* 4인 파티 기준으로 스케일 조정 */
@@ -264,11 +271,13 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     res: { earth: 1.25, water: 1.2, light: 1.3, dark: 0.8 },
     atkType: "slash", // 제례용 곡도
   },
+  /* 그름바크 — 지하 알현실의 고블린 주술사. 파티 Lv6 적정.
+   * (defId·심볼 키 "lord"는 세이브 호환을 위해 유지 — 표시명만 주술사) */
   lord: {
-    name: "고블린 로드 그름바크",
-    hp: 3400,
-    atk: 42,
-    def: 10,
+    name: "그름바크 (고블린 주술사)",
+    hp: 3200,
+    atk: 40,
+    def: 5,
     spd: 11,
     exp: 450,
     gold: 800,
@@ -276,36 +285,130 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     tags: ["living", "humanoid"],
     shape: "lord",
     motion: "humanoid",
-    img: "Goblinlord",
+    img: "Goblinoccultist",
     color: 0xc05a7a,
-    big: 1.7,
-    /* 금속 장비와 어둠의 주술 — 바람·빛에 약하고 어둠과 찌르기를 견딘다 */
-    res: { wind: 1.2, light: 1.4, dark: 0.6, pierce: 0.8 },
-    atkType: "dark", // 주술의 저주
+    big: 1.45,
+    /* 천 예복의 주술사 — 날붙이·빛·물에 약하고, 제 주술인 불·어둠은 몸에 배어 있다 */
+    res: { slash: 1.2, pierce: 1.2, light: 1.35, water: 1.15, fire: 0.6, dark: 0.6 },
+    atkTypes: ["fire", "dark"], // 불꽃과 어둠의 주술을 번갈아 퍼붓는다 (단일·전체)
     inflict: { status: "fear", chance: 0.3, save: "wit", turns: 2 }, // 소굴을 짓누르는 위압
   },
-  ancient: {
-    name: "고대 정령 아스테리온",
-    hp: 6000,
-    atk: 50,
-    def: 12,
-    spd: 15,
-    exp: 999,
-    gold: 2000,
-    tier: "에픽",
-    tags: ["spirit", "elemental", "mindless"],
-    shape: "ancient",
-    motion: "ghost",
-    img: "Crystalbloom",
-    color: 0x9a6ff0,
-    big: 1.8,
-    /* 고대 정령 — 물리도 원소도 절반으로 흘려버린다. 영혼과 어둠의 비의만이 그 핵을 흔든다 */
-    res: {
-      slash: 0.75, pierce: 0.75, bludgeon: 0.75,
-      earth: 0.75, fire: 0.75, wind: 0.75, water: 0.75,
-      spirit: 1.4, dark: 1.25,
-    },
-    atkType: "spirit", // 정신을 짓누르는 파동
-    inflict: { status: "sleep", chance: 0.3, save: "wit", turns: 2 }, // 별의 자장가
+  /* 그름바크의 친위대 — 알현실 앞을 막아선 전위. 주술사가 후위에서 주문을 퍼붓는 동안 벽이 된다 */
+  guard: {
+    name: "고블린 친위대",
+    hp: 520,
+    atk: 27,
+    def: 8,
+    spd: 9,
+    exp: 90,
+    gold: 120,
+    tier: "정예",
+    tags: ["living", "humanoid"],
+    shape: "goblin",
+    motion: "humanoid",
+    img: "Goblinfighter",
+    color: 0x4a5a8a,
+    big: 1.2,
+    /* 철갑 방패병 — 전격에 약하고 베기를 방패로 흘린다 */
+    res: { wind: 1.25, slash: 0.8, dark: 0.85 },
+    atkType: "slash", // 의장용 대검
+  },
+  /* ---- 버려진 사원 — 언데드·교단의 잔재 (측면 퀘스트 파티 Lv4~5 기준) ---- */
+  husk: {
+    name: "송장버섯",
+    hp: 62,
+    atk: 15,
+    def: 3,
+    spd: 6,
+    exp: 26,
+    gold: 18,
+    tier: "일반",
+    tags: ["undead", "plant", "mindless"],
+    shape: "slime",
+    motion: "plant",
+    img: "Corpsecap",
+    color: 0x8a9a6a,
+    /* 시신을 먹고 자란 버섯 — 불·빛에 타오르고 날붙이는 무른 몸을 벤다. 어둠은 양분이다 */
+    res: { fire: 1.5, light: 1.3, pierce: 0.6, dark: 0.7 },
+    atkType: "bludgeon", // 부풀어 오른 몸통 부딪치기
+    inflict: { status: "poison", chance: 0.35, save: "vital", turns: 3, power: 5 }, // 송장 포자
+  },
+  duskbat: {
+    name: "어둠박쥐",
+    hp: 46,
+    atk: 14,
+    def: 1,
+    spd: 16,
+    exp: 24,
+    gold: 15,
+    tier: "일반",
+    tags: ["living", "beast", "flying"],
+    shape: "wolf",
+    motion: "flying",
+    img: "Duskbat",
+    color: 0x5a4a7a,
+    /* 회랑 서까래의 박쥐 떼 — 빛에 움츠러들고 어둠에 녹아든다 */
+    res: { light: 1.3, slash: 1.2, dark: 0.7 },
+    atkType: "pierce", // 송곳니 급강하
+    inflict: { status: "fear", chance: 0.2, save: "wit", turns: 2 }, // 초음파 비명
+  },
+  eyeblob: {
+    name: "눈알덩이",
+    hp: 74,
+    atk: 17,
+    def: 3,
+    spd: 5,
+    exp: 34,
+    gold: 28,
+    tier: "일반",
+    tags: ["living", "ooze", "mindless"],
+    shape: "slime",
+    motion: "slime",
+    img: "Eyeblob",
+    color: 0x9a4a5a,
+    /* 의식의 부산물 — 커다란 눈은 찌르기에 약하고, 빛이 스며들면 몸부림친다 */
+    res: { pierce: 1.4, light: 1.3, bludgeon: 0.8, dark: 0.6 },
+    atkType: "dark", // 최면의 응시
+    inflict: { status: "sleep", chance: 0.3, save: "wit", turns: 2 }, // 깜빡이지 않는 눈
+  },
+  tendril: {
+    name: "제단의 촉수꽃",
+    hp: 680,
+    atk: 30,
+    def: 8,
+    spd: 9,
+    exp: 140,
+    gold: 200,
+    tier: "정예",
+    tags: ["living", "plant"],
+    shape: "orc",
+    motion: "plant",
+    img: "Tendrilbloom",
+    color: 0x6a8a4a,
+    big: 1.3,
+    /* 제단의 피를 마시고 자란 덩굴 — 불에 약하고 물·땅 기운은 양분으로 삼는다 */
+    res: { fire: 1.45, slash: 1.2, water: 0.7, earth: 0.7 },
+    atkType: "bludgeon", // 후려치는 덩굴
+    inflict: { status: "poison", chance: 0.3, save: "vital", turns: 3, power: 6 }, // 마비 꽃가루
+  },
+  bishop: {
+    name: "되살아난 주교 카르마스",
+    hp: 2200,
+    atk: 38,
+    def: 9,
+    spd: 10,
+    exp: 380,
+    gold: 650,
+    tier: "보스",
+    tags: ["undead", "humanoid"],
+    shape: "lord",
+    motion: "humanoid",
+    img: "Fallenbishop",
+    color: 0x8a3a4a,
+    big: 1.5,
+    /* 알 수 없는 힘으로 일어선 시신 — 빛과 불이 그 힘을 태우고, 어둠은 스며들지 못한다 */
+    res: { light: 1.6, fire: 1.25, dark: 0.4, pierce: 0.8, water: 0.9 },
+    atkType: "dark", // 거꾸로 된 기도
+    inflict: { status: "fear", chance: 0.3, save: "wit", turns: 2 }, // 무덤 너머의 설교
   },
 };

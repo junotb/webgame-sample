@@ -27,6 +27,20 @@ describe("버전 세이브", () => {
     expect(() => parseSave(JSON.stringify({ version: SAVE_VERSION + 1, state: G }))).toThrow("버전");
   });
 
+  it("v2 세이브(사원 상태 없음)를 v3로 마이그레이션한다", () => {
+    const legacy = JSON.parse(serializeGame());
+    legacy.version = 2;
+    delete legacy.state.temple;
+    legacy.state.explore.lordIntroSeen = true;
+    delete legacy.state.explore.introSeen;
+    legacy.state.explore.chestOpened = { c1: true, hidden: false };
+    const parsed = parseSave(JSON.stringify(legacy));
+    expect(parsed.temple).toBeDefined();
+    expect(parsed.temple.enemies.length).toBeGreaterThan(0);
+    expect(parsed.explore.introSeen.lord).toBe(true);
+    expect(parsed.explore.chestOpened.c1).toBe(true);
+  });
+
   it("v1 통합 원소·영혼 숙련을 v2의 9개 학파로 마이그레이션한다", () => {
     const legacy = JSON.parse(serializeGame());
     legacy.version = 1;

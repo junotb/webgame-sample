@@ -71,10 +71,12 @@ function retroCredit(q: QuestDef, p: QuestProgress): void {
   for (const o of q.objectives) {
     let completed = false;
     if (o.type === "clear") {
-      if (o.target === "fallen_bishop") completed = !!game().flags.bishopDefeated;
+      if (o.target === "fallen_bishop")
+        completed = !!game().flags.bishopDefeated || !!game().temple.defeated[o.target];
       else if (o.target === "valley_bandits") completed = !!game().flags.banditsDefeated;
-      else if (o.target === "orc" || o.target === "lord" || o.target === "ancient")
-        completed = game().explore.defeated[o.target];
+      else if (o.target === "orc") completed = !!game().explore.defeated.orc;
+      else if (o.target === "lord")
+        completed = !!game().basement.defeated.lord || !!game().explore.defeated.lord;
     } else if (o.type === "collect" && o.target === "goblin_orders") {
       completed = !!game().flags.goblinOrders || game().explore.chestOpened.c1;
     } else if (o.type === "rescue" && o.target === "valley_hostages") {

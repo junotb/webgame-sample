@@ -4,15 +4,21 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  C, H, SceneHandle, SceneScope, W, nav, panel, sceneRoot, setModeBadge, tween, txt,
+  C, H, SceneHandle, SceneScope, W, nav, panel, sceneRoot, setModeBadge, toast, tween, txt,
 } from "../core";
 import { carriageUnlocked, questNotify, questStatus, updateText } from "../core/quests";
+import { ParticleKind, particleField, swaySprite } from "../ambient";
+import { gameplayRandom } from "../core/random";
+import { RARITY_META, gearDisplayName } from "../defs";
+import { FieldBattleHandle, fieldBattleOverlay } from "./field-battle";
+import { LEVEL_AP, LEVEL_SP, gainExpParty, rollDropToBag } from "../state";
 import {
-  EntranceVisual, FIELD_ENTRANCE_KIND, TOWN_ENTRANCE_KIND, entranceNode,
+  DUNGEON_ENTRANCE_KIND, ENTRANCE_WALL_SKIN, EntranceVisual,
+  FIELD_ENTRANCE_KIND, TOWN_ENTRANCE_KIND, entranceNode,
 } from "../entrances";
 import { FIELDS, FieldData, FieldDeco, FieldExit, FieldId, FieldTarget } from "../fieldmaps";
-import { DIR, Facing, RelativeMove, moveTarget, passable, rotateFacing } from "../grid";
-import { FPEntity, FPTheme, createFPView } from "../fpview";
+import { DIR, Facing, RelativeMove, cellAt, moveTarget, passable, rotateFacing } from "../grid";
+import { FPEntity, FPTheme, SurfacePick, createFPView } from "../fpview";
 import { G } from "../state";
 import { TileName, tileSprite, tileTex } from "../tiles";
 import { buildPartyHUD } from "../hud";
@@ -85,12 +91,16 @@ function fieldBuilding(style: Extract<NonNullable<FieldDeco["visual"]>, { kind: 
     };
   }
 
-  const asset: Record<"shore_boat" | "shore_dock" | "valley_rock", {
+  const asset: Record<"shore_boat" | "shore_dock" | "valley_rock" | "shore_netline" | "shore_net" | "broken_cross" | "ruin_column", {
     tile: TileName; scaleX: number; scaleY: number; worldH: number; baseH: number;
   }> = {
     shore_boat: { tile: "shore_boat_obj", scaleX: 0.86, scaleY: 0.86, worldH: 0.38, baseH: 62 },
     shore_dock: { tile: "shore_dock_obj", scaleX: 0.82, scaleY: 0.28, worldH: 0.18, baseH: 50 },
     valley_rock: { tile: "valley_rock_obj", scaleX: 0.8, scaleY: 0.8, worldH: 0.56, baseH: 77 },
+    shore_netline: { tile: "shore_netline_obj", scaleX: 0.75, scaleY: 0.75, worldH: 0.92, baseH: 144 },
+    shore_net: { tile: "shore_net_obj", scaleX: 0.85, scaleY: 0.85, worldH: 0.45, baseH: 68 },
+    broken_cross: { tile: "crypt_cross_obj", scaleX: 0.85, scaleY: 0.85, worldH: 0.62, baseH: 95 },
+    ruin_column: { tile: "ruin_column_obj", scaleX: 1.4, scaleY: 1.4, worldH: 0.9, baseH: 134 },
   };
   const pick = asset[style];
   const sprite = tileSprite(pick.tile, 1);
@@ -103,7 +113,8 @@ function fieldBuilding(style: Extract<NonNullable<FieldDeco["visual"]>, { kind: 
 function fieldNode(deco: FieldDeco): FieldNode {
   if (deco.visual?.kind === "monster") {
     const node = new PIXI.Container();
-    const monster = drawMonster(ENEMY_DEFS[deco.visual.defId], deco.visual.defId === "wolf" ? 0.9 : 0.82);
+    const def = ENEMY_DEFS[deco.visual.defId];
+    const monster = drawMonster(def, (def.big ?? 1) * (deco.visual.defId === "wolf" ? 0.9 : 0.82));
     node.addChild(monster);
     return {
       entity: { id: `deco:${deco.id}`, x: deco.x, y: deco.y, node, worldH: 0.72, baseH: 104 },
@@ -132,23 +143,47 @@ function fieldNode(deco: FieldDeco): FieldNode {
       worldH: tall ? 1.0 : shrub ? 0.34 : 0.17,
       baseH: tall ? 112 : shrub ? 32 : 16,
     },
+    /* 나무는 무겁게, 덤불·풀꽃은 가볍고 빠르게 바람에 흔들린다 */
+    tick: swaySprite(s, {
+      amp: tall ? 0.016 : shrub ? 0.03 : 0.05,
+      period: tall ? 3400 : 2200,
+      phase: deco.x * 1.3 + deco.y * 2.1,
+    }),
   };
 }
 
-function fieldBackground(field: FieldData): PIXI.Container {
+function fieldBackground(field: FieldData): { node: PIXI.Container; tick?: (deltaMS: number) => void } {
   const bg = new PIXI.Container();
   const { sky, horizon, ridge, texture, layers = [], tint = 0xffffff } = field.theme.background;
+  let tick: ((deltaMS: number) => void) | undefined;
   if (texture) {
-    for (const name of [texture, ...layers]) {
-      const layer = new PIXI.Sprite(tileTex(name));
-      layer.width = W; layer.height = H; layer.tint = tint;
+    const base = new PIXI.Sprite(tileTex(texture));
+    base.width = W; base.height = H; base.tint = tint;
+    bg.addChild(base);
+    /* 구름 레이어는 타일링으로 감아 천천히 흘린다 — 뒤 레이어일수록 느리게 (패럴랙스) */
+    const drifting = layers.map((name, i) => {
+      const layer = new PIXI.TilingSprite({ texture: tileTex(name), width: W, height: H });
+      layer.tileScale.set(W / layer.texture.width, H / layer.texture.height);
+      layer.tint = tint;
       bg.addChild(layer);
+      return { layer, speed: 0.0035 * (i + 1) };
+    });
+    if (drifting.length) {
+      tick = (deltaMS) => {
+        for (const { layer, speed } of drifting) layer.tilePosition.x -= deltaMS * speed;
+      };
     }
   } else {
     const bands = new PIXI.Graphics();
     bands.rect(0, 0, W, H * 0.36).fill(sky);
     bands.rect(0, H * 0.36, W, H * 0.22).fill(horizon);
     bg.addChild(bands);
+    /* 전용 하늘 텍스처가 없는 필드도 구름은 흘러가야 한다 — 공용 구름막을 옅게 얹는다 */
+    const clouds = new PIXI.TilingSprite({ texture: tileTex("evermore_sky_clouds"), width: W, height: H * 0.4 });
+    clouds.tileScale.set(W / clouds.texture.width, (H * 0.4) / clouds.texture.height);
+    clouds.tint = sky; clouds.alpha = 0.55;
+    bg.addChild(clouds);
+    tick = (deltaMS) => { clouds.tilePosition.x -= deltaMS * 0.004; };
   }
   const ground = new PIXI.Graphics();
   ground.rect(0, H * 0.58, W, H * 0.42).fill(0x20251e);
@@ -160,7 +195,7 @@ function fieldBackground(field: FieldData): PIXI.Container {
   ridges.poly([0, 390, 0, 330, 190, 280, 390, 334, 590, 246, 790, 326, 1010, 266, W, 316, W, 390])
     .fill({ color: 0x2f352c, alpha: 0.7 });
   bg.addChild(ridges);
-  return bg;
+  return { node: bg, tick };
 }
 
 export function fieldScene(id: FieldId): SceneHandle {
@@ -173,17 +208,45 @@ export function fieldScene(id: FieldId): SceneHandle {
   let facing: Facing = F.start.facing;
   let activeEvent: SceneHandle | null = null;
 
-  root.addChild(fieldBackground(F));
+  const background = fieldBackground(F);
+  root.addChild(background.node);
   const fieldTheme = F.theme;
+
+  /* 입구 주변 외곽 벽 스킨 — 출구를 감싼 벽(체비쇼프 거리 2)을 목적지 재질로
+   * 갈아입히고, 접근로 반대편 벽면에는 문/아치를 걸어 통로임을 보인다.
+   * 출구 발밑 바닥에는 포석 문턱을 깐다. */
+  const entranceWallSkin = new Map<string, SurfacePick>();
+  const entranceFloor = new Set<string>();
+  for (const exit of F.exits) {
+    const kind = exit.target.kind === "town" ? TOWN_ENTRANCE_KIND[exit.target.id]
+      : exit.target.kind === "field" ? FIELD_ENTRANCE_KIND[exit.target.id]
+        : DUNGEON_ENTRANCE_KIND[exit.target.dungeon];
+    const skin = ENTRANCE_WALL_SKIN[kind];
+    entranceFloor.add(`${exit.x},${exit.y}`);
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dy = -2; dy <= 2; dy++) {
+        if (cellAt(map, exit.x + dx, exit.y + dy) !== "wall") continue;
+        entranceWallSkin.set(`${exit.x + dx},${exit.y + dy}`, { base: skin.base });
+      }
+    }
+    for (const { dx, dy } of Object.values(DIR)) {
+      if (cellAt(map, exit.x + dx, exit.y + dy) !== "wall") continue;
+      if (cellAt(map, exit.x - dx, exit.y - dy) === "wall") continue; // 접근 가능한 방향의 맞은편 벽만
+      entranceWallSkin.set(`${exit.x + dx},${exit.y + dy}`, { base: skin.base, decal: skin.gate });
+    }
+  }
+
   const theme: FPTheme = {
-    floorAt: (x, y) => ({
-      base: fieldTheme.floor,
-      decal: fieldTheme.floorDecal && (x * 17 + y * 31) % 7 === 0 ? fieldTheme.floorDecal : undefined,
-    }),
-    wallAt: (x, y) => ({
+    floorAt: (x, y) => entranceFloor.has(`${x},${y}`)
+      ? { base: fieldTheme.floor, decal: "pave_decal" }
+      : {
+        base: fieldTheme.floor,
+        decal: fieldTheme.floorDecal && (x * 17 + y * 31) % 7 === 0 ? fieldTheme.floorDecal : undefined,
+      },
+    wallAt: (x, y) => entranceWallSkin.get(`${x},${y}`) ?? {
       base: fieldTheme.wall,
       decal: fieldTheme.wallDecal && (x * 13 + y * 7) % 6 === 0 ? fieldTheme.wallDecal : undefined,
-    }),
+    },
     torchAt: () => false,
     ceiling: fieldTheme.ceiling, water: fieldTheme.water,
     stairs: { base: fieldTheme.floor, decal: "stairs_decal" },
@@ -193,21 +256,46 @@ export function fieldScene(id: FieldId): SceneHandle {
   };
   const fp = createFPView(theme); root.addChild(fp.root);
 
+  /* 필드별 부유 입자 — 해안길은 물보라, 계곡은 흙먼지, 숲은 낙엽 */
+  const FIELD_PARTICLES: Record<FieldId, ParticleKind> = {
+    coastRoad: "spray", goblinValley: "dust", hermanForest: "leaves",
+  };
+  const ambient = particleField(FIELD_PARTICLES[F.id]);
+  root.addChild(ambient.node);
+
+  /* ---- 필드 배치 전투 (정예·퀘스트 몬스터) — 처치하면 respawnDays 뒤 재등장 ---- */
+  let activeBattle: FieldBattleHandle | null = null;
+  const worldDay = () => G.townWorld?.day ?? 1;
+  const fightKey = (d: FieldDeco) => `${F.id}:${d.id}`;
+  const fightDown = (d: FieldDeco): boolean => {
+    if (!d.fight) return false;
+    const day = G.fieldFights[fightKey(d)];
+    return day !== undefined && worldDay() < day + d.fight.respawnDays;
+  };
+
+  const nodesById = new Map<string, FieldNode>();
+  for (const d of F.decos) if (!fightDown(d)) nodesById.set(d.id, fieldNode(d));
+
   const decoAt = (x: number, y: number): FieldDeco | undefined =>
-    F.decos.find((d) => d.x === x && d.y === y);
+    F.decos.find((d) => d.x === x && d.y === y && nodesById.has(d.id));
   const blockedAt = (x: number, y: number): FieldDeco | undefined =>
     decoAt(x, y)?.blocking ? decoAt(x, y) : undefined;
   const exitAt = (x: number, y: number): FieldExit | undefined =>
     F.exits.find((e) => e.x === x && e.y === y);
 
-  const fieldNodes = F.decos.map(fieldNode);
-  const ents: FPEntity[] = fieldNodes.map(({ entity }) => entity);
-  const monsterViews = fieldNodes.flatMap(({ monster }) => monster ? [monster] : []);
-  const fieldTicks = fieldNodes.flatMap(({ tick }) => tick ? [tick] : []);
+  const exitEnts: FPEntity[] = [];
+  const ents = (): FPEntity[] => [...nodesById.values()].map(({ entity }) => entity).concat(exitEnts);
   /* 출구 비주얼 — 목적지 테마의 입구(요새는 뼈문, 나머지는 entranceNode) */
   function exitVisual(target: FieldTarget): EntranceVisual {
     if (target.kind === "explore") {
       const node = new PIXI.Container();
+      if (target.dungeon === "temple") {
+        /* 곶 위에 선 회색 대신전 정면 — 문 너머가 던전이다 */
+        const gate = tileSprite("temple_gate_obj", 0.52);
+        gate.anchor.set(0.5, 1);
+        node.addChild(gate);
+        return { node, worldH: 1.35, baseH: 205 };
+      }
       const gate = tileSprite("goblin_bone_gate_obj", 1.25);
       gate.anchor.set(0.5, 1);
       node.addChild(gate);
@@ -220,7 +308,7 @@ export function fieldScene(id: FieldId): SceneHandle {
     const { node, worldH, baseH } = exitVisual(exit.target);
     const label = txt(exit.label, 12, C.text, { weight: "700", shadow: true });
     label.anchor.set(0.5, 1); label.y = -(baseH + 10); node.addChild(label);
-    ents.push({ id: `exit:${exit.x},${exit.y}`, x: exit.x, y: exit.y, node, worldH, baseH });
+    exitEnts.push({ id: `exit:${exit.x},${exit.y}`, x: exit.x, y: exit.y, node, worldH, baseH });
   });
 
   const logP = panel(700, 46, { alpha: 0.82 }); logP.x = (W - 700) / 2; logP.y = 12; root.addChild(logP);
@@ -233,13 +321,13 @@ export function fieldScene(id: FieldId): SceneHandle {
   buildPartyHUD(root);
 
   function refresh(): void {
-    fp.render(map, px, py, facing, ents);
+    fp.render(map, px, py, facing, ents());
     const front = { x: px + DIR[facing].dx, y: py + DIR[facing].dy };
     const exit = exitAt(px, py) ?? exitAt(front.x, front.y);
     if (exit) prompt.text = exit.prompt;
     else {
       const d = decoAt(front.x, front.y);
-      prompt.text = d ? `[Z] ${d.name}을(를) 살핀다` : "";
+      prompt.text = d ? (d.fight ? `[Z] ${d.name} — 전투!` : `[Z] ${d.name}을(를) 살핀다`) : "";
     }
   }
   function bump(): void {
@@ -254,6 +342,13 @@ export function fieldScene(id: FieldId): SceneHandle {
     if (F.id === "goblinValley" && py >= 9 && py <= 12 && px <= 10 && px >= 6
       && !G.flags.banditsDefeated && questStatus("main_clear_evermore_road") === "active") {
       startBanditAmbush();
+      return;
+    }
+    /* 랜덤 인카운터 — 잡몹은 지도에 보이지 않고 걷다가 마주친다 (출구 칸은 안전) */
+    if (F.encounters && !exitAt(px, py) && gameplayRandom() < F.encounters.chance) {
+      const groups = F.encounters.groups;
+      const group = groups[Math.min(groups.length - 1, Math.floor(gameplayRandom() * groups.length))];
+      startBattle(group, "야생의 습격", null);
     }
   }
   function rotate(dir: -1 | 1): void {
@@ -268,22 +363,26 @@ export function fieldScene(id: FieldId): SceneHandle {
       return;
     }
     if (exit.target.kind === "field") { nav.field(exit.target.id); return; }
-    if (exit.target.kind === "explore") { nav.explore(); return; }
+    if (exit.target.kind === "explore") { nav.explore(exit.target.dungeon); return; }
     G.town = exit.target.id;
     nav.town(exit.target.spawn);
   }
   function interact(): void {
-    if (activeEvent) return;
+    if (activeEvent || activeBattle) return;
     const front = { x: px + DIR[facing].dx, y: py + DIR[facing].dy };
     const exit = exitAt(px, py) ?? exitAt(front.x, front.y);
     if (exit) { leave(exit); return; }
     const d = decoAt(front.x, front.y);
     if (!d) return;
-    if (d.id === "bishop_altar") {
-      if (G.flags.bishopDefeated) logT.text = "사악한 기운이 사라진 제단에는 깨진 주교관만 남아 있다.";
-      else if (questStatus("side_ruined_temple") !== "active")
-        logT.text = "제단 아래의 존재는 위험해 보인다. 에버모어 성의 시종장에게 사원 조사에 관해 물어보자.";
-      else startBishopEncounter();
+    if (d.fight) {
+      logT.text = d.text;
+      startBattle(d.fight.enemies, d.name, d);
+      return;
+    }
+    if (d.id === "cold_shrine") {
+      logT.text = G.flags.bishopDefeated
+        ? "사악한 기운이 걷힌 제단은 그저 낡은 돌덩이다. 바다는 아무 일 없다는 듯 잔잔하다."
+        : d.text;
       return;
     }
     if (d.id === "cage_full") {
@@ -301,20 +400,47 @@ export function fieldScene(id: FieldId): SceneHandle {
     logT.text = d.text;
   }
 
-  function startBishopEncounter(): void {
-    const nodes: EventNode[] = [
-      { name: "???", portrait: "dark", text: "갈라진 제단 아래에서 썩은 향 냄새와 함께 검은 예복의 사제가 몸을 일으킨다." },
-      { name: "되살아난 사악한 주교", portrait: "dark", text: "산 자들이 진실을 탐하다니… 이 사원의 마지막 기도에 너희 이름도 새겨 주마." },
-      { name: "에런", portrait: "hero", text: "의식은 여기서 끝이다. 무기를 들어!" },
-      { text: "격전 끝에 주교의 몸을 붙들던 알 수 없는 힘이 흩어지고, 제단 아래에서 사악한 교단과 희생자들의 기록이 발견되었다. 에버모어 성에 보고할 증거다." },
-    ];
-    activeEvent = eventOverlay(nodes, () => {
-      activeEvent = null;
-      G.flags.bishopDefeated = true;
-      const updates = questNotify({ t: "clear", symbol: "fallen_bishop" });
-      logT.text = updates[0] ? updateText(updates[0]) : "사악한 주교를 쓰러뜨리고 보고할 증거를 확보했다.";
-      refresh();
-    }, { caption: "버려진 사원의 진상" });
+  /* ---- 조우 전투 — 승리 보상(골드·경험치·드랍·퀘스트 카운트)과 리스폰 기록 ---- */
+  function startBattle(enemies: string[], caption: string, deco: FieldDeco | null): void {
+    if (activeBattle) return;
+    activeBattle = fieldBattleOverlay({
+      enemies, caption, prevBadge: F.badge,
+      onEnd: (result) => {
+        activeBattle = null;
+        if (result === "victory") {
+          let gold = 0, exp = 0;
+          for (const id of enemies) { gold += ENEMY_DEFS[id].gold; exp += ENEMY_DEFS[id].exp; }
+          G.gold += gold;
+          const ups = gainExpParty(exp);
+          toast(`승리! 경험치 +${exp}, ${gold} G`, C.border);
+          for (const id of enemies) {
+            const drop = rollDropToBag(ENEMY_DEFS[id].tier);
+            if (drop) {
+              const rm = RARITY_META[drop.rarity];
+              toast(`${gearDisplayName(drop)} 획득! [${rm.name}]${drop.identified ? "" : " — 미확인 (식별 필요)"} · 가방에 보관`, rm.color);
+            }
+            questNotify({ t: "kill", defId: id }).forEach((up) => toast(updateText(up), C.border));
+          }
+          if (ups.length) toast(`레벨 업! ${ups.join(" · ")} — 모험 수첩에서 성장 포인트를 배분하라 (능력치 ${LEVEL_AP}·스킬 ${LEVEL_SP})`, C.border);
+          if (deco?.fight) {
+            G.fieldFights[fightKey(deco)] = worldDay();
+            nodesById.delete(deco.id);
+            logT.text = `${deco.name}을(를) 물리쳤다. 며칠이 지나면 다시 나타날 것이다.`;
+          } else {
+            logT.text = "적을 물리치고 길을 재촉한다.";
+          }
+          refresh();
+        } else if (result === "defeat") {
+          G.party.forEach((m) => { if (m.hp <= 0) m.hp = 1; });
+          toast("전멸했다… 정신을 차리니 크로스베일의 여관이다.", C.blood);
+          G.town = "crossvale";
+          nav.town();
+        } else {
+          logT.text = "무사히 떨어져 나왔다. 서두르자.";
+          refresh();
+        }
+      },
+    });
   }
 
   function startBanditAmbush(): void {
@@ -335,8 +461,12 @@ export function fieldScene(id: FieldId): SceneHandle {
 
   const ticker = (t: PIXI.Ticker) => {
     fp.tick(t.deltaMS);
-    for (const monster of monsterViews) monster.tickMotion(t.deltaMS);
-    for (const tick of fieldTicks) tick(t.deltaMS);
+    background.tick?.(t.deltaMS);
+    ambient.tick(t.deltaMS);
+    for (const n of nodesById.values()) {
+      n.monster?.tickMotion(t.deltaMS);
+      n.tick?.(t.deltaMS);
+    }
   };
   scope.ticker(ticker);
   refresh();
@@ -349,9 +479,10 @@ export function fieldScene(id: FieldId): SceneHandle {
   };
   return {
     onKey(k) {
+      if (activeBattle) return; // 전투 오버레이는 버튼으로만 조작
       if (activeEvent) { activeEvent.onKey?.(k); return; }
       KEYMAP[k.length === 1 ? k.toLowerCase() : k]?.();
     },
-    dispose() { activeEvent?.dispose?.(); scope.dispose(); },
+    dispose() { activeBattle?.dispose(); activeEvent?.dispose?.(); scope.dispose(); },
   };
 }

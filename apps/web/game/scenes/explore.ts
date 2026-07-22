@@ -15,7 +15,7 @@ import {
 import {
   BattleAbility, G, GridEnemy, LEVEL_AP, LEVEL_SP, Member, attackReach,
   equippedWeapon, gainExpParty, memberAbilities, memberStats, partyFortune,
-  partyRank, respawnEnemies, rollDropToBag,
+  partyRank, respawnDungeonEnemies, rollDropToBag,
 } from "../state";
 import { BASIC_ATTACK, BattleEngine, BattleEvent } from "../core/battle-engine";
 import { gameplayRandom } from "../core/random";
@@ -27,14 +27,16 @@ import {
   DIR, FACING_NAME, RelativeMove, cellAt, chebyshev, enemyStep, hasLOS,
   moveTarget, passable, rightOf, rotateFacing,
 } from "../grid";
-import { POIS, PoiDef, START, fortressMap } from "../goblin-fortress";
-import { FPEntity, createFPView, goblinFortressTheme } from "../fpview";
-import { tileSprite } from "../tiles";
+import type { PoiDef } from "../goblin-fortress";
+import { DUNGEONS, DungeonId } from "../dungeons";
+import { FPEntity, createFPView } from "../fpview";
+import { tileSprite, tileTex } from "../tiles";
 import { drawMonster } from "../monsters";
 import type { MonsterView } from "../monsters";
 import { buildPartyHUD, pickMember } from "../hud";
-import { EventNode, eventOverlay } from "./event";
+import { eventOverlay } from "./event";
 import { createCombatPresenter } from "./explore/combat-presenter";
+import { ParticleKind, particleField } from "../ambient";
 
 const ROTATE_COSTS_TURN = false; // 회전도 턴을 소모시키려면 true
 const AGGRO_R = 6;               // 어그로 반경 (체비쇼프 + LOS)
@@ -43,15 +45,17 @@ const MAG_RANGE = 6;             // 마법 사거리
 const REVEAL_R = 4;              // 미니맵 안개 걷힘 반경
 const VEIL_TURNS = 30;           // 어둠의 장막 지속 턴
 
-export function goblinFortressScene(): SceneHandle {
+export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing: 0 | 1 | 2 | 3 }): SceneHandle {
+  const D = DUNGEONS[id];
   const scope = new SceneScope();
-  setModeBadge("탐험 모드 — 고블린 요새", C.green);
+  setModeBadge(D.badge, C.green);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
-  const map = fortressMap;
-  const E = G.explore;
-  /* 마을·전멸 후 진입: 입구에서 시작 + 일반 몹 리스폰 */
-  respawnEnemies();
-  E.x = START.x; E.y = START.y; E.facing = START.facing;
+  const map = D.map;
+  const E = D.state();
+  /* 마을·전멸 후 진입: 입구(층간 이동 시 at)에서 시작 + 일반 몹 리스폰 */
+  respawnDungeonEnemies(E, D.normalSpawns, D.symbolSpawns);
+  const spawn = at ?? D.start;
+  E.x = spawn.x; E.y = spawn.y; E.facing = spawn.facing;
   const idRank = partyRank("identify");
   const disarmRank = partyRank("trapfinding");
 
@@ -59,8 +63,14 @@ export function goblinFortressScene(): SceneHandle {
   const voidG = new PIXI.Graphics();
   voidG.rect(0, 0, W, H).fill(C.night);
   root.addChild(voidG);
-  const fp = createFPView(goblinFortressTheme());
+  const fp = createFPView(D.theme());
   root.addChild(fp.root);
+  /* 던전별 부유 입자 — 요새: 횃불 불티 / 지하: 주술 포자 / 사원: 차가운 빛먼지 */
+  const DUNGEON_PARTICLES: Record<DungeonId, ParticleKind> = {
+    fortress: "embers", fortressB1: "spores", temple: "motes",
+  };
+  const ambient = particleField(DUNGEON_PARTICLES[id]);
+  root.addChild(ambient.node);
 
   /* ---- 엔티티 노드 (씬 소유, fpview가 배치) ---- */
   interface EnemyVis {
@@ -101,11 +111,11 @@ export function goblinFortressScene(): SceneHandle {
 
   /* POI 노드 */
   const poiNodes = new Map<string, PIXI.Container>();
-  for (const p of POIS) {
+  for (const p of D.pois) {
     const node = new PIXI.Container();
     if (p.kind === "chest") {
       const s = tileSprite("chest_obj", 2); s.anchor.set(0.5, 1); node.addChild(s);
-      if (p.id === "hidden") {
+      if (p.hidden) {
         const g = new PIXI.Graphics();
         g.roundRect(-36, -68, 72, 72, 8).stroke({ width: 2, color: C.epic, alpha: 0.8 });
         node.addChild(g);
@@ -124,6 +134,28 @@ export function goblinFortressScene(): SceneHandle {
     }
     poiNodes.set(p.id, node);
   }
+  /* 장식 소품 노드 — 칸 점유 빌보드 (frames가 있으면 ticker에서 순환) */
+  const propTicks: ((deltaMS: number) => void)[] = [];
+  const propNodes = new Map<string, PIXI.Container>();
+  for (const pr of D.props) {
+    const node = new PIXI.Container();
+    const sh = new PIXI.Graphics();
+    sh.ellipse(0, 3, 34 * pr.scale, 9).fill({ color: 0x0b0a12, alpha: 0.4 });
+    const sprite = tileSprite(pr.tile, pr.scale);
+    sprite.anchor.set(0.5, 1);
+    node.addChild(sh, sprite);
+    if (pr.frames) {
+      const frames = pr.frames;
+      let elapsed = 0;
+      propTicks.push((deltaMS) => {
+        elapsed += deltaMS;
+        sprite.texture = tileTex(frames[Math.floor(elapsed / 140) % frames.length]);
+      });
+    }
+    propNodes.set(pr.id, node);
+  }
+  const propAt = (x: number, y: number) => D.props.find((pr) => pr.x === x && pr.y === y);
+
   /* 문(+) 칸 장식 노드 — 열린 아치 */
   const doorNodes: FPEntity[] = [];
   for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
@@ -134,17 +166,16 @@ export function goblinFortressScene(): SceneHandle {
   }
 
   function poiVisible(p: PoiDef): boolean {
-    if (p.id === "c1") return !E.chestOpened.c1;
-    if (p.id === "hidden") return E.revealed.hidden && !E.chestOpened.hidden;
-    return true;
+    if (p.kind !== "chest") return true;
+    if (p.hidden && !E.revealed[p.id]) return false;
+    return !E.chestOpened[p.id];
   }
   function poiBlocking(x: number, y: number): PoiDef | null {
-    for (const p of POIS) {
+    for (const p of D.pois) {
       if (p.x !== x || p.y !== y || !p.blocking) continue;
       if (p.kind === "chest") {
-        const opened = p.id === "c1" ? E.chestOpened.c1 : E.chestOpened.hidden;
-        if (opened) continue;
-        if (p.id === "hidden" && !E.revealed.hidden) continue; // 미발견 상자는 통행 차단 안 함
+        if (E.chestOpened[p.id]) continue;
+        if (p.hidden && !E.revealed[p.id]) continue; // 미발견 상자는 통행 차단 안 함
       }
       return p;
     }
@@ -156,7 +187,13 @@ export function goblinFortressScene(): SceneHandle {
 
   function fpEntities(): FPEntity[] {
     const out: FPEntity[] = [...doorNodes];
-    for (const p of POIS) {
+    for (const pr of D.props) {
+      out.push({
+        id: `prop:${pr.id}`, x: pr.x, y: pr.y, node: propNodes.get(pr.id)!,
+        worldH: pr.worldH, baseH: pr.baseH,
+      });
+    }
+    for (const p of D.pois) {
       if (!poiVisible(p)) continue;
       const node = poiNodes.get(p.id)!;
       out.push({
@@ -195,7 +232,7 @@ export function goblinFortressScene(): SceneHandle {
               : 0x6e6552;
       mmG.rect(x * MM_CELL, y * MM_CELL, MM_CELL - 1, MM_CELL - 1).fill(col);
     }
-    for (const p of POIS) {
+    for (const p of D.pois) {
       if (!poiVisible(p) || !E.explored[p.y * map.w + p.x]) continue;
       const col = p.kind === "chest" ? C.border : p.kind === "portal" ? 0x5ad07a : C.dim;
       mmG.rect(p.x * MM_CELL + 1, p.y * MM_CELL + 1, MM_CELL - 3, MM_CELL - 3).fill(col);
@@ -203,7 +240,8 @@ export function goblinFortressScene(): SceneHandle {
     for (const e of E.enemies) {
       if (!e.alive) continue;
       if (!hasLOS(map, E.x, E.y, e.x, e.y) || chebyshev(E.x, E.y, e.x, e.y) > AGGRO_R + 2) continue;
-      const col = e.symbol ? (e.symbol === "orc" ? C.elite : e.symbol === "lord" ? C.boss : C.epic) : C.blood;
+      const tier = ENEMY_DEFS[e.defId].tier;
+      const col = tier === "정예" ? C.elite : tier === "보스" ? C.boss : tier === "에픽" ? C.epic : C.blood;
       mmG.circle(e.x * MM_CELL + MM_CELL / 2, e.y * MM_CELL + MM_CELL / 2, 2.6).fill(col);
     }
     /* 파티 화살표 */
@@ -247,7 +285,7 @@ export function goblinFortressScene(): SceneHandle {
     /* 미니맵·나침반 아래 (우상단은 파티 HUD 자리) */
     qtc.x = 16; qtc.y = mm.y + map.h * MM_CELL + 58;
   }
-  log("던전에 발을 들였다. 발소리가 어둠 속으로 스며든다…");
+  log(D.enterLog);
 
   const prompt = txt("", 16, C.text, { weight: "700", shadow: true });
   prompt.anchor.set(0.5, 1); prompt.x = W / 2; prompt.y = H - 168; root.addChild(prompt);
@@ -280,10 +318,10 @@ export function goblinFortressScene(): SceneHandle {
       bless() { G.blessedNext = true; toast("축복을 받았다. 다음 전투 파티 공격력 +25%!", C.border); refresh(); },
       darkveil() { E.veil = VEIL_TURNS; toast("어둠의 장막이 발걸음을 감춘다…", C.epic); refresh(); },
       seek() {
-        const hid = POIS.find((p) => p.id === "hidden")!;
-        if (!E.revealed.hidden && !E.chestOpened.hidden
+        const hid = D.pois.find((p) => p.id === D.hiddenChestId);
+        if (hid && !E.revealed[hid.id] && !E.chestOpened[hid.id]
           && chebyshev(E.x, E.y, hid.x, hid.y) <= 6) {
-          E.revealed.hidden = true;
+          E.revealed[hid.id] = true;
           toast("숨겨진 상자를 발견했다! (미니맵에 표시)", C.epic);
           E.explored[hid.y * map.w + hid.x] = true;
           refresh();
@@ -322,7 +360,7 @@ export function goblinFortressScene(): SceneHandle {
   function tryMove(rel: RelativeMove): void {
     if (ui.menuOpen || phase === "anim" || phase === "end") return;
     const { x: nx, y: ny } = moveTarget(E, rel);
-    if (!passable(map, nx, ny) || enemyAt(nx, ny) || poiBlocking(nx, ny)) {
+    if (!passable(map, nx, ny) || enemyAt(nx, ny) || poiBlocking(nx, ny) || propAt(nx, ny)) {
       bump(); return;
     }
     if (phase === "party") cancelRound("파티는 자리를 옮겼다.");
@@ -411,7 +449,7 @@ export function goblinFortressScene(): SceneHandle {
         continue;
       }
       const occupied = (x: number, y: number) =>
-        !!enemyAt(x, y) || !!poiBlocking(x, y);
+        !!enemyAt(x, y) || !!poiBlocking(x, y) || !!propAt(x, y);
       const res = enemyStep(map, e.x, e.y, E.x, E.y, (x, y) =>
         (x === e.x && y === e.y) ? false : occupied(x, y));
       if (res === "attack") enemyAttack(e);
@@ -468,7 +506,7 @@ export function goblinFortressScene(): SceneHandle {
     inCombat = false;
     combat?.gridExit();
     combat = null;
-    setModeBadge("탐험 모드 — 고블린 요새", C.green);
+    setModeBadge(D.badge, C.green);
     const revived = G.party.filter((m) => m.hp <= 0);
     if (revived.length) {
       revived.forEach((m) => { m.hp = 1; });
@@ -813,61 +851,47 @@ export function goblinFortressScene(): SceneHandle {
     questNotify({ t: "kill", defId: e.defId }).forEach((up) => toast(updateText(up), C.border));
     hud.redraw();
     if (e.symbol) {
-      G.explore.defeated[e.symbol] = true;
+      E.defeated[e.symbol] = true;
+      const outcome = D.symbols[e.symbol];
+      outcome?.onKilled?.();
       questNotify({ t: "clear", symbol: e.symbol }).forEach((up) => toast(updateText(up), C.border));
-      if (e.symbol === "lord") {
+      if (outcome?.toast) toast(outcome.toast.text, outcome.toast.color);
+      if (outcome?.finish) {
         phase = "end";
-        wait(900, () => {
-          if (!G.flags.ending) { G.flags.ending = true; nav.ending(); }
-          else nav.town();
-        });
+        wait(900, outcome.finish);
         return;
       }
-      if (e.symbol === "ancient") {
-        phase = "end";
-        wait(900, () => nav.epicClear());
-        return;
-      }
-      if (e.symbol === "orc") toast("길목을 지키던 정예를 물리쳤다!", C.elite);
     }
   }
 
   /* ---- 보스 조우 이벤트 ---- */
   function maybeBossIntro(): void {
-    const lord = E.enemies.find((e) => e.symbol === "lord" && e.alive);
-    if (!lord || E.lordIntroSeen) return;
-    if (chebyshev(E.x, E.y, lord.x, lord.y) > 2 || !hasLOS(map, E.x, E.y, lord.x, lord.y)) return;
-    E.lordIntroSeen = true;
-    phase = "end"; // 이벤트가 끝날 때까지 탐험 입력 차단
-    const nodes: EventNode[] = [
-      { name: "???", portrait: "dark", text: "…쥐새끼들이 내 소굴 깊은 곳까지 기어들어 왔군. 이 요새의 돌 하나하나가 내 것이다." },
-      {
-        name: "에런", portrait: "hero", text: "마을을 약탈하고 사람들을 가둔 게 너인가. 넷이서 왔다 — 여기서 끝내겠다.",
-        choices: [
-          { label: "무기를 뽑는다 (전투 개시)", goto: 2 },
-          { label: "물러난다", effect: () => { G._fled = true; }, goto: "end" },
-        ],
-      },
-      { name: "고블린 로드 그름바크", portrait: "dark", text: "좋다… 요새에 발 들인 작은 불꽃들이 어디까지 타오르는지 보여다오!" },
-    ];
-    wait(350, () => {
-      if (disposed) return;
-      activeEvent = eventOverlay(nodes, () => {
-        activeEvent = null;
-        if (G._fled) {
-          G._fled = false;
-          /* 물러난다: 보스방 밖으로 두 칸 후퇴 */
-          G.explore.x = 13; G.explore.y = 7; G.explore.facing = 2;
-        }
-        revealAround();
-        refresh();
-        const ag = aggroList();
-        if (ag.length) {
-          enterCombat();
-          startPartyRound();
-        } else phase = "free";
-      }, { caption: "요새의 알현실" });
-    });
+    for (const intro of D.intros) {
+      const boss = E.enemies.find((e) => e.symbol === intro.symbol && e.alive);
+      if (!boss || E.introSeen[intro.symbol]) continue;
+      if (chebyshev(E.x, E.y, boss.x, boss.y) > intro.near || !hasLOS(map, E.x, E.y, boss.x, boss.y)) continue;
+      E.introSeen[intro.symbol] = true;
+      phase = "end"; // 이벤트가 끝날 때까지 탐험 입력 차단
+      wait(350, () => {
+        if (disposed) return;
+        activeEvent = eventOverlay(intro.nodes, () => {
+          activeEvent = null;
+          if (G._fled) {
+            G._fled = false;
+            /* 물러난다: 보스방 밖으로 후퇴 */
+            if (intro.retreat) { E.x = intro.retreat.x; E.y = intro.retreat.y; E.facing = intro.retreat.facing; }
+          }
+          revealAround();
+          refresh();
+          const ag = aggroList();
+          if (ag.length) {
+            enterCombat();
+            startPartyRound();
+          } else phase = "free";
+        }, { caption: intro.caption });
+      });
+      return;
+    }
   }
 
   /* ---- 상호작용 ---- */
@@ -882,44 +906,41 @@ export function goblinFortressScene(): SceneHandle {
     }
     /* 자기 칸: 포탈/계단 */
     const here = cellAt(map, E.x, E.y);
-    const portal = POIS.find((p) => p.kind === "portal")!;
+    const portal = D.pois.find((p) => p.kind === "portal")!;
     if (E.x === portal.x && E.y === portal.y) {
-      fullFlash(0x000000, 500, () => nav.town());
+      fullFlash(0x000000, 500, D.exit.go);
       return;
     }
     if (here === "stairs") {
-      toast("더 깊은 곳으로 내려가는 계단… 아직은 굳게 봉인되어 있다.", C.dim);
+      if (D.stairs) fullFlash(0x000000, 500, D.stairs.go);
+      else toast(D.stairsText ?? "봉인된 계단이다.", C.dim);
       return;
     }
     /* 정면 칸 POI */
     const f = DIR[E.facing];
     const fx = E.x + f.dx, fy = E.y + f.dy;
+    const pr = propAt(fx, fy);
+    if (pr) { log(pr.text); return; }
     const p = poiBlocking(fx, fy);
     if (!p) { log("아무것도 없다."); return; }
     if (p.kind === "sign") {
-      toast("「북서쪽 방에 나그네의 보물이. 북동쪽 심부, 문 너머 알현실에 고블린 로드가 도사린다」", C.dim);
+      toast(D.signText, C.dim);
       return;
     }
-    if (p.id === "c1" && !E.chestOpened.c1) {
-      E.chestOpened.c1 = true;
-      G.flags.goblinOrders = true;
-      G.gold += 60; G.items.potion++;
-      toast("60 G와 치유 물약, 봉인된 「고블린 작전 문서」를 손에 넣었다!", C.border);
-      questNotify({ t: "collect", item: "goblin_orders" }).forEach((up) => toast(updateText(up), C.border));
-      hud.redraw(); refresh();
-      return;
-    }
-    if (p.id === "hidden" && E.revealed.hidden && !E.chestOpened.hidden) {
-      E.chestOpened.hidden = true;
-      if (disarmRank < 1) {
-        G.party.forEach((m) => { if (m.hp > 0) m.hp = Math.max(1, m.hp - 22); });
-        toast("함정이다! 파티가 22의 피해… (함정 스킬이 있었다면)", C.blood);
-      } else {
-        toast("함정을 해체했다. (함정 스킬)", C.green);
+    const chest = D.chests[p.id];
+    if (chest && !E.chestOpened[p.id] && (!p.hidden || E.revealed[p.id])) {
+      E.chestOpened[p.id] = true;
+      if (chest.trapDmg) {
+        if (disarmRank < 1) {
+          const dmg = chest.trapDmg;
+          G.party.forEach((m) => { if (m.hp > 0) m.hp = Math.max(1, m.hp - dmg); });
+          toast(`함정이다! 파티가 ${dmg}의 피해… (함정 스킬이 있었다면)`, C.blood);
+        } else {
+          toast("함정을 해체했다. (함정 스킬)", C.green);
+        }
       }
-      G.gold += 240; G.items.mpotion++;
-      toast("240 G와 마나 물약을 손에 넣었다!", C.border);
-      questNotify({ t: "reach", poi: "hidden" }).forEach((up) => toast(updateText(up), C.border));
+      for (const line of chest.loot()) toast(line.text, line.color ?? C.border);
+      if (chest.notify) questNotify(chest.notify).forEach((up) => toast(updateText(up), C.border));
       hud.redraw(); refresh();
     }
   }
@@ -934,11 +955,12 @@ export function goblinFortressScene(): SceneHandle {
     const f = DIR[E.facing];
     const fx = E.x + f.dx, fy = E.y + f.dy;
     const fp2 = poiBlocking(fx, fy);
-    const portal = POIS.find((q) => q.kind === "portal")!;
-    if (E.x === portal.x && E.y === portal.y) prompt.text = "[Z] 마을로 돌아간다";
-    else if (cellAt(map, E.x, E.y) === "stairs") prompt.text = "[Z] 계단을 조사한다";
+    const portal = D.pois.find((q) => q.kind === "portal")!;
+    if (E.x === portal.x && E.y === portal.y) prompt.text = D.exit.prompt;
+    else if (cellAt(map, E.x, E.y) === "stairs") prompt.text = D.stairs?.prompt ?? "[Z] 계단을 조사한다";
     else if (fp2?.kind === "sign") prompt.text = "[Z] 표지판을 읽는다";
-    else if (fp2?.kind === "chest") prompt.text = fp2.id === "hidden" ? "[Z] 수상한 상자를 연다" : "[Z] 상자를 연다";
+    else if (fp2?.kind === "chest") prompt.text = fp2.hidden ? "[Z] 수상한 상자를 연다" : "[Z] 상자를 연다";
+    else if (propAt(fx, fy)) prompt.text = `[Z] ${propAt(fx, fy)!.name}을(를) 살핀다`;
     else if (frontEnemy() && inCombat) prompt.text = "[Z] 정면의 적을 공격";
     else prompt.text = "";
     /* 어그로 적 정보 */
@@ -980,7 +1002,9 @@ export function goblinFortressScene(): SceneHandle {
   /* ---- ticker: 환경 효과 + 단일 프레임 몬스터 모션 ---- */
   const ticker = (t: PIXI.Ticker) => {
     fp.tick(t.deltaMS);
+    ambient.tick(t.deltaMS);
     for (const visual of enemyVis.values()) visual.monster.tickMotion(t.deltaMS);
+    for (const tick of propTicks) tick(t.deltaMS);
   };
   scope.ticker(ticker);
 

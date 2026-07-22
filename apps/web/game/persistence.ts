@@ -1,6 +1,7 @@
-import { GameState, gameStore, replaceGameState } from "./state";
+import { ENEMY_DEFS } from "./defs";
+import { GameState, freshBasementState, freshTempleState, gameStore, replaceGameState } from "./state";
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 4;
 
 export interface SaveEnvelope {
   version: number;
@@ -30,7 +31,8 @@ export function parseSave(raw: string): GameState {
   try { parsed = JSON.parse(raw); }
   catch { throw new Error("세이브 JSON을 읽을 수 없다"); }
   if (!isRecord(parsed) || typeof parsed.version !== "number") throw new Error("세이브 형식이 잘못되었다");
-  if (parsed.version !== 1 && parsed.version !== SAVE_VERSION) throw new Error(`지원하지 않는 세이브 버전: ${parsed.version}`);
+  if (parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3 && parsed.version !== SAVE_VERSION)
+    throw new Error(`지원하지 않는 세이브 버전: ${parsed.version}`);
   validateState(parsed.state);
   const state = structuredClone(parsed.state);
   /* v1의 통합 원소/영혼 숙련을 v2의 9개 개별 학파로 확장한다. */
@@ -52,6 +54,23 @@ export function parseSave(raw: string): GameState {
       delete trained.elemental;
     }
   }
+  /* v2 → v3: 던전 다중화 — 사원 상태 신설, 요새의 lordIntroSeen을 introSeen 레코드로 이관.
+   * (v2의 chestOpened/revealed/defeated 리터럴 객체는 v3의 Record 형태와 그대로 호환된다) */
+  state.temple ??= freshTempleState();
+  const oldExplore = state.explore as { lordIntroSeen?: boolean; introSeen?: Record<string, boolean> };
+  oldExplore.introSeen ??= { lord: oldExplore.lordIntroSeen ?? false };
+  delete oldExplore.lordIntroSeen;
+  /* v3 → v4: 요새 2층화 — 지하층 상태 신설. 그름바크(lord)가 지하로 옮겨졌으므로
+   * 구 세이브의 지상층 처치·조우 기록을 지하층으로 이관하고,
+   * 삭제된 적(ancient)과 이동한 적의 잔재는 스폰 정의 기준으로 걸러 낸다. */
+  state.basement ??= freshBasementState();
+  if (state.explore.defeated.lord) state.basement.defeated.lord = true;
+  if (state.explore.introSeen.lord) state.basement.introSeen.lord = true;
+  delete state.explore.defeated.ancient;
+  delete state.explore.introSeen.ancient;
+  state.explore.enemies = state.explore.enemies.filter(
+    (e) => ENEMY_DEFS[e.defId] && e.defId !== "lord");
+  state.fieldFights ??= {};
   /* v1 안에서 추가된 퀘스트 월드 플래그는 구 세이브에 안전한 기본값을 보충한다. */
   state.flags.bishopDefeated ??= false;
   state.flags.goblinOrders ??= state.explore.chestOpened.c1;

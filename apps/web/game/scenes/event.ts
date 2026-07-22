@@ -49,7 +49,19 @@ function createEvent(
     overlayRoot.addChild(root);
   } else sceneRoot.addChild(root);
 
-  const hasIllustration = overlay && !!opts.illustration;
+  const hasIllustration = !!opts.illustration;
+
+  /** 일러스트 패널 — 오버레이·전체 씬 공용 (대화창 위 중앙) */
+  const addIllustration = (topY: number) => {
+    const artFrame = panel(760, 330, { fill: 0x100d1d, alpha: 0.98 });
+    artFrame.x = (W - artFrame.width) / 2; artFrame.y = topY; root.addChild(artFrame);
+    const art = new PIXI.Sprite(opts.illustration!);
+    const maxW = artFrame.width - 24, maxH = artFrame.height - 24;
+    const scale = Math.min(maxW / art.texture.width, maxH / art.texture.height);
+    art.scale.set(scale); art.anchor.set(0.5);
+    art.x = artFrame.x + artFrame.width / 2; art.y = artFrame.y + artFrame.height / 2;
+    root.addChild(art);
+  };
 
   let advance: () => void = () => {};
   if (overlay) {
@@ -57,15 +69,7 @@ function createEvent(
       const dim = new PIXI.Graphics();
       dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.68 });
       root.addChild(dim);
-
-      const artFrame = panel(760, 330, { fill: 0x100d1d, alpha: 0.98 });
-      artFrame.x = (W - artFrame.width) / 2; artFrame.y = 54; root.addChild(artFrame);
-      const art = new PIXI.Sprite(opts.illustration!);
-      const maxW = artFrame.width - 24, maxH = artFrame.height - 24;
-      const scale = Math.min(maxW / art.texture.width, maxH / art.texture.height);
-      art.scale.set(scale); art.anchor.set(0.5);
-      art.x = artFrame.x + artFrame.width / 2; art.y = artFrame.y + artFrame.height / 2;
-      root.addChild(art);
+      addIllustration(54);
     }
 
     // 빈 영역의 클릭도 이벤트 입력으로 소비해 탐험 조작이 뒤로 전달되지 않게 한다.
@@ -82,11 +86,14 @@ function createEvent(
     bg.eventMode = "static";
     bg.on("pointertap", () => advance());
     root.addChild(bg);
+    if (hasIllustration) addIllustration(112);
   }
 
   if (opts.caption && (!overlay || hasIllustration)) {
     const cap = txt(opts.caption, 30, C.border, { serif: true, align: "center" });
-    cap.anchor.set(0.5, 0); cap.x = W / 2; cap.y = hasIllustration ? 66 : 110; root.addChild(cap);
+    cap.anchor.set(0.5, 0); cap.x = W / 2;
+    cap.y = overlay && hasIllustration ? 66 : hasIllustration ? 60 : 110;
+    root.addChild(cap);
   }
 
   const bp = panel(W - 160, 200, { alpha: 0.97 }); bp.x = 80; bp.y = H - 236; root.addChild(bp);

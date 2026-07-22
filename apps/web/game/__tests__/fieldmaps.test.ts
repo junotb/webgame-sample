@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ENEMY_DEFS } from "../defs";
 import { FIELDS, FieldId } from "../fieldmaps";
 import { cellAt, passable } from "../grid";
 
@@ -31,6 +32,29 @@ describe.each(Object.keys(FIELDS) as FieldId[])("주변 필드 맵 — %s", (id)
 
   it("장애물을 피해 시작 지점에서 모든 출구까지 이동할 수 있다", () => {
     for (const exit of field.exits) expect(reachable(field, exit.x, exit.y), exit.label).toBe(true);
+  });
+
+  it("배치 전투(fight)는 몬스터 비주얼을 갖고, 적·리스폰 정의가 유효하다", () => {
+    for (const d of field.decos.filter((d) => d.fight)) {
+      expect(d.visual?.kind, d.id).toBe("monster");
+      expect(d.blocking, d.id).toBe(true);
+      expect(d.fight!.enemies.length, d.id).toBeGreaterThan(0);
+      expect(d.fight!.respawnDays, d.id).toBeGreaterThan(0);
+      for (const e of d.fight!.enemies) expect(ENEMY_DEFS[e], `${d.id}: ${e}`).toBeDefined();
+    }
+  });
+
+  it("랜덤 인카운터 무리는 전부 실재하는 적으로 구성된다", () => {
+    if (!field.encounters) return;
+    expect(field.encounters.chance).toBeGreaterThan(0);
+    expect(field.encounters.chance).toBeLessThanOrEqual(0.25); // 걷기 방해 수준 방지
+    expect(field.encounters.groups.length).toBeGreaterThan(0);
+    for (const group of field.encounters.groups) {
+      expect(group.length).toBeGreaterThan(0);
+      for (const e of group) expect(ENEMY_DEFS[e], e).toBeDefined();
+      /* 잡몹 조우는 도주 가능해야 한다 — 일반 티어만 */
+      for (const e of group) expect(ENEMY_DEFS[e].tier, e).toBe("일반");
+    }
   });
 });
 

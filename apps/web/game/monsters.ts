@@ -201,15 +201,6 @@ function drawMonsterShape(def: EnemyDef): PIXI.Graphics {
     g.circle(-12, -120, 6).circle(12, -120, 6).fill(0xe8b84a);
     g.moveTo(-40, -60).bezierCurveTo(-10, -40, 10, -80, 40, -56)
       .stroke({ width: 3, color: 0x5e8c5a, alpha: 0.8 });
-  } else if (def.shape === "ancient") {
-    g.circle(0, -80, 66).fill({ color: col, alpha: 0.35 });
-    g.circle(0, -80, 42).fill({ color: col, alpha: 0.8 });
-    g.circle(-14, -88, 7).circle(14, -88, 7).fill({ color: 0xffffff, alpha: 0.95 });
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      g.moveTo(Math.cos(a) * 46, -80 + Math.sin(a) * 46).lineTo(Math.cos(a) * 66, -80 + Math.sin(a) * 66);
-    }
-    g.stroke({ width: 2, color: 0xffffff, alpha: 0.5 });
   }
   return g;
 }

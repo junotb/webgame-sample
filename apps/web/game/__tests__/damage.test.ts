@@ -183,8 +183,8 @@ describe("전열/후열 — 사거리(attackReach)와 적 근접 판정(enemyMel
     expect(enemyMelee(ENEMY_DEFS.goblin)).toBe(true);   // slash
     expect(enemyMelee(ENEMY_DEFS.slime)).toBe(true);    // bludgeon
     expect(enemyMelee(ENEMY_DEFS.skeleton)).toBe(false); // water(냉기) — 원거리
-    expect(enemyMelee(ENEMY_DEFS.lord)).toBe(false);     // fire — 원거리
-    expect(enemyMelee(ENEMY_DEFS.ancient)).toBe(false);  // spirit — 원거리
+    expect(enemyMelee(ENEMY_DEFS.lord)).toBe(false);     // fire·dark 복수 속성 — 원거리
+    expect(enemyMelee(ENEMY_DEFS.guard)).toBe(true);     // slash — 전위 방패병
   });
 });
 

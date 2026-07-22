@@ -105,7 +105,7 @@ export const QUESTS: QuestDef[] = [
     id: "side_goblin_orders",
     kind: "side",
     name: "고블린 작전 문서",
-    desc: "남쪽 계곡길 남쪽의 고블린 요새를 탐색하고, 북서쪽 방에서 약탈 계획이 담긴 작전 문서를 가져오자.",
+    desc: "남쪽 계곡길 남쪽의 고블린 요새를 탐색하고, 북서쪽 방에서 약탈 계획이 담긴 작전 문서를 가져오자. 누가 고블린들을 사주했는지 단서가 있을지도 모른다.",
     giver: "kael",
     objectives: [
       {
@@ -135,6 +135,24 @@ export const QUESTS: QuestDef[] = [
     ],
     rewards: { gold: 220, exp: 110, items: [{ id: "potion", n: 2 }] },
   },
+  {
+    /* 현상금 길드 게시판의 대형 의뢰 — 파티 Lv6 적정 */
+    id: "side_grumbark_bounty",
+    kind: "side",
+    name: "현상금: 고블린 주술사 그름바크",
+    desc: "요새와 계곡길 동쪽 평야의 고블린들을 지휘해 크로스베일을 노리는 주술사 그름바크를 처단하자. 요새 북동쪽 계단 아래, 지하 알현실에 있다. 친위대를 거느린다는 보고가 있으니 만전을 기할 것.",
+    requires: { level: 6 },
+    objectives: [
+      {
+        id: "slay_grumbark",
+        type: "clear",
+        target: "lord",
+        count: 1,
+        desc: "그름바크 (고블린 주술사) 처단",
+      },
+    ],
+    rewards: { gold: 900, exp: 350, items: [{ id: "potion", n: 2 }, { id: "mpotion", n: 1 }] },
+  },
   /* ---- 직업(승급) — 파티가 자격을 공유하며 각 구성원은 개별 전직한다 ---- */
   {
     id: "job_first_promotion",
@@ -157,7 +175,7 @@ export const QUESTS: QuestDef[] = [
     id: "job_final_promotion",
     kind: "job",
     name: "최종 승급 심사",
-    desc: "파티 Lv6을 달성하고 고블린 로드를 쓰러뜨려 최종 직업의 자격을 증명하자.",
+    desc: "파티 Lv6을 달성하고 고블린들을 지휘하는 주술사 그름바크를 쓰러뜨려 최종 직업의 자격을 증명하자.",
     requires: { quests: ["job_first_promotion"], level: 6 },
     objectives: [
       {
@@ -165,7 +183,7 @@ export const QUESTS: QuestDef[] = [
         type: "clear",
         target: "lord",
         count: 1,
-        desc: "고블린 로드 그름바크 토벌",
+        desc: "그름바크 (고블린 주술사) 토벌",
       },
     ],
     rewards: { exp: 250 },

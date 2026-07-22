@@ -139,13 +139,14 @@ const FRAMES = {
   goblin_sky_base: { s: "goblinSky1", x: 0, y: 0, w: 576, h: 324 },
   goblin_sky_cloud_back: { s: "goblinSky2", x: 0, y: 0, w: 576, h: 324 },
   goblin_sky_cloud_near: { s: "goblinSky3", x: 0, y: 0, w: 576, h: 324 },
-  bandit_hideout_obj: { s: "hunterCamp", x: 10, y: 28, w: 182, h: 192 }, // 투명 여백 제외
-  goblin_tent_obj: { s: "barbarianOutpost", x: 240, y: 192, w: 140, h: 107 },
+  /* 시트의 이웃 조각을 걸치지 않도록 각 프롭의 실제 그림 경계(연결 픽셀 bbox)로 자른다 */
+  bandit_hideout_obj: { s: "hunterCamp", x: 10, y: 28, w: 116, h: 175 }, // 왼쪽 야영 장면만 — 오른쪽 건조대·그루터기는 별개 소품
+  goblin_tent_obj: { s: "barbarianOutpost", x: 240, y: 192, w: 140, h: 100 }, // 아래 화살 조각(y292~)은 잘라낸다
   /* 뿔해골 뼈 토템 — 이전 좌표(48,352)는 머리·장대·해골 세 조각을 걸쳐 잘라 조각이 떠 보였다 */
-  goblin_totem_obj: { s: "barbarianOutpost", x: 52, y: 628, w: 48, h: 140 },
-  goblin_bone_gate_obj: { s: "barbarianOutpost", x: 8, y: 476, w: 80, h: 100 },
-  shore_boat_obj: { s: "beachOutpost", x: 624, y: 194, w: 144, h: 72 },
-  shore_dock_obj: { s: "beachOutpost", x: 624, y: 592, w: 144, h: 176 },
+  goblin_totem_obj: { s: "barbarianOutpost", x: 52, y: 628, w: 38, h: 140 }, // 오른쪽 이웃 뼈 기둥 조각 제외
+  goblin_bone_gate_obj: { s: "barbarianOutpost", x: 8, y: 480, w: 84, h: 141 }, // 좌우 기둥 발끝(620)까지
+  shore_boat_obj: { s: "beachOutpost", x: 628, y: 231, w: 132, h: 49 }, // 선체 밑바닥까지 (이전엔 아래 14px 잘림)
+  shore_dock_obj: { s: "beachOutpost", x: 624, y: 576, w: 144, h: 192 }, // 상판 머리까지 (이전엔 위 16px 잘림)
   valley_rock_obj: { s: "valleyRocks", x: 297, y: 6, w: 80, h: 69 }, // 투명 여백 제외
   /* ---- 맵 입구 프롭 (빌보드, 투명 여백 제외 실경계) ---- */
   ruin_column_obj: { s: "townStructures", x: 488, y: 0, w: 37, h: 96 },  // 이끼 낀 홈기둥

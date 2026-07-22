@@ -1,8 +1,10 @@
 /* =====================================================================
  * entrances.ts — 다른 맵으로 가는 입구 비주얼
- *  손그림 없이 원본 에셋 프롭만 조합한다. 입구를 목적지의 재료로 짜서
- *  문 너머에 어떤 땅이 이어지는지 예고한다: 숲길은 나무 아치, 사원길은
- *  이끼 낀 석주, 계곡길은 거석과 고블린 토템, 마을길은 울타리문, 성길은 석문.
+ *  손그림 없이 원본 에셋 프롭만 조합한다. 모든 입구는 문/게이트 프롭을
+ *  중심에 두어 "통로"로 읽히게 하고, 양옆의 액센트 프롭이 목적지를
+ *  예고한다: 숲길은 나무에 감싸인 울타리문, 사원길은 석주 곁의 석문,
+ *  계곡길은 고블린 뼈 문, 마을길은 울타리문, 성길은 석문, 해안길은
+ *  나룻배 곁의 울타리문.
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import type { DungeonId } from "./dungeons";
@@ -81,27 +83,23 @@ function assemble(shadowRx: number, props: PropSpec[], worldH: number, baseH: nu
 }
 
 const BUILDERS: Record<EntranceKind, () => EntranceVisual> = {
-  /** 숲길 — 두 그루 나무가 길 위에서 만나 초록 아치를 이룬다. */
+  /** 숲길 — 울타리문을 가운데 두고 숲 나무가 양옆에서 문을 감싼다. */
   forest: () => assemble(60, [
-    { tile: "tree_02", x: -40, scale: 1.3 },
-    { tile: "tree_03", x: 40, scale: 1.5 },
-    { tile: "bush_01", x: -28, scale: 1.4 },
-    { tile: "flower_01", x: 24 },
-    { tile: "flower_02", x: -8 },
+    { tile: "tree_02", x: -44, scale: 1.3 },
+    { tile: "tree_03", x: 44, scale: 1.3, flip: true },
+    { tile: "fence_wing_obj", x: 0, scale: 2.6 },
+    { tile: "fence_gate_obj", x: 0, scale: 2.1 },
   ], 1.1, 144),
-  /** 사원길 — 이끼 낀 석주 한 쌍과 부러진 밑동이 남은 옛 참배로. */
+  /** 사원길 — 열린 석문 곁에 이끼 낀 석주 하나가 옛 참배로를 예고한다. */
   ruins: () => assemble(56, [
-    { tile: "ruin_column_obj", x: -40, scale: 1.4 },
-    { tile: "ruin_pillar_obj", x: 42, scale: 1.4 },
-    { tile: "ruin_stump_obj", x: 14, scale: 1.1 },
-    { tile: "mushroom_01", x: -20 },
-  ], 1.05, 134),
-  /** 계곡길 — 협곡 어귀의 거석 사이에 고블린 뼈 토템이 서 있다. */
+    { tile: "stone_gate_obj", x: 4 },
+    { tile: "ruin_column_obj", x: -52, scale: 1.3 },
+  ], 1.15, 160),
+  /** 계곡길 — 고블린 뼈 문. 거석 하나가 문기둥처럼 붙어 있다. */
   valley: () => assemble(60, [
-    { tile: "valley_rock_obj", x: -48, scale: 1.15 },
-    { tile: "valley_rock_obj", x: 50, scale: 0.95, flip: true },
-    { tile: "goblin_totem_obj", x: 26, scale: 0.95 },
-  ], 1.0, 134),
+    { tile: "goblin_bone_gate_obj", x: 0, scale: 1.0 }, /* 크롭이 기둥 발끝까지 길어져(100→141px) 스케일로 종전 크기를 유지 */
+    { tile: "valley_rock_obj", x: -52, scale: 0.95 },
+  ], 1.05, 140),
   /** 마을길 — 울타리 사이의 나무 문. 문가에 들꽃이 핀다. */
   town: () => assemble(64, [
     { tile: "fence_wing_obj", x: 0, scale: 2.6 },
@@ -113,13 +111,13 @@ const BUILDERS: Record<EntranceKind, () => EntranceVisual> = {
   castle: () => assemble(66, [
     { tile: "stone_gate_obj", x: 0 },
   ], 1.15, 160),
-  /** 해안길 — 삭은 선착장과 뒤집힌 나룻배, 갯메꽃이 바닷길을 예고한다. */
+  /** 해안길 — 울타리문 곁에 뒤집힌 나룻배가 바닷길을 예고한다. */
   coast: () => assemble(62, [
-    { tile: "shore_dock_obj", x: -36, scale: 0.42 },
-    { tile: "shore_boat_obj", x: 34, scale: 0.55 },
-    { tile: "flower_01", x: 8 },
-    { tile: "flower_02", x: -8 },
-  ], 0.7, 84),
+    { tile: "fence_wing_obj", x: 0, scale: 2.6 },
+    { tile: "fence_gate_obj", x: 0, scale: 2.1 },
+    { tile: "shore_boat_obj", x: -42, scale: 0.5 },
+    { tile: "flower_01", x: 36 },
+  ], 0.75, 88),
 };
 
 /** 목적지 테마에 맞는 입구 노드를 새로 만든다 (호출마다 새 인스턴스). */

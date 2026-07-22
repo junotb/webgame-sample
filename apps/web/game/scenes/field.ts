@@ -43,14 +43,14 @@ function fieldBuilding(style: Extract<NonNullable<FieldDeco["visual"]>, { kind: 
     const camp = tileSprite("bandit_hideout_obj", 0.65);
     camp.anchor.set(0.5, 1);
     node.addChild(g, camp);
-    return { node, worldH: 1.05, baseH: 156 };
+    return { node, worldH: 1.05, baseH: 142 };
   }
 
   if (style === "goblin_camp") {
     const tent = tileSprite("goblin_tent_obj", 1.35);
     tent.anchor.set(0.5, 1);
     node.addChild(g, tent);
-    return { node, worldH: 0.94, baseH: 144 };
+    return { node, worldH: 0.94, baseH: 135 };
   }
 
   if (style === "cage_full" || style === "cage_empty") {
@@ -94,8 +94,8 @@ function fieldBuilding(style: Extract<NonNullable<FieldDeco["visual"]>, { kind: 
   const asset: Record<"shore_boat" | "shore_dock" | "valley_rock" | "shore_netline" | "shore_net" | "broken_cross" | "ruin_column", {
     tile: TileName; scaleX: number; scaleY: number; worldH: number; baseH: number;
   }> = {
-    shore_boat: { tile: "shore_boat_obj", scaleX: 0.86, scaleY: 0.86, worldH: 0.38, baseH: 62 },
-    shore_dock: { tile: "shore_dock_obj", scaleX: 0.82, scaleY: 0.28, worldH: 0.18, baseH: 50 },
+    shore_boat: { tile: "shore_boat_obj", scaleX: 0.86, scaleY: 0.86, worldH: 0.38, baseH: 42 },
+    shore_dock: { tile: "shore_dock_obj", scaleX: 0.82, scaleY: 0.28, worldH: 0.18, baseH: 54 },
     valley_rock: { tile: "valley_rock_obj", scaleX: 0.8, scaleY: 0.8, worldH: 0.56, baseH: 77 },
     shore_netline: { tile: "shore_netline_obj", scaleX: 0.75, scaleY: 0.75, worldH: 0.92, baseH: 144 },
     shore_net: { tile: "shore_net_obj", scaleX: 0.85, scaleY: 0.85, worldH: 0.45, baseH: 68 },
@@ -299,7 +299,7 @@ export function fieldScene(id: FieldId): SceneHandle {
       const gate = tileSprite("goblin_bone_gate_obj", 1.25);
       gate.anchor.set(0.5, 1);
       node.addChild(gate);
-      return { node, worldH: 1.05, baseH: 132 };
+      return { node, worldH: 1.05, baseH: 176 };
     }
     return entranceNode(target.kind === "town"
       ? TOWN_ENTRANCE_KIND[target.id] : FIELD_ENTRANCE_KIND[target.id]);

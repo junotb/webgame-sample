@@ -438,12 +438,25 @@ export function magicBase(s: Stats, skill: SkillId): number {
   return SKILLS[skill].castingAttr === "wit" ? s.magWit : s.magInt;
 }
 
-/** 공격의 사거리 — 근접(전열·정면 칸 전용) / 원거리(후열에서도 시야 내 공격).
- *  마법·회복은 원거리, 물리는 기본 공격=무기, 그 외 물리 스킬은 활/투척만 원거리. */
+/** 진형 변경 가능 여부 — 전열→후열은 전열에 최소 한 명이 남아야 한다 */
+export function canSwapRow(m: Member, party: Member[] = G.party): boolean {
+  return m.back || party.filter((x) => !x.back).length > 1;
+}
+
+/** 공격의 사거리 — 근접(전열·정면 칸 전용) / 리치(후열에서도 정면 칸 근접) / 원거리(시야 내 공격).
+ *  마법·회복은 원거리, 물리는 기본 공격=무기, 활/투척 스킬은 원거리.
+ *  창 스킬은 리치 무기(창·미늘창)를 들었을 때만 후열에서 닿는다. */
 export function attackReach(a: AbilityDef, weapon: WeaponView): WeaponReach {
   if (a.kind !== "phys") return "ranged";
   if (!a.id) return weapon.reach;
-  return a.skill === "bow" || a.skill === "thrown" ? "ranged" : "melee";
+  if (a.skill === "bow" || a.skill === "thrown") return "ranged";
+  if (a.skill === "spear" && weapon.reach === "reach") return "reach";
+  return "melee";
+}
+
+/** 진형 제약 — 후열에서는 순수 근접(melee)만 막힌다. 리치·원거리는 허용 */
+export function rowBlocked(m: Member, reach: WeaponReach): boolean {
+  return reach === "melee" && m.back;
 }
 
 /** 멤버의 타입별 피해 저항 — 직업 고유 × 전 장비 슬롯(곱연산). 미지정 타입은 1.0 */

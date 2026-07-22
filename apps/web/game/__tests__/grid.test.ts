@@ -48,9 +48,9 @@ describe("parseMap / 통행", () => {
     expect(cellAt(m, 3, 1)).toBe("water");
     expect(cellAt(m, 3, 2)).toBe("stairs");
   });
-  it("바닥·문·계단만 통행, 물·벽은 차단", () => {
+  it("바닥·계단만 통행, 문·물·벽은 차단", () => {
     expect(passable(m, 1, 1)).toBe(true);
-    expect(passable(m, 2, 1)).toBe(true);
+    expect(passable(m, 2, 1)).toBe(false);
     expect(passable(m, 3, 2)).toBe(true);
     expect(passable(m, 3, 1)).toBe(false);
     expect(passable(m, 2, 2)).toBe(false);
@@ -82,9 +82,9 @@ describe("시야 (LOS)", () => {
     expect(hasLOS(m, 1, 1, 3, 3)).toBe(false); // (2,2)/(3,2) 벽 통과 필요한 대각
     expect(hasLOS(m, 3, 1, 3, 3)).toBe(false); // (3,2) 벽
   });
-  it("문(+)은 시야를 막지 않는다", () => {
+  it("닫힌 문(+)은 벽처럼 시야를 막는다", () => {
     const md = parseMap(["#####", "#.+.#", "#####"]);
-    expect(hasLOS(md, 1, 1, 3, 1)).toBe(true);
+    expect(hasLOS(md, 1, 1, 3, 1)).toBe(false);
   });
   it("자기 자신은 항상 보인다", () => {
     expect(hasLOS(m, 1, 1, 1, 1)).toBe(true);

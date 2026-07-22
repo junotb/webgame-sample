@@ -4,7 +4,7 @@
  * ===================================================================== */
 import { describe, expect, it } from "vitest";
 import { ABILITIES, ENEMY_DEFS, Rank } from "../defs";
-import { BattleAbility, GridEnemy, Member } from "../state";
+import { BattleAbility, GridEnemy, Member, attackReach, canSwapRow, rowBlocked } from "../state";
 import { BASIC_ATTACK, BattleEngine, BattleEvent } from "../core/battle-engine";
 
 function mkMember(id: string, over: Partial<Member> = {}): Member {
@@ -418,5 +418,104 @@ describe("BattleEngine", () => {
     boss.enemies[0].hp = Math.floor(boss.enemies[0].maxHp * 0.1);
     boss.gridOffense("b", ab("execution", 3), ["enemy:0"]);
     expect(boss.enemies[0].alive).toBe(true);
+  });
+
+  it("진형 — formation 액션은 전열↔후열을 토글하고 턴을 소모한다", () => {
+    const A = mkMember("a"), B = mkMember("b", { back: true });
+    const engine = new BattleEngine([A, B], ["goblin"], { rng: flat(0.5) });
+
+    const ts = engine.next();
+    expect(ts.kind).toBe("player"); // A의 턴
+    const res = engine.act({ type: "formation" });
+
+    expect(A.back).toBe(true);
+    expect(res.kind).toBe("acted"); // 행동으로 처리되어 턴이 넘어간다
+    expect(res.events.some((e) => e.t === "log" && e.text.includes("후열"))).toBe(true);
+
+    /* 다음 아군 턴에 다시 전열로 복귀 */
+    engine.next(); // B의 턴 (적 턴이 끼면 이벤트만 소비)
+    engine.act({ type: "formation" });
+    expect(B.back).toBe(false);
+  });
+
+  it("진형 — 전열 최소 한 명 규칙 (canSwapRow)", () => {
+    const A = mkMember("a"), B = mkMember("b", { back: true });
+    expect(canSwapRow(A, [A, B])).toBe(false); // 마지막 전열은 물러날 수 없다
+    expect(canSwapRow(B, [A, B])).toBe(true);  // 후열→전열은 항상 가능
+    expect(canSwapRow(A, [A, mkMember("c")])).toBe(true);
+  });
+
+  it("진형 — gridSwapRow는 그리드 전투에서 같은 규칙으로 동작한다", () => {
+    const A = mkMember("a");
+    const engine = new BattleEngine([A], ["goblin"], { rng: flat(0.5) });
+    engine.gridEnter();
+    const events = engine.gridSwapRow(A.id);
+    expect(A.back).toBe(true);
+    expect(events.some((e) => e.t === "log" && e.text.includes("후열"))).toBe(true);
+    engine.gridSwapRow(A.id);
+    expect(A.back).toBe(false);
+  });
+
+  it("진형 — 근접 적의 단일 공격은 전열만 노린다 (엔진이 직접 판정)", () => {
+    const A = mkMember("a"), B = mkMember("b", { back: true });
+    /* rng: [대상 0.9(필터 없으면 B 선택), 명중 nat11, 편차 0.5] — goblin은 단일 속성이라 타입 rng 없음 */
+    const engine = new BattleEngine([A, B], ["goblin"], { rng: seq(0.9, nat(11), 0.5) });
+    engine.gridEnter();
+    const events = engine.gridEnemyAct("enemy:0", [A.id, B.id]);
+    expect(B.hp).toBe(B.maxHp); // 후열은 무사하다
+    expect(events.some((e) => e.t === "hit" && e.target === "ally:a")).toBe(true);
+    expect(events.some((e) => e.t === "log" && e.text.includes("전열에 막힌다"))).toBe(true);
+  });
+
+  it("진형 — 도약(flank) 적은 전열을 뛰어넘어 후열을 덮친다", () => {
+    const A = mkMember("a"), B = mkMember("b", { back: true });
+    /* rng: [대상 0.9→B, 명중 nat15, 편차 0.5, 공포 부여 0.9(발동 안 함)] */
+    const engine = new BattleEngine([A, B], ["duskbat"], { rng: seq(0.9, nat(15), 0.5, 0.9) });
+    engine.gridEnter();
+    const events = engine.gridEnemyAct("enemy:0", [A.id, B.id]);
+    expect(B.hp).toBeLessThan(B.maxHp); // 후열도 안전하지 않다
+    expect(events.some((e) => e.t === "log" && e.text.includes("뛰어넘어"))).toBe(true);
+  });
+
+  it("진형 — 광역 공격은 후열 피해를 감쇠한다", () => {
+    const A = mkMember("a"), B = mkMember("b", { back: true });
+    /* rng: [광역 0.1(<0.35 발동), 속성 0.0(fire),
+     *       A: 명중 nat15·편차 0.5·상태 0.9 / B: 동일] — 같은 굴림이라 차이는 감쇠뿐 */
+    const engine = new BattleEngine([A, B], ["lord"], {
+      rng: seq(0.1, 0.0, nat(15), 0.5, 0.9, nat(15), 0.5, 0.9),
+    });
+    engine.gridEnter();
+    const events = engine.gridEnemyAct("enemy:0", [A.id, B.id]);
+    const hitA = hits(events).find((e) => e.target === "ally:a");
+    const hitB = hits(events).find((e) => e.target === "ally:b");
+    expect(hitA && hitB).toBeTruthy();
+    expect(hitB!.amount).toBeLessThan(hitA!.amount);
+  });
+
+  it("후열 조준 — 원거리 공격은 후열에서 명중 +2를 받는다", () => {
+    /* acc 5(숙련3+민첩1+랭크1) vs goblin AC 11 — nat4는 전열이면 9<11 빗나감, 후열이면 +2로 11≥11 명중 */
+    const bow = { name: "활", atk: 9, wtype: "pierce" as const, reach: "ranged" as const };
+    const F = mkMember("f", { equip: { mainHand: bow } });
+    const front = new BattleEngine([F], ["goblin"], { rng: seq(nat(4)) });
+    front.gridEnter();
+    expect(front.gridOffense(F.id, { ...BASIC_ATTACK }, ["enemy:0"])
+      .some((e) => e.t === "miss")).toBe(true);
+
+    const K = mkMember("k", { back: true, equip: { mainHand: bow } });
+    const back = new BattleEngine([K], ["goblin"], { rng: seq(nat(4), 0.5, 0.5) });
+    back.gridEnter();
+    expect(back.gridOffense(K.id, { ...BASIC_ATTACK }, ["enemy:0"])
+      .some((e) => e.t === "hit")).toBe(true);
+  });
+
+  it("리치 무기 — 창은 후열에서도 근접 판정이 가능하다", () => {
+    const spear = { name: "강철 창", atk: 6, wtype: "pierce" as const, reach: "reach" as const };
+    const sword = { name: "검", atk: 5, wtype: "slash" as const, reach: "melee" as const };
+    expect(attackReach(BASIC_ATTACK, spear)).toBe("reach");
+    expect(attackReach(ab("impale", 1), spear)).toBe("reach"); // 창 기술 + 리치 무기
+    expect(attackReach(ab("impale", 1), sword)).toBe("melee"); // 창 기술도 일반 무기면 근접
+    const B = mkMember("b", { back: true });
+    expect(rowBlocked(B, "reach")).toBe(false); // 후열에서 창은 찌를 수 있다
+    expect(rowBlocked(B, "melee")).toBe(true);
   });
 });

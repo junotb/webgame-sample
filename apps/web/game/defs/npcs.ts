@@ -27,7 +27,9 @@ export interface NpcDef {
   /** 마을 그리드 좌표 (칸을 점유 — 정면에서 대화) */
   gx: number;
   gy: number;
-  /** 거리 스프라이트 외투/포인트 색 */
+  /** 거리 스프라이트 시트 이름 (assets/npcs) — 없으면 절차적 그리기 폴백 */
+  sprite?: string;
+  /** 거리 스프라이트 외투/포인트 색 (미니맵 점·폴백 그리기) */
   color: number;
   accent: number;
   /** 이 NPC가 주는 퀘스트 (수주·보고 모두 이 NPC에게) */

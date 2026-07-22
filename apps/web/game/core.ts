@@ -231,8 +231,8 @@ export function setModeBadge(label: string | null, color: number = C.text): void
   overlayRoot.addChild(c); modeBadge = c;
 }
 
-/* ---- 메뉴 잠금 (오버레이 중복 방지) ---- */
-export const ui = { menuOpen: false };
+/* ---- 메뉴 잠금 (오버레이 중복 방지) · 전투 중 여부 (진형 변경 등 자유 행동 잠금) ---- */
+export const ui = { menuOpen: false, inBattle: false };
 
 /* ---- 라이프사이클 ---- */
 export async function initPixi(el: HTMLElement, fonts: { displayFont: string; bodyFont: string }): Promise<void> {
@@ -254,6 +254,7 @@ export function destroyPixi(): void {
   tweenQueue.clear();
   modeBadge = null;
   ui.menuOpen = false;
+  ui.inBattle = false;
   detachInput();
   if (app) { app.destroy(true, { children: true }); app = null as unknown as PIXI.Application; }
 }

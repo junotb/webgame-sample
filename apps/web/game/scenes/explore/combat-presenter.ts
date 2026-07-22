@@ -1,6 +1,7 @@
 import * as PIXI from "pixi.js";
 import { C, H, W, tween, txt, wait } from "../../core";
 import { BattleEvent } from "../../core/battle-engine";
+import { DAMAGE_META, ENEMY_DEFS } from "../../defs";
 import { STATUS_COLOR, STATUS_NAME } from "../../core/statuses";
 import { visualRandom } from "../../core/random";
 import { spawnImpactBurst } from "../../battle-fx";
@@ -51,14 +52,13 @@ export function createCombatPresenter(opts: {
     tween(flash, { alpha: 0 }, 260, { onDone: () => flash.destroy() });
   }
 
-  function presentAlly(events: BattleEvent[], actorName: string): void {
-    const actionLog = events.find((event): event is Extract<BattleEvent, { t: "log" }> =>
-      event.t === "log" && event.text.startsWith(`${actorName}의`));
-    if (actionLog) log(actionLog.text);
+  function presentAlly(events: BattleEvent[]): void {
     for (const event of events) {
+      if (event.t === "log") { log(event.text); continue; }
       const enemy = "target" in event ? enemyOf(event.target) : undefined;
       if (event.t === "miss" && enemy) popDamage(enemy, "빗나감!", C.dim);
       else if (event.t === "hit" && enemy) {
+        log(`→ ${ENEMY_DEFS[enemy.defId].name} ${event.amount} ${DAMAGE_META[event.dtype].name} 피해${event.crit ? " — 치명타!" : ""}`);
         if (event.crit) popDamage(enemy, "치명타!", C.border);
         if (event.resist === "weak") popDamage(enemy, "약점!", 0xff8a3c);
         else if (event.resist === "resist") popDamage(enemy, "저항", C.mp);
@@ -68,7 +68,10 @@ export function createCombatPresenter(opts: {
         const visual = enemyVisuals.get(enemy.id);
         if (visual) spawnImpactBurst(root, visual.node.x, visual.node.y - 130 * visual.node.scale.y, event.dtype);
       } else if (event.t === "save" && enemy) popDamage(enemy, "내성!", C.epic);
-      else if (event.t === "status" && enemy) {
+      else if (event.t === "drain") {
+        const drained = memberOf(event.unit);
+        if (drained) log(`→ ${drained.name} HP +${event.amount} 흡수`);
+      } else if (event.t === "status" && enemy) {
         popDamage(enemy, event.on ? STATUS_NAME[event.status] : `${STATUS_NAME[event.status]} 해제`, STATUS_COLOR[event.status] ?? C.epic);
       } else if (event.t === "death") {
         const dead = enemyOf(event.unit);
@@ -98,7 +101,8 @@ export function createCombatPresenter(opts: {
     }
     const heading = events.find((event): event is Extract<BattleEvent, { t: "log" }> => event.t === "log")?.text
       ?? `${fallbackName}의 공격!`;
-    log(`${heading} ${lines.join("  ")}`);
+    log(heading);
+    for (const line of lines) log(`→ ${line}`);
     const firstHit = events.find((event): event is Extract<BattleEvent, { t: "hit" }> => event.t === "hit");
     if (firstHit) {
       partyHitFlash();

@@ -5,7 +5,7 @@ import { questStatus } from "../core/quests";
 import type { NpcDef } from "../defs";
 import { FACING_NAME, cellAt } from "../grid";
 import type { GridMap } from "../grid";
-import { FIELD_ENTRANCE_KIND, entranceNode } from "../entrances";
+import { ENTRANCE_WALL_SKIN, FIELD_ENTRANCE_KIND } from "../entrances";
 import { drawAdventurer } from "../monsters";
 import { createFPView } from "../fpview";
 import type { FPEntity, FPTheme, SurfacePick } from "../fpview";
@@ -133,6 +133,13 @@ function facilityFacadePositions(town: TownData, facility: TownFacilityDef): Arr
 }
 
 function createTheme(town: TownData, spatial: CompiledTown<NpcDef>): FPTheme {
+  /* 성문 — 외벽의 문 칸을 목적지 테마 재질 + 닫힌 아치문으로 그려 벽에 융화시킨다 */
+  const gateWalls = new Map<string, SurfacePick>();
+  for (const gate of town.gates) {
+    const skin = ENTRANCE_WALL_SKIN[FIELD_ENTRANCE_KIND[gate.target]];
+    gateWalls.set(`${gate.x},${gate.y}`, { base: skin.base, decal: "village_door_arch", cap: "village_roof_red" });
+  }
+
   const facadeWalls = new Map<string, SurfacePick>();
   for (const facility of town.facilities) {
     const facade = FACILITY_FACADE[facility.id];
@@ -166,6 +173,8 @@ function createTheme(town: TownData, spatial: CompiledTown<NpcDef>): FPTheme {
       ? crossvaleFloor(x, y)
       : { base: "floor", decal: hash01(x, y, 91.7, 53.3) < 0.5 ? "pave_decal" : "pave2_decal" },
     wallAt: (x, y): SurfacePick => {
+      const gateWall = gateWalls.get(`${x},${y}`);
+      if (gateWall) return gateWall;
       const facility = spatial.facilityAt(x, y);
       if (facility) {
         const facade = FACILITY_FACADE[facility.id];
@@ -333,12 +342,12 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
     }
   }
 
-  /* 외곽길 입구 — 이어지는 필드의 풍경을 미리 보여 주는 테마 입구 */
+  /* 외곽길 성문 라벨 — 성문 자체는 외벽에 박힌 문 벽면으로 그려지므로 라벨만 띄운다 */
   for (const gate of town.gates) {
-    const { node, worldH, baseH } = entranceNode(FIELD_ENTRANCE_KIND[gate.target]);
+    const node = new PIXI.Container();
     const label = txt(gate.label, 12, C.text, { weight: "700", shadow: true });
-    label.anchor.set(0.5, 1); label.y = -(baseH + 10); node.addChild(label);
-    entities.push({ id: `gate:${gate.id}`, x: gate.x, y: gate.y, node, worldH, baseH });
+    label.anchor.set(0.5, 1); label.y = -108; node.addChild(label);
+    entities.push({ id: `gate:${gate.id}`, x: gate.x, y: gate.y, node, worldH: 0.8, baseH: 112 });
   }
 
   const npcMarks: Array<() => void> = [];

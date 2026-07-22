@@ -6,16 +6,16 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  ENEMY_DEFS, RANK_NAME, RARITY_META, enemyMelee, gearDisplayName,
+  ENEMY_DEFS, RANK_NAME, RARITY_META, gearDisplayName,
 } from "../defs";
 import {
   C, H, SceneHandle, SceneScope, W, button, fullFlash, nav, panel, sceneRoot,
   setModeBadge, toast, tween, txt, ui, wait,
 } from "../core";
 import {
-  BattleAbility, G, GridEnemy, LEVEL_AP, LEVEL_SP, Member, attackReach,
+  BattleAbility, G, GridEnemy, LEVEL_AP, LEVEL_SP, Member, attackReach, canSwapRow,
   equippedWeapon, gainExpParty, memberAbilities, memberStats, partyFortune,
-  partyRank, respawnDungeonEnemies, rollDropToBag,
+  partyRank, respawnDungeonEnemies, rollDropToBag, rowBlocked,
 } from "../state";
 import { BASIC_ATTACK, BattleEngine, BattleEvent } from "../core/battle-engine";
 import { gameplayRandom } from "../core/random";
@@ -31,9 +31,10 @@ import type { PoiDef } from "../goblin-fortress";
 import { DUNGEONS, DungeonId } from "../dungeons";
 import { FPEntity, createFPView } from "../fpview";
 import { tileSprite, tileTex } from "../tiles";
-import { drawMonster } from "../monsters";
+import { MONSTER_WORLD_H, drawMonster, monsterPx } from "../monsters";
 import type { MonsterView } from "../monsters";
 import { buildPartyHUD, pickMember } from "../hud";
+import { createBattleLog } from "../ui/battle-log";
 import { eventOverlay } from "./event";
 import { createCombatPresenter } from "./explore/combat-presenter";
 import { ParticleKind, particleField } from "../ambient";
@@ -86,14 +87,14 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     if (!e.alive) continue;
     const def = ENEMY_DEFS[e.defId];
     const node = new PIXI.Container();
-    const monster = drawMonster(def, def.big ?? 1);
+    const monster = drawMonster(def);
     node.addChild(monster);
     const tierCol = def.tier === "정예" ? C.elite : def.tier === "보스" ? C.boss
       : def.tier === "에픽" ? C.epic : C.text;
     const info = txt(
       def.tier === "일반" ? def.name : `◆ ${def.tier} — ${def.name}`,
       13, tierCol, { weight: "700", shadow: true });
-    info.anchor.set(0.5); info.y = -118 * (def.big ?? 1); node.addChild(info);
+    info.anchor.set(0.5); info.y = -(monsterPx(def) + 16); node.addChild(info);
     const hpT = txt("", 12, C.dim, { shadow: true });
     hpT.anchor.set(0.5); hpT.y = info.y + 16; node.addChild(hpT);
     node.eventMode = "static"; node.cursor = "pointer";
@@ -156,15 +157,6 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
   }
   const propAt = (x: number, y: number) => D.props.find((pr) => pr.x === x && pr.y === y);
 
-  /* 문(+) 칸 장식 노드 — 열린 아치 */
-  const doorNodes: FPEntity[] = [];
-  for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
-    if (cellAt(map, x, y) !== "door") continue;
-    const s = tileSprite("door_obj", 4); s.anchor.set(0.5, 1);
-    const node = new PIXI.Container(); node.addChild(s);
-    doorNodes.push({ id: `door:${x},${y}`, x, y, node, worldH: 0.92, baseH: 128 });
-  }
-
   function poiVisible(p: PoiDef): boolean {
     if (p.kind !== "chest") return true;
     if (p.hidden && !E.revealed[p.id]) return false;
@@ -186,7 +178,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
   }
 
   function fpEntities(): FPEntity[] {
-    const out: FPEntity[] = [...doorNodes];
+    const out: FPEntity[] = [];
     for (const pr of D.props) {
       out.push({
         id: `prop:${pr.id}`, x: pr.x, y: pr.y, node: propNodes.get(pr.id)!,
@@ -205,8 +197,9 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     for (const e of E.enemies) {
       if (!e.alive && !dyingEnemies.has(e.id)) continue;
       const v = enemyVis.get(e.id); if (!v) continue;
-      const big = ENEMY_DEFS[e.defId].big ?? 1;
-      out.push({ id: e.id, x: e.x, y: e.y, node: v.node, worldH: 0.6 * big, baseH: 110 * big });
+      const def = ENEMY_DEFS[e.defId];
+      /* 체급이 곧 월드 높이 — huge는 복도 벽(1.0)을 넘겨 천장에 닿는 실루엣이 된다 */
+      out.push({ id: e.id, x: e.x, y: e.y, node: v.node, worldH: MONSTER_WORLD_H[def.size], baseH: monsterPx(def) + 6 });
     }
     return out;
   }
@@ -262,9 +255,19 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
   }
 
   /* ---- 로그/프롬프트/힌트 ---- */
-  const logP = panel(620, 46, { alpha: 0.82 }); logP.x = (W - 620) / 2; logP.y = 12; root.addChild(logP);
-  const logT = txt("", 15, C.text); logT.x = logP.x + 16; logT.y = 25; root.addChild(logT);
-  const log = (s: string) => { logT.text = s; };
+  const battleLog = createBattleLog(620);
+  battleLog.node.x = (W - 620) / 2; battleLog.node.y = 12; root.addChild(battleLog.node);
+  const log = (s: string) => battleLog.push(s);
+  /** 엔진 이벤트에서 로그 문장과 회복 수치를 기록으로 남긴다 */
+  const logEvents = (events: BattleEvent[]) => {
+    for (const ev of events) {
+      if (ev.t === "log") log(ev.text);
+      else if (ev.t === "healed") {
+        const m = G.party.find((mm) => `ally:${mm.id}` === ev.target);
+        if (m) log(`→ ${m.name} ${ev.resource === "hp" ? "HP" : "MP"} +${ev.amount}`);
+      }
+    }
+  };
   const combatPresenter = createCombatPresenter({
     root, enemies: E.enemies, enemyVisuals: enemyVis, party: G.party, log,
     onEnemyDeath: (enemy) => killEnemy(enemy),
@@ -290,7 +293,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
   const prompt = txt("", 16, C.text, { weight: "700", shadow: true });
   prompt.anchor.set(0.5, 1); prompt.x = W / 2; prompt.y = H - 168; root.addChild(prompt);
 
-  const hint = txt("W/S 전진·후진   A/D 옆걸음   Q/E·←→ 회전   Z/스페이스 조사", 13, C.dim);
+  const hint = txt("W/S 전진·후진   A/D 옆걸음   Q/E·←→ 회전   Z/스페이스 조사   L 전투기록", 13, C.dim);
   hint.x = 16; hint.y = H - 28; root.addChild(hint);
   const veilT = txt("", 13, C.epic, { weight: "700" }); veilT.x = 16; veilT.y = H - 50; root.addChild(veilT);
   const blessT = txt("", 13, C.border, { weight: "700" }); blessT.x = 16; blessT.y = H - 70; root.addChild(blessT);
@@ -462,10 +465,8 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     const def = ENEMY_DEFS[e.defId];
     const alive = G.party.filter((m) => m.hp > 0);
     if (!alive.length) return;
-    /* 근접 공격은 전열만 노린다 (전열이 전멸했으면 후열이 노출됨). 원거리·광역은 후열까지 닿는다 */
-    const front = alive.filter((m) => !m.back);
-    const pool = enemyMelee(def) && front.length ? front : alive;
-    const events = combat.gridEnemyAct(e.id, pool.map((m) => m.id));
+    /* 진형(근접=전열만·도약=무시·광역 감쇠)은 엔진이 판정한다 — 필드 전투와 규칙 공유 */
+    const events = combat.gridEnemyAct(e.id, alive.map((m) => m.id));
     combatPresenter.presentEnemy(events, e.id, def.name);
     hud.redraw();
   }
@@ -495,6 +496,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
   /* ---- 전투 상태 ---- */
   function enterCombat(): void {
     inCombat = true;
+    ui.inBattle = true;
     const blessed = G.blessedNext;
     if (blessed) { G.blessedNext = false; toast("축복의 가호! 이번 전투 파티 공격력 +25%", C.border); }
     combat = new BattleEngine(G.party, E.enemies, { bless: blessed, items: G.items });
@@ -504,6 +506,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
   }
   function exitCombat(): void {
     inCombat = false;
+    ui.inBattle = false;
     combat?.gridExit();
     combat = null;
     setModeBadge(D.badge, C.green);
@@ -570,11 +573,11 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     return true;
   }
 
-  /** 물리·기본 공격을 사거리에 따라 라우팅 — 근접은 전열+정면 칸, 원거리는 시야 내 대상 */
+  /** 물리·기본 공격을 사거리에 따라 라우팅 — 근접·리치는 전열+정면 칸(리치는 후열 허용), 원거리는 시야 내 대상 */
   function routePhysAttack(m: Member, a: BattleAbility): void {
     const reach = attackReach(a, equippedWeapon(m));
     if (a.all) {
-      if (reach === "melee" && m.back) { toast("후열에서는 근접 공격을 할 수 없다.", C.dim); return; }
+      if (rowBlocked(m, reach)) { toast("후열에서는 근접 공격을 할 수 없다. (창·활·마법은 가능)", C.dim); return; }
       const ts = reach === "ranged"
         ? magTargets()
         : aggroList().filter((e) => chebyshev(E.x, E.y, e.x, e.y) <= 1);
@@ -589,17 +592,18 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
       pendingMag = a; openTargetMenu(m, ts);
       return;
     }
-    if (m.back) { toast("후열에서는 근접 공격을 할 수 없다. (활·마법을 쓰거나 진형을 바꿔라)", C.dim); return; }
+    if (rowBlocked(m, reach)) { toast("후열에서는 근접 공격을 할 수 없다. (창을 들거나 활·마법, 혹은 '진형' 커맨드)", C.dim); return; }
     const fe = frontEnemy();
     if (!fe) { toast("정면 칸에 적이 없다. (근접은 바로 앞 칸만)", C.dim); return; }
     closeSub();
     execAttack(m, a, [fe]);
   }
-  /** 이 멤버가 지금 기본 공격을 할 수 있는가 (사거리·진형 고려) */
+  /** 이 멤버가 지금 기본 공격을 할 수 있는가 (사거리·진형 고려 — 리치 무기는 후열에서도 정면 칸) */
   function canBasicAttack(m: Member): boolean {
-    return attackReach(BASIC_ATTACK, equippedWeapon(m)) === "ranged"
+    const reach = attackReach(BASIC_ATTACK, equippedWeapon(m));
+    return reach === "ranged"
       ? magTargets().length > 0
-      : !m.back && !!frontEnemy();
+      : !rowBlocked(m, reach) && !!frontEnemy();
   }
 
   /* ---- 커맨드 바 ---- */
@@ -621,13 +625,23 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
       label: "방어",
       fn: (m) => {
         const events = combat?.gridGuard(m.id) ?? [];
+        logEvents(events);
+        hud.redraw();
+        endMemberAction();
+      },
+    },
+    { label: "아이템", fn: () => openItemMenu() },
+    {
+      label: "진형",
+      fn: (m) => {
+        if (!canSwapRow(m)) { toast("전열이 최소 한 명은 있어야 한다.", C.dim); return; }
+        const events = combat?.gridSwapRow(m.id) ?? [];
         const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
         if (line) log(line.text);
         hud.redraw();
         endMemberAction();
       },
     },
-    { label: "아이템", fn: () => openItemMenu() },
     { label: "대기", fn: () => { endMemberAction(); } },
   ];
   const cmdBtns = CMDS.map((c, i) => {
@@ -635,7 +649,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
       const m = currentMember();
       if (!m || pendingMag) return;
       if (c.enabled && !c.enabled(m)) {
-        toast(m.back ? "후열은 근접 공격 불가 — 활·마법을 쓰거나 진형을 바꿔라." : "시야에 닿는 적이 없다.", C.dim);
+        toast(m.back ? "후열은 근접 불가 — 창·활·마법을 쓰거나 '진형' 커맨드로 나서라." : "시야에 닿는 적이 없다.", C.dim);
         return;
       }
       c.fn(m);
@@ -677,8 +691,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
           closeSub();
           pickMember(`${a.name} — 보호할 아군`, (t2) => {
             const events = combat?.gridCover(m.id, a, t2.id) ?? [];
-            const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
-            if (line) log(line.text);
+            logEvents(events);
             hud.redraw();
             endMemberAction();
           }, { filter: (t2) => t2.hp > 0 && t2.id !== m.id, note: (t2) => `HP ${t2.hp}/${t2.maxHp}` });
@@ -687,8 +700,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
         if (a.target === "self") {
           closeSub();
           const events = combat?.gridSupport(m.id, a, m.id) ?? [];
-          const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
-          if (line) log(line.text);
+          logEvents(events);
           hud.redraw();
           endMemberAction();
           return;
@@ -697,8 +709,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
           if (a.allAllies) {
             closeSub();
             const events = combat?.gridSupport(m.id, a, m.id) ?? [];
-            const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
-            if (line) log(line.text);
+            logEvents(events);
             hud.redraw();
             endMemberAction();
             return;
@@ -706,8 +717,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
           closeSub();
           pickMember(`${a.name} — 대상 아군`, (t2) => {
             const events = combat?.gridSupport(m.id, a, t2.id) ?? [];
-            const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
-            if (line) log(line.text);
+            logEvents(events);
             hud.redraw();
             endMemberAction();
           }, { filter: (t2) => a.revive ? t2.hp <= 0 : t2.hp > 0, note: (t2) => `HP ${t2.hp}/${t2.maxHp}` });
@@ -762,11 +772,12 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
       execAttack(m, a, [e]);
       return;
     }
-    /* 대상 선택 중이 아니면 기본 공격: 원거리는 시야 내 그 적을, 근접은 정면 전열만 */
-    if (attackReach(BASIC_ATTACK, equippedWeapon(m)) === "ranged") {
+    /* 대상 선택 중이 아니면 기본 공격: 원거리는 시야 내 그 적을, 근접·리치는 정면 칸만 (리치는 후열 허용) */
+    const reach = attackReach(BASIC_ATTACK, equippedWeapon(m));
+    if (reach === "ranged") {
       if (chebyshev(E.x, E.y, e.x, e.y) <= MAG_RANGE && hasLOS(map, E.x, E.y, e.x, e.y)) execAttack(m, BASIC_ATTACK, [e]);
       else toast("시야가 닿지 않는다.", C.dim);
-    } else if (frontEnemy() === e && !m.back) {
+    } else if (frontEnemy() === e && !rowBlocked(m, reach)) {
       execAttack(m, BASIC_ATTACK, [e]);
     }
   }
@@ -808,7 +819,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     phase = "anim";
     hideCmds();
     const events = combat.gridOffense(m.id, a, targets.map((e) => e.id));
-    combatPresenter.presentAlly(events, m.name);
+    combatPresenter.presentAlly(events);
     hud.redraw();
     redrawEnemyInfo();
     refresh();
@@ -921,6 +932,10 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     const fx = E.x + f.dx, fy = E.y + f.dy;
     const pr = propAt(fx, fy);
     if (pr) { log(pr.text); return; }
+    if (cellAt(map, fx, fy) === "door") {
+      log("굳게 닫힌 문이다. 밀어도 두드려도 꿈쩍하지 않는다.");
+      return;
+    }
     const p = poiBlocking(fx, fy);
     if (!p) { log("아무것도 없다."); return; }
     if (p.kind === "sign") {
@@ -961,6 +976,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     else if (fp2?.kind === "sign") prompt.text = "[Z] 표지판을 읽는다";
     else if (fp2?.kind === "chest") prompt.text = fp2.hidden ? "[Z] 수상한 상자를 연다" : "[Z] 상자를 연다";
     else if (propAt(fx, fy)) prompt.text = `[Z] ${propAt(fx, fy)!.name}을(를) 살핀다`;
+    else if (cellAt(map, fx, fy) === "door") prompt.text = "[Z] 닫힌 문을 살핀다";
     else if (frontEnemy() && inCombat) prompt.text = "[Z] 정면의 적을 공격";
     else prompt.text = "";
     /* 어그로 적 정보 */
@@ -1020,9 +1036,11 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     a: () => tryMove("sl"), d: () => tryMove("sr"),
     q: () => rotate(-1), e: () => rotate(1),
     z: () => interact(), " ": () => interact(),
+    l: () => battleLog.toggle(),
     "ㅈ": () => tryMove("fwd"), "ㄴ": () => tryMove("back"),
     "ㅁ": () => tryMove("sl"), "ㅇ": () => tryMove("sr"),
     "ㅂ": () => rotate(-1), "ㄷ": () => rotate(1), "ㅋ": () => interact(),
+    "ㅣ": () => battleLog.toggle(),
     ArrowUp: () => tryMove("fwd"), ArrowDown: () => tryMove("back"),
     ArrowLeft: () => rotate(-1), ArrowRight: () => rotate(1),
   };
@@ -1034,6 +1052,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     },
     dispose() {
       disposed = true;
+      ui.inBattle = false;
       activeEvent?.dispose?.();
       activeEvent = null;
       scope.dispose();

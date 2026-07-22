@@ -23,7 +23,7 @@ import { G } from "../state";
 import { TileName, tileSprite, tileTex } from "../tiles";
 import { buildPartyHUD } from "../hud";
 import { ENEMY_DEFS } from "../defs";
-import { drawMonster, MonsterView } from "../monsters";
+import { drawMonster, MonsterView, monsterPx } from "../monsters";
 import { EventNode, eventOverlay } from "./event";
 
 interface FieldNode {
@@ -114,10 +114,10 @@ function fieldNode(deco: FieldDeco): FieldNode {
   if (deco.visual?.kind === "monster") {
     const node = new PIXI.Container();
     const def = ENEMY_DEFS[deco.visual.defId];
-    const monster = drawMonster(def, (def.big ?? 1) * (deco.visual.defId === "wolf" ? 0.9 : 0.82));
+    const monster = drawMonster(def, deco.visual.defId === "wolf" ? 0.9 : 0.82);
     node.addChild(monster);
     return {
-      entity: { id: `deco:${deco.id}`, x: deco.x, y: deco.y, node, worldH: 0.72, baseH: 104 },
+      entity: { id: `deco:${deco.id}`, x: deco.x, y: deco.y, node, worldH: 0.72, baseH: monsterPx(def) },
       monster,
     };
   }
@@ -447,8 +447,8 @@ export function fieldScene(id: FieldId): SceneHandle {
     const nodes: EventNode[] = [
       { text: "좁은 계곡의 앞뒤에서 바위가 굴러 떨어진다. 숨어 있던 산적들이 퇴로를 막고 모습을 드러냈다." },
       { name: "산적 두목", portrait: "dark", text: "짐과 돈을 내려놔라. 그러면 목숨만은 살려 주지." },
-      { name: "미라", portrait: "hero", text: "마차로를 막은 게 너희였군요. 대답은 이미 정해졌어요!" },
-      { text: "포위를 뚫고 산적 무리를 제압했다. 통행 재개를 위해 크로스베일 현상금 길드에 결과를 보고해야 한다." },
+      { text: "일행이 대답 대신 무기를 뽑아 들었다. 마차로를 막아 온 무리를 쓰러뜨려야 길이 다시 열린다." },
+      { text: "일행은 포위를 뚫고 산적 무리를 제압했다. 통행 재개를 위해 크로스베일 현상금 길드에 결과를 보고해야 한다." },
     ];
     activeEvent = eventOverlay(nodes, () => {
       activeEvent = null;

@@ -69,15 +69,16 @@ export function cellAt(map: GridMap, x: number, y: number): CellKind {
   return map.cells[y * map.w + x];
 }
 
-/** 파티/적이 밟을 수 있는 칸 (물은 장식·차단) */
+/** 파티/적이 밟을 수 있는 칸 (물은 장식·차단, 문은 굳게 닫힌 벽의 일부) */
 export function passable(map: GridMap, x: number, y: number): boolean {
   const k = cellAt(map, x, y);
-  return k === "floor" || k === "door" || k === "stairs";
+  return k === "floor" || k === "stairs";
 }
 
-/** 시야를 가리는 칸 — 벽·물은 차단하지 않되 벽만 차단 (문은 열린 아치로 취급) */
+/** 시야를 가리는 칸 — 벽과 닫힌 문이 차단, 물은 차단하지 않는다 */
 function opaque(map: GridMap, x: number, y: number): boolean {
-  return cellAt(map, x, y) === "wall";
+  const k = cellAt(map, x, y);
+  return k === "wall" || k === "door";
 }
 
 /** Bresenham 직선 시야. 시점·종점 자체는 차단 판정에서 제외. */

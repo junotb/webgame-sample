@@ -58,6 +58,9 @@ const SHEET_SRC = {
   evermoreSky2: "/assets/world/backgrounds/evermore_sky_02.png",
   royalHallWall: "/assets/world/backgrounds/royal_hall_wall.png",
   royalFountain: "/assets/world/props/structures/royal_fountain.png",
+  titleSky1: "/assets/world/backgrounds/title_sky_01.png",
+  titleSky2: "/assets/world/backgrounds/title_sky_02.png",
+  titleSky3: "/assets/world/backgrounds/title_sky_03.png",
 } as const;
 type SheetName = keyof typeof SHEET_SRC;
 
@@ -82,8 +85,8 @@ const FRAMES = {
   stairs_decal: { s: "walls", x: 160, y: 128, w: 16, h: 16 },
   water: { s: "water", x: 96, y: 432, w: 16, h: 16 },
   /* ---- 오브젝트 (빌보드, 발밑 기준으로 쓰려면 anchor(0.5,1)) ---- */
-  door_obj: { s: "doorAnim", x: 128, y: 32, w: 32, h: 32 },      // 열린 아치 — 던전 통로
-  door_closed_obj: { s: "doorAnim", x: 0, y: 96, w: 32, h: 32 }, // 닫힌 목문 — 마을 시설 입구 (바닥까지 닿는 목문 프레임)
+  door_obj: { s: "doorAnim", x: 128, y: 32, w: 32, h: 32 },      // 열린 아치 — 출구 포탈·입구 게이트
+  door_closed_obj: { s: "doorAnim", x: 0, y: 96, w: 32, h: 32 }, // 닫힌 목문 — 던전 잠긴 문(+) 칸의 벽면 데칼
   chest_obj: { s: "doorAnim", x: 0, y: 128, w: 32, h: 32 },
   barrel_obj: { s: "props", x: 96, y: 64, w: 16, h: 32 },
   crate_obj: { s: "props", x: 256, y: 0, w: 32, h: 32 },
@@ -190,6 +193,10 @@ const FRAMES = {
   soulflame_obj_0: { s: "templeFire", x: 298, y: 131, w: 28, h: 61 },
   soulflame_obj_1: { s: "templeFire", x: 346, y: 131, w: 28, h: 61 },
   soulflame_obj_2: { s: "templeFire", x: 394, y: 131, w: 28, h: 61 },
+  /* ---- 타이틀 — 푸른 달밤 (별하늘 베이스 + 달 프롭 + 흐르는 구름) ---- */
+  title_sky_base: { s: "titleSky1", x: 0, y: 0, w: 576, h: 324 },
+  title_sky_moon: { s: "titleSky2", x: 216, y: 52, w: 152, h: 164 }, // 달 실경계 + 여유 — 위치를 자유 배치하는 프롭
+  title_sky_clouds: { s: "titleSky3", x: 0, y: 0, w: 576, h: 324 },
 } as const satisfies Record<string, FrameDef>;
 export type TileName = keyof typeof FRAMES;
 

@@ -3,10 +3,15 @@
  *  + 모험가(파티) 절차적 스프라이트
  * ===================================================================== */
 import * as PIXI from "pixi.js";
-import { EnemyDef, MONSTER_ICONS } from "./defs";
+import { EnemyDef, MONSTER_ICONS, MonsterSize, Tier } from "./defs";
 
 /* ---- 몬스터 아이콘 (32×32 픽셀아트, nearest 스케일) ---- */
 const alias = (img: string) => `monster-${img}`;
+const hiResAlias = (img: string) => `monster-hires-${img}`;
+
+/** 고해상도 원본이 준비된 몬스터 목록 — assets/monsters/large/<lowercase nameEn>.png (64×64 이상).
+ *  파일을 추가하면 여기에 nameEn을 등록한다. 미등록 대형·거대 몬스터는 런타임 scale2x로 대체한다. */
+export const HIRES_MONSTERS: string[] = [];
 
 /** boot에서 1회 호출 — 카탈로그(MONSTER_ICONS) 전체 프리로드 (~48장, 소형) */
 export async function loadMonsterIcons(): Promise<void> {
@@ -17,10 +22,96 @@ export async function loadMonsterIcons(): Promise<void> {
       data: { scaleMode: "nearest" as const },
     })),
   );
+  if (HIRES_MONSTERS.length) {
+    await PIXI.Assets.load(
+      HIRES_MONSTERS.map((nameEn) => ({
+        alias: hiResAlias(nameEn),
+        src: `/assets/monsters/large/${nameEn.toLowerCase()}.png`,
+        data: { scaleMode: "nearest" as const },
+      })),
+    );
+  }
 }
 
-/** 표준 표시 높이(px) — def.big/호출부 scale은 그 위에 곱해진다 */
-const MONSTER_SIZE = 104;
+/* ---- 체급별 표준 표시 높이(px)·1인칭 월드 높이 ----
+ *  체급이 곧 위계다: 쥐(small)와 오크(large)가 같은 크기로 보이면 안 된다.
+ *  huge의 worldH는 복도 벽(1.0)을 넘겨 천장에 닿는 실루엣을 만든다. */
+export const MONSTER_PX: Record<MonsterSize, number> = { small: 80, medium: 104, large: 140, huge: 184 };
+export const MONSTER_WORLD_H: Record<MonsterSize, number> = { small: 0.45, medium: 0.62, large: 0.88, huge: 1.12 };
+/** 이 몬스터의 표준 표시 높이(px) — 이름표 배치·빌보드 기준 높이 계산용 */
+export function monsterPx(def: EnemyDef): number { return MONSTER_PX[def.size]; }
+
+/* ---- scale2x(EPX) 런타임 업스케일 — 32×32 원본을 64×64로 ----
+ *  대형·거대 몬스터는 확대 배율이 커서(최대 5.75×) 계단이 도드라진다.
+ *  EPX는 색 경계를 보존하며 계단만 다듬으므로 픽셀아트 스타일을 해치지 않는다. */
+const upscaleCache = new Map<string, PIXI.Texture | null>();
+function scale2x(src: Uint32Array, w: number, h: number): Uint32Array {
+  const out = new Uint32Array(w * 2 * h * 2);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const p = src[y * w + x];
+      const a = y > 0 ? src[(y - 1) * w + x] : p; // 상
+      const c = x > 0 ? src[y * w + x - 1] : p; // 좌
+      const b = x < w - 1 ? src[y * w + x + 1] : p; // 우
+      const d = y < h - 1 ? src[(y + 1) * w + x] : p; // 하
+      let e0 = p, e1 = p, e2 = p, e3 = p;
+      if (c === a && c !== d && a !== b) e0 = a;
+      if (a === b && a !== c && b !== d) e1 = b;
+      if (d === c && d !== b && c !== a) e2 = c;
+      if (b === d && b !== a && d !== c) e3 = b;
+      const oy = y * 2, ox = x * 2, ow = w * 2;
+      out[oy * ow + ox] = e0;
+      out[oy * ow + ox + 1] = e1;
+      out[(oy + 1) * ow + ox] = e2;
+      out[(oy + 1) * ow + ox + 1] = e3;
+    }
+  }
+  return out;
+}
+/** 아이콘 텍스처를 EPX로 2배 업스케일한 텍스처. 실패(비브라우저 등) 시 null 캐시 */
+function upscaledTexture(def: EnemyDef): PIXI.Texture | null {
+  const cached = upscaleCache.get(def.img);
+  if (cached !== undefined) return cached;
+  let result: PIXI.Texture | null = null;
+  try {
+    const base = PIXI.Assets.get<PIXI.Texture>(alias(def.img));
+    if (base && typeof document !== "undefined") {
+      const w = base.source.pixelWidth, h = base.source.pixelHeight;
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext("2d", { willReadFrequently: true })!;
+      ctx.drawImage(base.source.resource as CanvasImageSource, 0, 0);
+      const img = ctx.getImageData(0, 0, w, h);
+      const up = scale2x(new Uint32Array(img.data.buffer), w, h);
+      const outCv = document.createElement("canvas");
+      outCv.width = w * 2; outCv.height = h * 2;
+      const outImg = new ImageData(new Uint8ClampedArray(up.buffer as ArrayBuffer), w * 2, h * 2);
+      outCv.getContext("2d")!.putImageData(outImg, 0, 0);
+      result = PIXI.Texture.from(outCv);
+      result.source.scaleMode = "nearest";
+    }
+  } catch { result = null; }
+  upscaleCache.set(def.img, result);
+  return result;
+}
+
+/** 몬스터 본체 텍스처 — 고해상도 파일 > (대형·거대) scale2x 업스케일 > 32px 아이콘 */
+function monsterTexture(def: EnemyDef): PIXI.Texture | undefined {
+  const hi = PIXI.Assets.get<PIXI.Texture>(hiResAlias(def.img));
+  if (hi) return hi;
+  if (def.size === "large" || def.size === "huge") {
+    const up = upscaledTexture(def);
+    if (up) return up;
+  }
+  return PIXI.Assets.get<PIXI.Texture>(alias(def.img));
+}
+
+/* ---- 티어 오라 — 크기와 별개로 위계를 알리는 빛 (정예=호박·보스=진홍·에픽=보랏빛) ---- */
+const TIER_AURA: Partial<Record<Tier, { color: number; alpha: number }>> = {
+  정예: { color: 0xd8a03c, alpha: 0.13 },
+  보스: { color: 0xff3c50, alpha: 0.2 },
+  에픽: { color: 0xa05aff, alpha: 0.22 },
+};
 
 /** 발밑(0,0) 기준 컨테이너. 이미지가 없으면 절차적 그리기로 폴백 */
 export type MonsterMotionAction = "spawn" | "attack" | "hit" | "death";
@@ -47,19 +138,33 @@ function motionPhase(name: string): number {
 /** 발밑을 원점으로 삼고 그림자와 몸체를 따로 변형하는 몬스터 노드 */
 export function drawMonster(def: EnemyDef, scale = 1): MonsterView {
   const root = new PIXI.Container() as MonsterView;
+  const px = MONSTER_PX[def.size];
   const shadow = new PIXI.Graphics();
-  shadow.ellipse(0, 2, MONSTER_SIZE * 0.42, 12).fill({ color: 0x000000, alpha: 0.35 });
+  shadow.ellipse(0, 2, px * 0.42, 7 + px * 0.05).fill({ color: 0x000000, alpha: 0.35 });
+  /* 티어 오라 — 몸체 뒤에서 은은히 맥동하는 가산 발광 */
+  const auraDef = TIER_AURA[def.tier];
+  let aura: PIXI.Graphics | null = null;
+  if (auraDef) {
+    aura = new PIXI.Graphics();
+    aura.circle(0, -px * 0.45, px * 0.56).fill(auraDef.color);
+    aura.blendMode = "add";
+    aura.alpha = auraDef.alpha;
+  }
   const body = new PIXI.Container();
-  const tex = PIXI.Assets.get<PIXI.Texture>(alias(def.img));
+  const tex = monsterTexture(def);
   if (tex) {
     const sp = new PIXI.Sprite(tex);
     sp.anchor.set(0.5, 1);
-    sp.width = MONSTER_SIZE; sp.height = MONSTER_SIZE;
+    sp.width = px; sp.height = px;
     body.addChild(sp);
   } else {
-    body.addChild(drawMonsterShape(def));
+    const shape = drawMonsterShape(def);
+    shape.scale.set(px / 104); // 절차적 폴백은 104px 기준으로 그려져 있다
+    body.addChild(shape);
   }
-  root.addChild(shadow, body);
+  root.addChild(shadow);
+  if (aura) root.addChild(aura);
+  root.addChild(body);
   root.scale.set(scale);
 
   let elapsed = motionPhase(def.img) * 1000;
@@ -152,6 +257,7 @@ export function drawMonster(def: EnemyDef, scale = 1): MonsterView {
     body.alpha = alpha;
     shadow.scale.set(shadowScale, 1);
     shadow.alpha = shadowAlpha;
+    if (aura && auraDef) aura.alpha = auraDef.alpha * (0.75 + 0.25 * Math.sin(elapsed / 430)) * alpha;
   };
 
   root.tickMotion(0);

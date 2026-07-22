@@ -10,7 +10,7 @@ import {
   C, H, W, button, overlayRoot, panel, toast, txt, ui,
 } from "./core";
 import {
-  G, Member, PROF_BASE, equippedWeapon, expNeed, memberRanks, memberStats, partyFieldSkills,
+  G, Member, PROF_BASE, canSwapRow, equippedWeapon, expNeed, memberRanks, memberStats, partyFieldSkills,
 } from "./state";
 import { openGrowthMenu } from "./ui/growth-menu";
 import { openBagMenu } from "./ui/inventory-menu";
@@ -46,7 +46,7 @@ export function buildPartyHUD(container: PIXI.Container, opts: { fieldHandlers?:
   p.x = W - PW - 16; p.y = 12;
   hud.addChild(p);
 
-  const rows: { name: PIXI.Text; bars: PIXI.Graphics; m: Member }[] = [];
+  const rows: { dot: PIXI.Graphics; name: PIXI.Text; bars: PIXI.Graphics; m: Member }[] = [];
   G.party.forEach((m, i) => {
     const y = p.y + 12 + i * 30;
     const dot = new PIXI.Graphics();
@@ -55,7 +55,20 @@ export function buildPartyHUD(container: PIXI.Container, opts: { fieldHandlers?:
     const name = txt("", 13, C.text, { weight: "700" });
     name.x = p.x + 30; name.y = y; hud.addChild(name);
     const bars = new PIXI.Graphics(); hud.addChild(bars);
-    rows.push({ name, bars, m });
+    /* 이름 영역 클릭 → 진형 토글 (전투 중에는 '진형' 커맨드로만) */
+    const hit = new PIXI.Graphics();
+    hit.rect(p.x + 12, y - 3, 162, 28).fill({ color: 0xffffff, alpha: 0.001 });
+    hit.eventMode = "static"; hit.cursor = "pointer";
+    hit.on("pointertap", () => {
+      if (ui.menuOpen) return;
+      if (ui.inBattle) return toast("전투 중에는 자기 턴의 '진형' 커맨드로만 바꿀 수 있다.", C.dim);
+      if (!canSwapRow(m)) return toast("전열이 최소 한 명은 있어야 한다.", C.dim);
+      m.back = !m.back;
+      toast(`${m.name} — ${m.back ? "후열" : "전열"}로 이동.`, C.border);
+      redraw();
+    });
+    hud.addChild(hit);
+    rows.push({ dot, name, bars, m });
   });
   const goldT = txt("", 13, C.border);
   goldT.x = p.x + 18; goldT.y = p.y + PH - 26; hud.addChild(goldT);
@@ -63,6 +76,11 @@ export function buildPartyHUD(container: PIXI.Container, opts: { fieldHandlers?:
   function redraw(): void {
     rows.forEach((r, i) => {
       const m = r.m;
+      /* 진형을 자리로 보여준다 — 후열은 한 칸 들여쓰고 푸른빛 (전/후 글자보다 배치가 먼저 읽힌다) */
+      const indent = m.back ? 14 : 0;
+      r.dot.x = p.x + 18 + indent;
+      r.name.x = p.x + 30 + indent;
+      r.name.style.fill = m.back ? C.mp : C.text;
       r.name.text = `${m.back ? "후" : "전"}│${m.name} Lv.${m.level} ${CLASSES[m.classId].name}`;
       const y = p.y + 12 + i * 30;
       const bx = p.x + 178, bw = 144;
@@ -192,16 +210,22 @@ export function openStatusMenu(onClose?: () => void): void {
     useP.x = bx + 28; useP.y = by + 620 - 52; detail.addChild(useP);
 
     /* 진형 토글 — 전열이 최소 한 명은 남아야 한다 */
-    const reachLabel = equippedWeapon(m).reach === "ranged" ? "원거리" : "근접";
-    const posT = txt(`진형: ${m.back ? "후열" : "전열"}  ·  무기 ${reachLabel}`, 14,
-      m.back ? C.mp : C.elite, { weight: "700" });
-    posT.x = bx + 210; posT.y = by + 620 - 46; detail.addChild(posT);
+    const w = equippedWeapon(m);
+    const reachLabel = w.reach === "ranged" ? "원거리" : w.reach === "reach" ? "리치(후열 근접 가능)" : "근접";
+    const posT = txt(
+      `진형: ${m.back ? "후열" : "전열"}  ·  무기 ${reachLabel}\n` +
+      (m.back ? "근접 면제 · 광역 60% · 원거리 명중 +2, 치명 +8%" : "근접 적의 표적 — 후열을 지킨다"),
+      13, m.back ? C.mp : C.elite, { weight: "700", lh: 18 });
+    posT.x = bx + 210; posT.y = by + 620 - 50; detail.addChild(posT);
     const swap = button(m.back ? "→ 전열로" : "→ 후열로", 130, 36, () => {
-      if (!m.back && G.party.filter((x) => !x.back).length <= 1) {
+      if (ui.inBattle) {
+        return toast("전투 중에는 자기 턴의 '진형' 커맨드로만 바꿀 수 있다.", C.dim);
+      }
+      if (!canSwapRow(m)) {
         return toast("전열이 최소 한 명은 있어야 한다.", C.dim);
       }
       m.back = !m.back;
-      toast(`${m.name} — ${m.back ? "후열" : "전열"}로 이동. ${m.back ? "(근접 적에게 안 맞지만 근접 공격 불가)" : "(전열에서 파티를 지킨다)"}`, C.border);
+      toast(`${m.name} — ${m.back ? "후열" : "전열"}로 이동. ${m.back ? "(근접 면제·광역 감쇠, 원거리 조준 보너스 — 창은 후열에서도 찌른다)" : "(전열에서 파티를 지킨다)"}`, C.border);
       renderDetail();
     }, { size: 14 });
     swap.x = bx + 430; swap.y = by + 620 - 52; detail.addChild(swap);

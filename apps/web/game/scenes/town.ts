@@ -45,6 +45,9 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   const start = T.starts[spawn] ?? T.starts.carriage ?? T.starts.gate
     ?? T.starts.fountain ?? T.starts.throne!;
   const movement = new TownNavigation(T.map, spatial, start);
+  /* 개발 편의: 콘솔·자동화 검증에서 현재 좌표 확인 (index.ts의 __game과 같은 관례) */
+  if (process.env.NODE_ENV !== "production")
+    (window as unknown as Record<string, unknown>).__townPose = movement.pose;
   const presentation = createTownPresentation(root, T, npcs, spatial, townTime(G));
   const contentContext = () => ({
     questCompleted: (id: string) => questStatus(id) === "rewarded",

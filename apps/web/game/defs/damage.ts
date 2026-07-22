@@ -51,8 +51,8 @@ export const DAMAGE_META: Record<DamageType, DamageTypeMeta> = {
 /** 무기 계열 3종 — 물리 데미지 타입은 장착 무기의 계열이 결정한다 */
 export type WeaponType = "slash" | "pierce" | "bludgeon";
 
-/** 무기·공격 사거리 — 근접(전열 전용) / 원거리(후열에서도 시야 내 공격) */
-export type WeaponReach = "melee" | "ranged";
+/** 무기·공격 사거리 — 근접(전열 전용) / 리치(창·미늘창: 후열에서도 정면 근접) / 원거리(후열에서 시야 내 공격) */
+export type WeaponReach = "melee" | "reach" | "ranged";
 
 /** 물리 무기 스킬 → 무기 계열 (마법·보조 스킬은 없음).
  *  상점 무기 정의·검증에 쓰는 참조 표. */

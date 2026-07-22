@@ -7,9 +7,9 @@ import {
   DamageType,
   ENEMY_DEFS, EnemyDef, RANK_NAME, ResistBand, ResistTable, Tier,
   SKILLS, attackDamageType, attackDamageTypes, enemyAC, enemyAcc, enemyAttackTypes,
-  enemyInflictDC, enemySave, enemyStatusImmune,
+  enemyInflictDC, enemyMelee, enemySave, enemyStatusImmune,
 } from "../defs";
-import { BattleAbility, GridEnemy, Member, Stats, allyAccuracy, equippedWeapon, memberResist, memberStats, rankMult } from "../state";
+import { BattleAbility, GridEnemy, Member, Stats, allyAccuracy, attackReach, equippedWeapon, memberResist, memberStats, rankMult } from "../state";
 import { rollSave } from "./dice";
 import { healAmount, rollAllyHit, rollEnemyHit } from "./formulas";
 import { gameplayRandom } from "./random";
@@ -77,6 +77,8 @@ export type AllyAction =
   | { type: "ability"; ability: BattleAbility; target?: UnitId }
   | { type: "guard" }
   | { type: "item"; item: "potion" | "mpotion"; target: UnitId }
+  /** 전열↔후열 이동 — 턴을 소모한다. 전열 최소 인원 검증은 UI가 담당 */
+  | { type: "formation" }
   | { type: "flee" };
 
 export type BattleResult = "victory" | "defeat" | "fled";
@@ -101,6 +103,8 @@ export class BattleEngine {
   private qi = 0;
   private current: EngineAlly | null = null;
   private ended: BattleResult | null = null;
+  /** 진형 교전 로그 — 같은 설명을 전투당 1회만 보여준다 */
+  private rowLogs = { block: false, pierce: false, aoe: false };
 
   constructor(
     party: Member[],
@@ -191,6 +195,13 @@ export class BattleEngine {
     actor.m.mp = Math.min(actor.m.maxMp, actor.m.mp + 3);
     ev.push({ t: "guard", unit: actor.id });
     ev.push({ t: "log", text: `${actor.m.name}, 방어 태세. (받는 피해 감소, MP 소량 회복)` });
+    return ev;
+  }
+
+  gridSwapRow(memberId: string): BattleEvent[] {
+    const actor = this.gridAlly(memberId);
+    const ev: BattleEvent[] = [];
+    this.execSwapRow(actor, ev);
     return ev;
   }
 
@@ -355,6 +366,9 @@ export class BattleEngine {
       case "item":
         this.execItem(action.item, this.allyOf(action.target), ev);
         break;
+      case "formation":
+        this.execSwapRow(actor, ev);
+        break;
       case "flee": {
         if (this.canFlee && this.rng() < 0.6) {
           ev.push({ t: "log", text: "파티는 무사히 도망쳤다!" });
@@ -375,6 +389,16 @@ export class BattleEngine {
   }
 
   /* ---- 내부 ---- */
+  private execSwapRow(actor: EngineAlly, ev: BattleEvent[]): void {
+    actor.m.back = !actor.m.back;
+    ev.push({
+      t: "log",
+      text: actor.m.back
+        ? `${actor.m.name}, 후열로 물러났다. (근접 면제·광역 감쇠, 원거리는 조준 보너스 — 창은 후열에서도 찌른다)`
+        : `${actor.m.name}, 전열로 나섰다. (근접 적의 표적이 된다)`,
+    });
+  }
+
   private allyOf(id: UnitId): EngineAlly {
     const u = this.unit(id);
     if (!u || u.kind !== "ally") throw new Error(`아군이 아니다: ${id}`);
@@ -434,11 +458,14 @@ export class BattleEngine {
   private execOffense(actor: EngineAlly, a: BattleAbility, targets: EngineEnemy[], spentMp: number, ev: BattleEvent[]): void {
     const s = memberStats(actor.m);
     const mult = a.id ? rankMult(a.rank) : 1;
+    const weapon = equippedWeapon(actor.m);
+    /* 후열 조준 — 원거리·마법 공격은 난전에서 벗어나 조준할 여유가 있다 (명중 +2 · 치명 +8%p) */
+    const backline = actor.m.back && attackReach(a, weapon) === "ranged";
     /* 명중 보정 = 기본 숙련 + 민첩 수정치 + 숙련(랭크). 기본 공격도 rank 1 */
-    const acc = allyAccuracy(s, a.rank);
+    const acc = allyAccuracy(s, a.rank) + (backline ? 2 : 0);
     /* 데미지 타입 — 물리는 장착 무기 계열, 마법은 스킬/명시 dtype */
-    const dtype = attackDamageType(a, equippedWeapon(actor.m).wtype);
-    const damageTypes = attackDamageTypes(a, equippedWeapon(actor.m).wtype);
+    const dtype = attackDamageType(a, weapon.wtype);
+    const damageTypes = attackDamageTypes(a, weapon.wtype);
     const adv: -1 | 0 | 1 = isFeared(actor.statuses) || !!findStatus(actor.statuses, "slow")
       ? -1
       : findStatus(actor.statuses, "speedup") ? 1 : 0;
@@ -463,6 +490,7 @@ export class BattleEngine {
           acc,
           targetAC: enemyAC(e.def),
           adv,
+          critBonus: backline ? 0.08 : 0,
           dtype,
           damageTypes,
           res: e.def.res,
@@ -659,8 +687,36 @@ export class BattleEngine {
     ev.push({ t: "lunge", unit: e.id });
 
     const feared = isFeared(e.statuses) || !!findStatus(e.statuses, "slow"); // 공포·감속 — 공격이 불리
-    const pool = singleTargets?.length ? singleTargets : targets;
+    /* ---- 진형 — 순수 근접 적의 단일 공격은 전열만 노린다 (전멸 시 후열 노출).
+     *  도약형(flank)은 진형을 무시하고, 마법·원거리 공격은 원래 후열까지 닿는다.
+     *  독립 전투(next 경로)와 그리드 전투가 같은 규칙을 쓰도록 여기서 판정한다. ---- */
+    const provided = singleTargets?.length ? singleTargets : targets;
+    let pool = provided;
+    const hasBack = provided.some((u) => u.m.back);
+    if (!aoe && hasBack && enemyMelee(e.def) && !e.def.flank) {
+      const front = provided.filter((u) => !u.m.back);
+      if (front.length) {
+        pool = front;
+        if (!this.rowLogs.block) {
+          this.rowLogs.block = true;
+          ev.push({ t: "log", text: "근접 공격은 전열에 막힌다 — 후열에는 칼끝이 닿지 않는다!" });
+        }
+      }
+    }
     const victims = aoe ? targets : [forced ?? pool[(this.rng() * pool.length) | 0]];
+    /* 진형 돌파 연출 — 도약 적이 후열을 물거나, 원거리 공격이 후열까지 날아든 순간 */
+    const single = !aoe ? victims[0] : null;
+    if (single?.m.back) {
+      if (e.def.flank) ev.push({ t: "log", text: `${e.def.name}이(가) 전열을 뛰어넘어 후열의 ${single.m.name}을(를) 덮친다!` });
+      else if (!enemyMelee(e.def) && !this.rowLogs.pierce) {
+        this.rowLogs.pierce = true;
+        ev.push({ t: "log", text: `원거리 공격이 후열의 ${single.m.name}까지 날아든다!` });
+      }
+    }
+    if (aoe && hasBack && !this.rowLogs.aoe) {
+      this.rowLogs.aoe = true;
+      ev.push({ t: "log", text: "광역 공격! 후열은 여파만 스쳐 피해가 줄어든다." });
+    }
     /* 복수 속성 사용자는 이번 행동의 속성을 무작위로 고른다 (단일 속성은 난수 소모 없음) */
     const types = enemyAttackTypes(e.def);
     const atkDtype: DamageType = types.length > 1 ? types[(this.rng() * types.length) | 0] : types[0];
@@ -678,7 +734,9 @@ export class BattleEngine {
       }
       const baseStats = memberStats(t.m);
       const s: Stats = { ...baseStats, def: baseStats.def + defenseStatusBonus(t.statuses) };
-      const roll = rollEnemyHit(Math.round(e.atk * attackStatusMult(e.statuses)), s, {
+      /* 광역 후열 감쇠 — 브레스·폭발의 중심은 전열이다. 후열(실제 피격자 기준)은 60%만 받는다 */
+      const rowDamp = aoe && t.m.back ? 0.6 : 1;
+      const roll = rollEnemyHit(Math.round(e.atk * attackStatusMult(e.statuses) * rowDamp), s, {
         aoe,
         guarding: !!findStatus(t.statuses, "guard"),
         attackerFeared: feared,

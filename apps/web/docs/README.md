@@ -12,6 +12,7 @@
 | [02-architecture.md](./02-architecture.md) | 모듈 구조, 런타임 경계, 씬 생명주기 | 코드 구조나 씬을 변경할 때 |
 | [03-content-and-assets.md](./03-content-and-assets.md) | 콘텐츠 추가 절차와 에셋 관리 규칙 | 몬스터·시설·씬·이미지를 추가할 때 |
 | [04-asset-manifest.md](./04-asset-manifest.md) | 런타임 에셋 ← 원본 출처 매핑 | 시트를 재합성하거나 원본을 찾을 때 |
+| [05-quest-narrative.md](./05-quest-narrative.md) | 퀘스트 서사 배경과 확장 메인 라인 기준 | 메인 퀘스트·지역·세력·스토리 이벤트를 설계하거나 구현할 때 |
 
 ## 프로젝트 한 줄 요약
 

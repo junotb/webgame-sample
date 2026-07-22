@@ -29,7 +29,7 @@ describe("TownNavigation", () => {
       .toBe("npc");
     expect(new TownNavigation(town.map, spatial, { x: 13, y: 11, facing: 0 }).interaction().kind)
       .toBe("deco");
-    expect(new TownNavigation(town.map, spatial, { x: 13, y: 21, facing: 2 }).interaction().kind)
+    expect(new TownNavigation(town.map, spatial, { x: 13, y: 22, facing: 2 }).interaction().kind)
       .toBe("gate");
   });
 

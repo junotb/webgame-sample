@@ -5,21 +5,22 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  C, H, SceneScope, W, button, panel, sceneRoot, setModeBadge, toast, tween, txt, wait,
+  C, H, SceneScope, W, button, panel, sceneRoot, setModeBadge, toast, tween, txt, ui, wait,
 } from "../core";
 import {
   BASIC_ATTACK, BattleEngine, BattleEvent, BattleResult, TurnState,
 } from "../core/battle-engine";
-import { ENEMY_DEFS } from "../defs";
+import { DAMAGE_META, ENEMY_DEFS } from "../defs";
 import { STATUS_COLOR, STATUS_NAME } from "../core/statuses";
 import { spawnImpactBurst } from "../battle-fx";
 import { visualRandom } from "../core/random";
-import { drawMonster, MonsterView } from "../monsters";
+import { drawMonster, MonsterView, monsterPx } from "../monsters";
 import {
-  BattleAbility, GridEnemy, Member, attackReach, equippedWeapon, memberAbilities,
+  BattleAbility, GridEnemy, Member, attackReach, canSwapRow, equippedWeapon, memberAbilities, rowBlocked,
 } from "../state";
 import { G } from "../state";
 import { buildPartyHUD } from "../hud";
+import { createBattleLog } from "../ui/battle-log";
 
 export interface FieldBattleHandle {
   dispose(): void;
@@ -44,6 +45,7 @@ export function fieldBattleOverlay(opts: {
   const root = new PIXI.Container();
   sceneRoot.addChild(root);
   setModeBadge("전투! — " + opts.caption, C.blood);
+  ui.inBattle = true;
 
   /* 어두운 장막 — 필드 배경 위에 전장을 깐다 */
   const veil = new PIXI.Graphics();
@@ -64,26 +66,23 @@ export function fieldBattleOverlay(opts: {
     const node = new PIXI.Container();
     node.x = startX + spacing * i;
     node.y = groundY + (i % 2) * 26; // 지그재그로 겹침 완화
-    const monster = drawMonster(def, def.big ?? 1);
+    const monster = drawMonster(def);
     node.addChild(monster);
     const label = txt(def.tier === "일반" ? def.name : `◆ ${def.tier} — ${def.name}`, 14,
       def.tier === "정예" ? C.elite : def.tier === "보스" ? C.boss : C.text,
       { weight: "700", shadow: true });
-    label.anchor.set(0.5); label.y = -132 * (def.big ?? 1); node.addChild(label);
+    label.anchor.set(0.5); label.y = -(monsterPx(def) + 28); node.addChild(label);
     const hpT = txt(`HP ${e.hp}/${def.hp}`, 12, C.dim, { shadow: true });
     hpT.anchor.set(0.5); hpT.y = label.y + 17; node.addChild(hpT);
     root.addChild(node);
     views.set(e.id, { e, node, monster, label, hpT });
   });
 
-  /* ---- 로그 2줄 + 파티 HUD ---- */
-  const logP = panel(W - 32, 58, { alpha: 0.92 }); logP.x = 16; logP.y = 14; root.addChild(logP);
-  const logT = txt("", 15, C.text); logT.x = 32; logT.y = 24; root.addChild(logT);
-  const lines: string[] = [];
-  function log(text: string): void {
-    lines.push(text);
-    logT.text = lines.slice(-2).join("\n");
-  }
+  /* ---- 전투 기록 로그 + 파티 HUD ---- */
+  const battleLog = createBattleLog(W - 32);
+  battleLog.node.x = 16; battleLog.node.y = 14; root.addChild(battleLog.node);
+  const log = (text: string) => battleLog.push(text);
+  const memberOf = (id: string) => G.party.find((m) => `ally:${m.id}` === id);
   const hud = buildPartyHUD(root);
 
   const engine = new BattleEngine(G.party, gridEnemies, {
@@ -96,11 +95,15 @@ export function fieldBattleOverlay(opts: {
 
   function closeCmds(): void { cmdRoot?.destroy({ children: true }); cmdRoot = null; }
 
-  function popOn(node: PIXI.Container, label: string | number, color = 0xffffff): void {
+  /** 피해·상태 팝업 — 몬스터 체급에 따라 머리 위에 뜨도록 뷰에서 높이를 얻는다 */
+  function popHeight(v: EnemyView | undefined): number {
+    return v ? monsterPx(ENEMY_DEFS[v.e.defId]) + 36 : 140;
+  }
+  function popOn(node: PIXI.Container, label: string | number, color = 0xffffff, yOff = 140): void {
     const t = txt(String(label), 26, color, { weight: "900", shadow: true });
     t.anchor.set(0.5);
     t.x = node.x + (visualRandom() * 26 - 13);
-    t.y = node.y - 140;
+    t.y = node.y - yOff;
     root.addChild(t);
     tween(t, { y: t.y - 44, alpha: 0 }, 750, { onDone: () => t.destroy() });
   }
@@ -117,24 +120,38 @@ export function fieldBattleOverlay(opts: {
       else if (ev.t === "hit") {
         const v = "target" in ev ? views.get(ev.target) : undefined;
         if (v) {
-          if (ev.crit) popOn(v.node, "치명타!", C.border);
-          if (ev.resist === "weak") popOn(v.node, "약점!", 0xff8a3c);
-          else if (ev.resist === "resist") popOn(v.node, "저항", C.mp);
-          else if (ev.resist === "immune") popOn(v.node, "무효!", C.dim);
-          popOn(v.node, ev.amount, ev.mag ? 0xb99cff : 0xffffff);
+          log(`→ ${ENEMY_DEFS[v.e.defId].name} ${ev.amount} ${DAMAGE_META[ev.dtype].name} 피해${ev.crit ? " — 치명타!" : ""}`);
+          const yOff = popHeight(v);
+          if (ev.crit) popOn(v.node, "치명타!", C.border, yOff);
+          if (ev.resist === "weak") popOn(v.node, "약점!", 0xff8a3c, yOff);
+          else if (ev.resist === "resist") popOn(v.node, "저항", C.mp, yOff);
+          else if (ev.resist === "immune") popOn(v.node, "무효!", C.dim, yOff);
+          popOn(v.node, ev.amount, ev.mag ? 0xb99cff : 0xffffff, yOff);
           v.monster.playMotion("hit");
-          spawnImpactBurst(root, v.node.x, v.node.y - 130, ev.dtype);
-        } else partyFlash();
+          spawnImpactBurst(root, v.node.x, v.node.y - Math.round(monsterPx(ENEMY_DEFS[v.e.defId]) * 0.6), ev.dtype);
+        } else {
+          log(`→ ${memberOf(ev.target)?.name ?? "아군"} ${ev.amount} 피해`);
+          partyFlash();
+        }
       } else if (ev.t === "miss") {
         const v = views.get(ev.target);
-        if (v) popOn(v.node, "빗나감!", C.dim);
+        if (v) popOn(v.node, "빗나감!", C.dim, popHeight(v));
+        else log(`→ ${memberOf(ev.target)?.name ?? "아군"} 회피!`);
+      } else if (ev.t === "healed") {
+        /* 물약은 엔진 로그 문장에 수치가 있어 스킬 회복만 기록한다 */
+        const m = memberOf(ev.target);
+        if (m && !events.some((e2) => e2.t === "log" && e2.text.includes("회복")))
+          log(`→ ${m.name} ${ev.resource === "hp" ? "HP" : "MP"} +${ev.amount}`);
+      } else if (ev.t === "drain") {
+        const m = memberOf(ev.unit);
+        if (m) log(`→ ${m.name} HP +${ev.amount} 흡수`);
       } else if (ev.t === "save") {
         const v = views.get(ev.target);
-        if (v) popOn(v.node, "내성!", C.epic);
+        if (v) popOn(v.node, "내성!", C.epic, popHeight(v));
       } else if (ev.t === "status") {
         const v = views.get(ev.target);
         if (v) popOn(v.node, ev.on ? STATUS_NAME[ev.status] : `${STATUS_NAME[ev.status]} 해제`,
-          STATUS_COLOR[ev.status] ?? C.epic);
+          STATUS_COLOR[ev.status] ?? C.epic, popHeight(v));
       } else if (ev.t === "death") {
         const v = views.get(ev.unit);
         if (v) {
@@ -156,6 +173,7 @@ export function fieldBattleOverlay(opts: {
     if (finished) return;
     finished = true;
     closeCmds();
+    ui.inBattle = false;
     setModeBadge(opts.prevBadge, C.green);
     wait(650, () => {
       scope.dispose();
@@ -214,8 +232,8 @@ export function fieldBattleOverlay(opts: {
 
   function useAbility(m: Member, a: BattleAbility): void {
     if (offensive(a)) {
-      if (attackReach(a, equippedWeapon(m)) === "melee" && m.back) {
-        toast("후열에서는 근접 기술을 쓸 수 없다.", C.dim); return;
+      if (rowBlocked(m, attackReach(a, equippedWeapon(m)))) {
+        toast("후열에서는 근접 기술을 쓸 수 없다. (창 기술·활·마법은 가능)", C.dim); return;
       }
       if (a.all) { act({ type: "ability", ability: a }); return; }
       const alive = engine.aliveEnemies();
@@ -270,8 +288,8 @@ export function fieldBattleOverlay(opts: {
     name.x = p.x + 16; name.y = p.y + 22; cmdRoot.addChild(name);
     const defs: [string, () => void, boolean?][] = [
       ["공격", () => {
-        if (attackReach(BASIC_ATTACK, equippedWeapon(m)) === "melee" && m.back) {
-          toast("후열에서는 근접 공격을 할 수 없다. (활을 들거나 진형 변경)", C.dim); return;
+        if (rowBlocked(m, attackReach(BASIC_ATTACK, equippedWeapon(m)))) {
+          toast("후열에서는 근접 공격을 할 수 없다. (창·활을 들거나 '진형' 커맨드)", C.dim); return;
         }
         const alive = engine.aliveEnemies();
         if (alive.length === 1) act({ type: "ability", ability: BASIC_ATTACK, target: alive[0].id });
@@ -280,6 +298,10 @@ export function fieldBattleOverlay(opts: {
       ["스킬", () => openSkillMenu(m)],
       ["아이템", () => openItemMenu(m)],
       ["방어", () => act({ type: "guard" })],
+      ["진형", () => {
+        if (!canSwapRow(m)) { toast("전열이 최소 한 명은 있어야 한다.", C.dim); return; }
+        act({ type: "formation" });
+      }],
       ["도주", () => act({ type: "flee" }), !engine.canFlee],
     ];
     defs.forEach(([label, fn, disabled], i) => {
@@ -300,6 +322,7 @@ export function fieldBattleOverlay(opts: {
     dispose() {
       finished = true;
       closeCmds();
+      ui.inBattle = false;
       scope.dispose();
       root.destroy({ children: true });
     },

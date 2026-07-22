@@ -84,6 +84,7 @@ function fortressTheme(): FPTheme {
   return {
     floorAt: () => ({ base: "cave_floor" }),
     wallAt: (x, y) => (mossAt(x, y) ? { base: "cave_wall", decal: "wall_worn_decal" } : { base: "cave_wall" }),
+    doorAt: () => ({ base: "cave_wall", decal: "door_closed_obj" }),
     torchAt,
     ceiling: "cave_ceiling",
     water: "water",
@@ -109,6 +110,7 @@ function templeTheme(): FPTheme {
     wallAt: (x, y) => (templeOrnateAt(x, y)
       ? { base: "temple_wall_ornate" }
       : { base: "temple_wall", decal: (x * 11 + y * 5) % 7 === 0 ? "wall_worn_decal" : undefined }),
+    doorAt: () => ({ base: "temple_wall", decal: "door_closed_obj" }),
     torchAt: templeTorchAt,
     ceiling: "temple_ceiling",
     water: "village_water",
@@ -122,7 +124,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     id: "fortress",
     name: "고블린 요새",
     badge: "탐험 모드 — 고블린 요새",
-    enterLog: "던전에 발을 들였다. 발소리가 어둠 속으로 스며든다…",
+    enterLog: "일행이 던전에 발을 들였다. 발소리가 어둠 속으로 스며든다…",
     map: fortressMap,
     start: START,
     normalSpawns: NORMAL_SPAWNS,
@@ -138,7 +140,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
         loot: () => {
           G.flags.goblinOrders = true;
           G.gold += 60; G.items.potion++;
-          return [{ text: "60 G와 치유 물약, 봉인된 「고블린 작전 문서」를 손에 넣었다! 서명 대신 낯선 인장만 찍혀 있다…", color: C.border }];
+          return [{ text: "일행은 60 G와 치유 물약, 봉인된 「고블린 작전 문서」를 손에 넣었다! 서명 대신 낯선 인장만 찍혀 있다…", color: C.border }];
         },
         notify: { t: "collect", item: "goblin_orders" },
       },
@@ -147,7 +149,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
         trapDmg: 22,
         loot: () => {
           G.gold += 240; G.items.mpotion++;
-          return [{ text: "240 G와 마나 물약을 손에 넣었다!", color: C.border }];
+          return [{ text: "일행은 240 G와 마나 물약을 손에 넣었다!", color: C.border }];
         },
         notify: { t: "reach", poi: "hidden" },
       },
@@ -155,8 +157,8 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     hiddenChestId: "hidden",
     intros: [],
     symbols: {
-      orc: { toast: { text: "길목을 지키던 정예를 물리쳤다!", color: C.elite } },
-      sentry: { toast: { text: "지하 계단을 지키던 파수병을 쓰러뜨렸다. 계단이 열렸다!", color: C.elite } },
+      orc: { toast: { text: "일행이 길목을 지키던 정예를 물리쳤다!", color: C.elite } },
+      sentry: { toast: { text: "일행이 지하 계단을 지키던 파수병을 쓰러뜨렸다. 계단이 열렸다!", color: C.elite } },
     },
     state: () => G.explore,
     exit: { prompt: "[Z] 마을로 돌아간다", go: () => nav.town() },
@@ -179,7 +181,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
         poi: "b1",
         loot: () => {
           G.gold += 220; G.items.potion++;
-          return [{ text: "알현실의 공물 궤에서 220 G와 치유 물약을 손에 넣었다!", color: C.border }];
+          return [{ text: "일행은 알현실의 공물 궤에서 220 G와 치유 물약을 손에 넣었다!", color: C.border }];
         },
       },
       vault: {
@@ -187,7 +189,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
         trapDmg: 26,
         loot: () => {
           G.gold += 420; G.items.mpotion++;
-          return [{ text: "밀실의 사물함에서 420 G와 마나 물약을 손에 넣었다!", color: C.border }];
+          return [{ text: "일행은 밀실의 사물함에서 420 G와 마나 물약을 손에 넣었다!", color: C.border }];
         },
         notify: { t: "reach", poi: "vault" },
       },
@@ -201,7 +203,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
       nodes: [
         { name: "???", portrait: "dark", text: "향 연기 너머, 천 예복의 고블린이 지팡이를 짚고 몸을 돌린다. 「…쥐새끼들이 알현실까지 기어들어 왔군.」" },
         {
-          name: "에런", portrait: "hero", text: "마을을 약탈하고 사람들을 가둔 게 너인가. 넷이서 왔다 — 여기서 끝내겠다.",
+          text: "마을을 약탈하고 사람들을 가둔 원흉 — 이 소굴의 주인이 모습을 드러냈다. 저 주술사를 쓰러뜨리면 크로스베일의 위협도 끝난다.",
           choices: [
             { label: "무기를 뽑는다 (전투 개시)", goto: 2 },
             { label: "물러난다", effect: () => { G._fled = true; }, goto: "end" },
@@ -227,7 +229,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     id: "temple",
     name: "버려진 사원",
     badge: "탐험 모드 — 버려진 사원",
-    enterLog: "무너진 정문을 지나 성소에 들어섰다. 파도 소리가 돌벽 너머에서 웅웅 울린다…",
+    enterLog: "일행이 무너진 정문을 지나 성소에 들어섰다. 파도 소리가 돌벽 너머에서 웅웅 울린다…",
     map: templeMap,
     start: TEMPLE_START,
     normalSpawns: TEMPLE_NORMAL_SPAWNS,
@@ -241,7 +243,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
         poi: "reliquary",
         loot: () => {
           G.gold += 180; G.items.potion++;
-          return [{ text: "물때 낀 성물함에서 180 G와 치유 물약을 건져 냈다!", color: C.border }];
+          return [{ text: "일행은 물때 낀 성물함에서 180 G와 치유 물약을 건져 냈다!", color: C.border }];
         },
       },
       crypt_cache: {
@@ -249,7 +251,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
         trapDmg: 20,
         loot: () => {
           G.gold += 320; G.items.mpotion++;
-          return [{ text: "교단이 감춘 헌금 궤에서 320 G와 마나 물약을 손에 넣었다!", color: C.border }];
+          return [{ text: "일행은 교단이 감춘 헌금 궤에서 320 G와 마나 물약을 손에 넣었다!", color: C.border }];
         },
         notify: { t: "reach", poi: "crypt_cache" },
       },
@@ -269,15 +271,15 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
             { label: "물러난다", effect: () => { G._fled = true; }, goto: "end" },
           ],
         },
-        { name: "에런", portrait: "hero", text: "의식은 여기서 끝이다. 무기를 들어!" },
+        { text: "일행이 무기를 고쳐 잡고 제단 앞으로 나섰다. 되살아난 주교의 의식을 여기서 끊어야 한다." },
       ],
     }],
     symbols: {
-      warden: { toast: { text: "제단을 지키던 촉수꽃을 베어 냈다!", color: C.elite } },
+      warden: { toast: { text: "일행이 제단을 지키던 촉수꽃을 베어 냈다!", color: C.elite } },
       fallen_bishop: {
         onKilled: () => { G.flags.bishopDefeated = true; },
         toast: {
-          text: "주교를 붙들던 힘이 흩어졌다. 제단 아래에서 교단과 희생자들의 기록을 확보했다 — 에버모어 성에 보고하자.",
+          text: "주교를 붙들던 힘이 흩어졌다. 일행은 제단 아래에서 교단과 희생자들의 기록을 확보했다 — 에버모어 성에 보고해야 한다.",
           color: C.boss,
         },
       },

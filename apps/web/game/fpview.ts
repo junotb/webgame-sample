@@ -4,11 +4,12 @@
  *  - 정면 벽: 타일 스프라이트 / 측면 벽·바닥·천장: PerspectiveMesh 원근 매핑
  *  - 표면은 베이스 타일 + 선택적 데칼(풍화·포장·창문 등) 2겹으로 그린다
  *  - 횃불은 벽 위 불꽃 스프라이트 — tick에서 6프레임 애니메이션 + 광원 플리커
- *  - 엔티티(적·상자·문 등)는 씬이 소유한 노드를 빌보드로 배치
+ *  - 닫힌 문 칸은 벽과 같은 입체로 서되 표면만 doorAt(닫힌 문 데칼)으로 그린다
+ *  - 엔티티(적·상자 등)는 씬이 소유한 노드를 빌보드로 배치
  *  - 테마(FPTheme)로 던전/마을이 같은 렌더러를 다른 표면으로 사용
  * ===================================================================== */
 import * as PIXI from "pixi.js";
-import { DIR, Facing, GridMap, cellAt, hasLOS, rightOf } from "./grid";
+import { CellKind, DIR, Facing, GridMap, cellAt, hasLOS, rightOf } from "./grid";
 import { floorVariant, mossAt, torchAt } from "./goblin-fortress";
 import { TileName, flameTex, tileTex } from "./tiles";
 
@@ -30,6 +31,8 @@ export interface SurfacePick { base: TileName; decal?: TileName; cap?: TileName;
 export interface FPTheme {
   floorAt(x: number, y: number): SurfacePick;
   wallAt(x: number, y: number): SurfacePick;
+  /** 문 칸의 표면 — 벽처럼 서서 통행·시야를 막는 닫힌 문. 생략하면 wallAt을 쓴다. */
+  doorAt?(x: number, y: number): SurfacePick;
   torchAt(x: number, y: number): boolean;
   /** null이면 야외 하늘이 보이도록 천장 면을 그리지 않는다. */
   ceiling: TileName | null;
@@ -53,6 +56,7 @@ export function dungeonTheme(): FPTheme {
   return {
     floorAt: (x, y) => ({ base: floorVariant(x, y) }),
     wallAt: (x, y) => (mossAt(x, y) ? { base: "wall", decal: "wall_worn_decal" } : { base: "wall" }),
+    doorAt: () => ({ base: "wall", decal: "door_closed_obj" }),
     torchAt,
     ceiling: "ceiling",
     water: "water",
@@ -101,6 +105,11 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
   let glowT = 0;
   const viewDistance = Math.max(1, Math.floor(theme.viewDistance ?? DEFAULT_MAXD));
   const roofH = theme.roofHeight ?? 0;
+
+  /* 벽과 닫힌 문은 같은 입체로 선다 — 표면만 doorAt으로 갈린다 */
+  const solid = (k: CellKind): boolean => k === "wall" || k === "door";
+  const surfAt = (map: GridMap, mx: number, my: number): SurfacePick =>
+    cellAt(map, mx, my) === "door" && theme.doorAt ? theme.doorAt(mx, my) : theme.wallAt(mx, my);
 
   const shade = (color: number, amount: number): number => {
     const r = Math.round(((color >> 16) & 0xff) * amount);
@@ -169,7 +178,7 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
       for (let j = -SIDE; j <= SIDE; j++) {
         const { mx, my } = mapXY(d, j);
         const kind = cellAt(map, mx, my);
-        if (kind === "wall") continue;
+        if (solid(kind)) continue;
         const pick: SurfacePick =
           kind === "water" ? { base: theme.water }
             : kind === "stairs" ? theme.stairs
@@ -197,11 +206,11 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
       for (let a = SIDE; a >= 1; a--) {
         for (const j of [-a, a]) {
           const { mx, my } = mapXY(d, j);
-          if (cellAt(map, mx, my) !== "wall") continue;
+          if (!solid(cellAt(map, mx, my))) continue;
           const inner = mapXY(d, j - Math.sign(j));
-          if (cellAt(map, inner.mx, inner.my) === "wall") continue; // 면이 벽에 붙어 안 보임
+          if (solid(cellAt(map, inner.mx, inner.my))) continue; // 면이 벽에 붙어 안 보임
           const lat = j - Math.sign(j) * 0.5;
-          const wp = theme.wallAt(mx, my);
+          const wp = surfAt(map, mx, my);
           const sFog = shade(theme.wallTint ?? 0xffffff, fog((near + far) / 2, viewDistance) * 0.88);
           const nT = topY(near), nB = botY(near), fT = topY(far), fB = botY(far);
           const xN = px(near, lat), xF = px(far, lat);
@@ -213,8 +222,8 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
           if (wp.cap && roofH > 0) {
             const latRidge = lat + Math.sign(j) * ROOF_DEPTH;
             const ahead = mapXY(d - 1, j), behind = mapXY(d + 1, j);
-            const nR = near + (cellAt(map, ahead.mx, ahead.my) === "wall" ? 0 : ROOF_HIP);
-            const fR = far - (cellAt(map, behind.mx, behind.my) === "wall" ? 0 : ROOF_HIP);
+            const nR = near + (solid(cellAt(map, ahead.mx, ahead.my)) ? 0 : ROOF_HIP);
+            const fR = far - (solid(cellAt(map, behind.mx, behind.my)) ? 0 : ROOF_HIP);
             const xRN = px(nR, latRidge), yRN = yAt(nR, 1 + roofH);
             const xRF = px(fR, latRidge), yRF = yAt(fR, 1 + roofH);
             quad(tileTex(wp.cap), j > 0
@@ -229,10 +238,10 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
         const face = d;
         for (let j = -SIDE; j <= SIDE; j++) {
           const { mx, my } = mapXY(d, j);
-          if (cellAt(map, mx, my) !== "wall") continue;
+          if (!solid(cellAt(map, mx, my))) continue;
           const behind = mapXY(d - 1, j);
-          if (d > 1 && cellAt(map, behind.mx, behind.my) === "wall") continue; // 앞 벽에 가려짐
-          const wp = theme.wallAt(mx, my);
+          if (d > 1 && solid(cellAt(map, behind.mx, behind.my))) continue; // 앞 벽에 가려짐
+          const wp = surfAt(map, mx, my);
           const xL = px(face, j - 0.5), xR = px(face, j + 0.5);
           const yT = topY(face), yB = botY(face);
           const tint = shade(theme.wallTint ?? 0xffffff, fog(face, viewDistance));
@@ -257,8 +266,8 @@ export function createFPView(theme: FPTheme = dungeonTheme()): FPView {
           if (wp.cap && roofH > 0) {
             const ridgeD = face + ROOF_DEPTH;
             const left = mapXY(d, j - 1), right = mapXY(d, j + 1);
-            const hipL = cellAt(map, left.mx, left.my) === "wall" ? 0 : ROOF_HIP;
-            const hipR = cellAt(map, right.mx, right.my) === "wall" ? 0 : ROOF_HIP;
+            const hipL = solid(cellAt(map, left.mx, left.my)) ? 0 : ROOF_HIP;
+            const hipR = solid(cellAt(map, right.mx, right.my)) ? 0 : ROOF_HIP;
             const ridgeY = yAt(ridgeD, 1 + roofH);
             quad(tileTex(wp.cap), [
               px(ridgeD, j - 0.5 + hipL), ridgeY,

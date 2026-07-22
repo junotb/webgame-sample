@@ -172,6 +172,7 @@
 ### 7. 의뢰와 영속성
 
 - 의뢰 정의는 `game/defs/quests.ts`, 판정 규칙은 `game/core/quests.ts`가 담당한다.
+- 퀘스트의 서사 배경과 구현 예정인 확장 메인 라인은 [05-quest-narrative.md](./05-quest-narrative.md)를 기준으로 한다. 문서의 확장 기획과 현재 구현 범위를 혼동하지 않는다.
 - `GameState`에는 파티, 가방, 재화, 탐험 상태, 플래그와 의뢰 상태가 포함된다.
 - `game/persistence.ts`는 버전이 포함된 JSON 직렬화·역직렬화와 최소 스키마 검증을 제공한다.
 - 세이브 구조를 변경하면 `SAVE_VERSION`과 `persistence.test.ts`를 함께 검토한다.

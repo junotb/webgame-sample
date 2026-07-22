@@ -78,9 +78,14 @@ describe.each(townIds)("마을 맵 규칙 — %s", (id) => {
     }
   });
 
-  it("장식 POI와 성문은 바닥 칸 위에 있다", () => {
+  it("장식 POI는 바닥 칸, 성문은 문(+) 칸 위에 있고 정면 접근 칸이 있다", () => {
     for (const d of t.decos) expect(cellAt(t.map, d.x, d.y), d.id).toBe("floor");
-    for (const g of t.gates) expect(cellAt(t.map, g.x, g.y), "gate").toBe("floor");
+    for (const g of t.gates) {
+      expect(cellAt(t.map, g.x, g.y), g.id).toBe("door");
+      const approach = DIRS.some(([dx, dy]) =>
+        cellAt(t.map, g.x + dx, g.y + dy) === "floor");
+      expect(approach, `${g.id}: 성문 앞 접근 칸 없음`).toBe(true);
+    }
   });
 
   it("모든 통행 가능 칸은 진입 지점에서 도달 가능하다 (차단 POI 제외)", () => {

@@ -29,6 +29,8 @@ export function rollAllyHit(
     mult: number; bless: number; enemyDef: number; defDown?: number; bonus?: number;
     attackMult?: number; tagMult?: number; currentHpBonus?: number;
     acc: number; targetAC: number; adv?: -1 | 0 | 1;
+    /** 추가 치명타 확률 — 후열 조준 사격 등 상황 보너스 */
+    critBonus?: number;
     dtype: DamageType; damageTypes?: DamageComponent[]; res?: ResistTable;
   },
   rng: () => number = gameplayRandom,
@@ -56,8 +58,8 @@ export function rollAllyHit(
   dmg = Math.max(1, dmg - defv);
   if (opts.bonus) dmg += opts.bonus;
   if (opts.currentHpBonus) dmg += opts.currentHpBonus;
-  /* 치명타 — 자연20/sureCrit로 이미 확정이면 굴리지 않음. 아니면 기술 확률 + 운(Fortune) */
-  if (!crit) crit = rng() < (a.crit ?? 0) + s.crit;
+  /* 치명타 — 자연20/sureCrit로 이미 확정이면 굴리지 않음. 아니면 기술 확률 + 운(Fortune) + 상황 보너스 */
+  if (!crit) crit = rng() < (a.crit ?? 0) + s.crit + (opts.critBonus ?? 0);
   if (crit) dmg = Math.round(dmg * 1.7);
   /* 저항/약점 — 최종 피해에 타입 배율. 무효(≤0)는 0, 그 외는 최소 1 보장 */
   const components = normalizeDamage(opts.damageTypes?.length ? opts.damageTypes : [{ type: opts.dtype, ratio: 1 }]);

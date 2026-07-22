@@ -88,11 +88,16 @@ export function compileTown<TNpc extends TownNpcPosition>(
   }
 
   for (const gate of town.gates) {
-    if (cellAt(town.map, gate.x, gate.y) !== "floor") {
-      fail(town, `성문 '${gate.label}'이 바닥 칸에 있지 않음 (${gate.x},${gate.y})`);
+    if (cellAt(town.map, gate.x, gate.y) !== "door") {
+      fail(town, `성문 '${gate.label}'이 문 칸에 있지 않음 (${gate.x},${gate.y})`);
+    }
+    if (facilityByPosition.has(townPositionKey(gate.x, gate.y))) {
+      fail(town, `성문 '${gate.label}'이 시설 문과 같은 칸 (${gate.x},${gate.y})`);
+    }
+    if (!DIRS.some(([dx, dy]) => cellAt(town.map, gate.x + dx, gate.y + dy) === "floor")) {
+      fail(town, `성문 '${gate.label}'에 접근 가능한 정면 칸이 없음`);
     }
     addUnique(town, gateByPosition, gate, gate.x, gate.y, "성문");
-    occupyFloor(gate.x, gate.y, `성문 '${gate.label}'`);
   }
 
   for (const npc of npcs) {

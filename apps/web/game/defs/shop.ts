@@ -31,7 +31,7 @@ export interface GearDef {
 export const SHOP_WEAPONS: GearDef[] = [
   { id: "w0", name: "단검", slot: "offHand", atk: 4, wtype: "slash", reach: "melee", price: 90 },
   { id: "w1", name: "강철 검", slot: "mainHand", atk: 5, wtype: "slash", reach: "melee", price: 120 },
-  { id: "w2", name: "강철 창", slot: "mainHand", atk: 6, wtype: "pierce", reach: "melee", price: 140 },
+  { id: "w2", name: "강철 창", slot: "mainHand", atk: 6, wtype: "pierce", reach: "reach", price: 140 },
   { id: "w3", name: "전투 망치", slot: "mainHand", atk: 7, wtype: "bludgeon", reach: "melee", price: 150 },
   { id: "w4", name: "사냥 활", slot: "mainHand", atk: 9, wtype: "pierce", reach: "ranged", twoHanded: true, price: 260 },
   { id: "w5", name: "대검", slot: "mainHand", atk: 14, wtype: "slash", reach: "melee", twoHanded: true, price: 520 },
@@ -39,6 +39,7 @@ export const SHOP_WEAPONS: GearDef[] = [
   { id: "w7", name: "룬 메이스", slot: "mainHand", atk: 17, wtype: "bludgeon", reach: "melee", price: 900 },
   { id: "w8", name: "장궁", slot: "mainHand", atk: 16, wtype: "pierce", reach: "ranged", twoHanded: true, price: 820 },
   { id: "w9", name: "룬 블레이드", slot: "mainHand", atk: 19, wtype: "slash", reach: "melee", price: 980 },
+  { id: "w10", name: "룬 미늘창", slot: "mainHand", atk: 17, wtype: "pierce", reach: "reach", twoHanded: true, price: 940 },
 ];
 
 /* 방어구·방패·장신구 — 투구·갑옷·신발·망토(방어/저항) + 목걸이·반지(능력치) */

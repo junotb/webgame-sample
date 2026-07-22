@@ -80,6 +80,7 @@ export const MONSTER_ICONS: MonsterIconDef[] = [
   { nameKo: "고블린 늑대기수", nameEn: "Goblinrider"    },
   { nameKo: "고블린 광신도", nameEn: "Goblinfanatic"   },
   { nameKo: "고블린 주술사", nameEn: "Goblinoccultist" },
+  { nameKo: "부두 주술사",   nameEn: "Voodooshaman"    },
   /* ---- 버려진 사원 로스터 (goblin_occultist 스프라이트에서 슬라이스) ---- */
   { nameKo: "되살아난 주교", nameEn: "Fallenbishop"    },
 ];
@@ -101,6 +102,8 @@ export type CreatureTag =
   | "summoned";
 /** 단일 프레임 몬스터에 적용하는 코드 기반 움직임 유형 */
 export type MonsterMotion = "slime" | "flying" | "plant" | "beast" | "ghost" | "humanoid";
+/** 체급 — 표시 크기·1인칭 빌보드 높이를 결정한다. 쥐와 오크가 같은 크기로 보이지 않게 전 몬스터가 필수로 갖는다 */
+export type MonsterSize = "small" | "medium" | "large" | "huge";
 export interface EnemyDef {
   name: string;
   hp: number;
@@ -119,7 +122,10 @@ export interface EnemyDef {
   /** MONSTER_ICONS.nameEn — assets/monsters/icons/<lowercase nameEn>.png */
   img: string;
   color: number;
-  big?: number;
+  /** 체급 — small(80px)·medium(104)·large(140)·huge(184). huge는 1인칭 복도 천장에 닿는다 */
+  size: MonsterSize;
+  /** 도약·암습형 — 근접 공격이 진형을 무시하고 후열까지 닿는다 (박쥐 급강하, 늑대 도약 등) */
+  flank?: boolean;
   /** 회피도(AC) — 생략 시 tier·speed에서 파생 (enemyAC) */
   ac?: number;
   /** 공격 명중 보정 — 생략 시 파생 (enemyAcc) */
@@ -192,6 +198,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "slime",
     img: "Glareslime",
     color: 0x6ea86a,
+    size: "small",
     /* 물렁한 몸 — 날붙이·찌르기는 흘리고, 둔기와 불에 약하다 */
     res: { slash: 0.6, pierce: 0.5, bludgeon: 1.4, fire: 1.25, earth: 0.8 },
     atkType: "bludgeon", // 몸통 박치기
@@ -211,6 +218,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "humanoid",
     img: "Goblinfighter",
     color: 0x6f8a3c,
+    size: "medium",
     /* 금속 방패를 든 동굴 전사 — 전격에 약하고 어둠에 익숙하다 */
     res: { wind: 1.25, dark: 0.85 },
     atkType: "slash", // 이 빠진 칼과 방패
@@ -229,6 +237,8 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "beast",
     img: "Goblinrider",
     color: 0x9a9aa0,
+    size: "large",
+    flank: true, // 굴늑대의 도약 돌격 — 후열까지 문다
     /* 사나운 굴늑대 — 찌르기에 약하고 지면 충격을 흘린다 */
     res: { pierce: 1.35, earth: 0.85 },
     atkType: "pierce", // 늑대의 송곳니 돌격
@@ -247,6 +257,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "ghost",
     img: "Frostwraith",
     color: 0x7fc8dc,
+    size: "medium",
     /* 냉기 언데드 — 뼈는 둔기에 바스러지고 빛·불에 정화된다. 찌르기·냉기·어둠은 무의미 */
     res: { bludgeon: 1.5, fire: 1.3, light: 1.65, pierce: 0.5, water: 0.25, dark: 0 },
     atkType: "water", // 냉기의 손길
@@ -266,7 +277,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "humanoid",
     img: "Goblinfanatic",
     color: 0x8a6a3c,
-    big: 1.35,
+    size: "large",
     /* 광기에 물든 상위 고블린 — 땅·물·빛에 약하고 어둠 의식에 익숙하다 */
     res: { earth: 1.25, water: 1.2, light: 1.3, dark: 0.8 },
     atkType: "slash", // 제례용 곡도
@@ -287,7 +298,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "humanoid",
     img: "Goblinoccultist",
     color: 0xc05a7a,
-    big: 1.45,
+    size: "huge",
     /* 천 예복의 주술사 — 날붙이·빛·물에 약하고, 제 주술인 불·어둠은 몸에 배어 있다 */
     res: { slash: 1.2, pierce: 1.2, light: 1.35, water: 1.15, fire: 0.6, dark: 0.6 },
     atkTypes: ["fire", "dark"], // 불꽃과 어둠의 주술을 번갈아 퍼붓는다 (단일·전체)
@@ -308,7 +319,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "humanoid",
     img: "Goblinfighter",
     color: 0x4a5a8a,
-    big: 1.2,
+    size: "large",
     /* 철갑 방패병 — 전격에 약하고 베기를 방패로 흘린다 */
     res: { wind: 1.25, slash: 0.8, dark: 0.85 },
     atkType: "slash", // 의장용 대검
@@ -328,6 +339,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "plant",
     img: "Corpsecap",
     color: 0x8a9a6a,
+    size: "small",
     /* 시신을 먹고 자란 버섯 — 불·빛에 타오르고 날붙이는 무른 몸을 벤다. 어둠은 양분이다 */
     res: { fire: 1.5, light: 1.3, pierce: 0.6, dark: 0.7 },
     atkType: "bludgeon", // 부풀어 오른 몸통 부딪치기
@@ -347,6 +359,8 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "flying",
     img: "Duskbat",
     color: 0x5a4a7a,
+    size: "small",
+    flank: true, // 서까래에서 급강하 — 진형을 무시하고 후열을 덮친다
     /* 회랑 서까래의 박쥐 떼 — 빛에 움츠러들고 어둠에 녹아든다 */
     res: { light: 1.3, slash: 1.2, dark: 0.7 },
     atkType: "pierce", // 송곳니 급강하
@@ -366,6 +380,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "slime",
     img: "Eyeblob",
     color: 0x9a4a5a,
+    size: "medium",
     /* 의식의 부산물 — 커다란 눈은 찌르기에 약하고, 빛이 스며들면 몸부림친다 */
     res: { pierce: 1.4, light: 1.3, bludgeon: 0.8, dark: 0.6 },
     atkType: "dark", // 최면의 응시
@@ -385,7 +400,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "plant",
     img: "Tendrilbloom",
     color: 0x6a8a4a,
-    big: 1.3,
+    size: "large",
     /* 제단의 피를 마시고 자란 덩굴 — 불에 약하고 물·땅 기운은 양분으로 삼는다 */
     res: { fire: 1.45, slash: 1.2, water: 0.7, earth: 0.7 },
     atkType: "bludgeon", // 후려치는 덩굴
@@ -405,7 +420,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     motion: "humanoid",
     img: "Fallenbishop",
     color: 0x8a3a4a,
-    big: 1.5,
+    size: "huge",
     /* 알 수 없는 힘으로 일어선 시신 — 빛과 불이 그 힘을 태우고, 어둠은 스며들지 못한다 */
     res: { light: 1.6, fire: 1.25, dark: 0.4, pierce: 0.8, water: 0.9 },
     atkType: "dark", // 거꾸로 된 기도

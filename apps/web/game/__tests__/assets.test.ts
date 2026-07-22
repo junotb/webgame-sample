@@ -4,6 +4,8 @@
 import { existsSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ENEMY_DEFS, MONSTER_ICONS, NPCS, PARTY_SLOTS } from "../defs";
+import { HIRES_MONSTERS } from "../monsters";
+import { NPC_SPRITE_SHEETS } from "../npc-sprites";
 import { PORTRAITS } from "../portraits";
 import { SHEET_FILES } from "../tiles";
 
@@ -35,6 +37,33 @@ describe("몬스터 아이콘 카탈로그", () => {
     const names = new Set(MONSTER_ICONS.map((m) => m.nameEn));
     for (const [id, d] of Object.entries(ENEMY_DEFS))
       expect(names.has(d.img), `${id}: ${d.img}`).toBe(true);
+  });
+
+  it("HIRES_MONSTERS는 카탈로그 nameEn을 쓰고 large 파일이 존재한다", () => {
+    const names = new Set(MONSTER_ICONS.map((m) => m.nameEn));
+    for (const n of HIRES_MONSTERS) {
+      expect(names.has(n), `카탈로그에 없음: ${n}`).toBe(true);
+      expect(existsSync(`public/assets/monsters/large/${n.toLowerCase()}.png`), n).toBe(true);
+    }
+  });
+});
+
+describe("NPC 거리 스프라이트", () => {
+  it("시트 목록과 assets/npcs 파일은 1:1로 대응한다", () => {
+    const files = new Set(
+      readdirSync("public/assets/npcs")
+        .filter((f) => f.endsWith(".png"))
+        .map((f) => f.replace(/\.png$/, "")),
+    );
+    for (const s of NPC_SPRITE_SHEETS) expect(files.has(s), `파일 없음: ${s}.png`).toBe(true);
+    for (const f of files) expect((NPC_SPRITE_SHEETS as readonly string[]).includes(f), `목록 누락: ${f}.png`).toBe(true);
+  });
+
+  it("NpcDef.sprite는 시트 목록의 이름만 사용한다", () => {
+    for (const n of NPCS) {
+      if (!n.sprite) continue;
+      expect((NPC_SPRITE_SHEETS as readonly string[]).includes(n.sprite), `${n.id}: ${n.sprite}`).toBe(true);
+    }
   });
 });
 

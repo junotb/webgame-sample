@@ -7,6 +7,7 @@ import { FACING_NAME, cellAt } from "../grid";
 import type { GridMap } from "../grid";
 import { ENTRANCE_WALL_SKIN, FIELD_ENTRANCE_KIND } from "../entrances";
 import { drawAdventurer } from "../monsters";
+import { NPC_SPRITE_PX, npcSpriteView } from "../npc-sprites";
 import { createFPView } from "../fpview";
 import type { FPEntity, FPTheme, SurfacePick } from "../fpview";
 import { tileSprite, tileTex } from "../tiles";
@@ -353,14 +354,23 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
   const npcMarks: Array<() => void> = [];
   for (const npc of npcs) {
     const node = new PIXI.Container();
-    const body = drawAdventurer(npc.color, npc.accent, 1.2);
-    node.addChild(body);
-    /* 제자리 숨쉬기 — NPC마다 위상을 어긋내 광장이 살아 보이게 한다 */
-    ambientTicks.push(bobSprite(body, { pixels: 2, period: 1700 + (npc.gx * 37 + npc.gy * 59) % 600, phase: npc.gx + npc.gy }));
+    /* 시트가 있으면 idle 스프라이트, 없으면 절차적 그리기 + 숨쉬기 폴백.
+     * 위상은 NPC마다 어긋내 광장이 살아 보이게 한다. */
+    const spriteView = npc.sprite ? npcSpriteView(npc.sprite, { phase: npc.gx + npc.gy }) : null;
+    let bodyH = 92;
+    if (spriteView) {
+      node.addChild(spriteView.node);
+      ambientTicks.push(spriteView.tick);
+      bodyH = NPC_SPRITE_PX;
+    } else {
+      const body = drawAdventurer(npc.color, npc.accent, 1.2);
+      node.addChild(body);
+      ambientTicks.push(bobSprite(body, { pixels: 2, period: 1700 + (npc.gx * 37 + npc.gy * 59) % 600, phase: npc.gx + npc.gy }));
+    }
     const name = txt(npc.name, 12, C.border, { weight: "700", shadow: true });
     name.anchor.set(0.5, 0); name.y = 6; node.addChild(name);
     const mark = txt("!", 18, C.elite, { weight: "900", shadow: true });
-    mark.anchor.set(0.5, 1); mark.y = -84; node.addChild(mark);
+    mark.anchor.set(0.5, 1); mark.y = 8 - bodyH; node.addChild(mark);
     const refreshMark = () => {
       const statuses = (npc.quests ?? []).map((quest) => questStatus(quest));
       mark.text = statuses.includes("done") ? "!" : statuses.includes("available") ? "?" : "";
@@ -368,7 +378,7 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
     };
     refreshMark();
     npcMarks.push(refreshMark);
-    entities.push({ id: `npc:${npc.id}`, x: npc.gx, y: npc.gy, node, worldH: 0.62, baseH: 92 });
+    entities.push({ id: `npc:${npc.id}`, x: npc.gx, y: npc.gy, node, worldH: 0.62, baseH: bodyH });
   }
 
   return { entities, refreshNpcMarks: () => npcMarks.forEach((refresh) => refresh()), ambientTicks };

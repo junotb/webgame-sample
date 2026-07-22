@@ -80,9 +80,10 @@ export const MONSTER_ICONS: MonsterIconDef[] = [
   { nameKo: "고블린 늑대기수", nameEn: "Goblinrider"    },
   { nameKo: "고블린 광신도", nameEn: "Goblinfanatic"   },
   { nameKo: "고블린 주술사", nameEn: "Goblinoccultist" },
-  { nameKo: "부두 주술사",   nameEn: "Voodooshaman"    },
   /* ---- 버려진 사원 로스터 (goblin_occultist 스프라이트에서 슬라이스) ---- */
   { nameKo: "되살아난 주교", nameEn: "Fallenbishop"    },
+  /* ---- 보스 전용 (assets-source/npcs/voodoo_behavior_animation에서 슬라이스, large 고해상도 동봉) ---- */
+  { nameKo: "가면 주술사",   nameEn: "Voodooshaman"    },
 ];
 
 export type Tier = "일반" | "정예" | "보스" | "에픽";
@@ -296,7 +297,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     tags: ["living", "humanoid"],
     shape: "lord",
     motion: "humanoid",
-    img: "Goblinoccultist",
+    img: "Voodooshaman",
     color: 0xc05a7a,
     size: "huge",
     /* 천 예복의 주술사 — 날붙이·빛·물에 약하고, 제 주술인 불·어둠은 몸에 배어 있다 */

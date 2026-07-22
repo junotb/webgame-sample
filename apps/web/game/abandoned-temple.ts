@@ -104,7 +104,7 @@ export const TEMPLE_PROPS: TemplePropDef[] = [
     id: "soulflame", name: "혼불 성화", x: 16, y: 22,
     tile: "soulflame_obj_0", frames: ["soulflame_obj_0", "soulflame_obj_1", "soulflame_obj_2"],
     scale: 1.6, worldH: 0.72, baseH: 98,
-    text: "기름도 없이 타는 푸른 불꽃. 성화라 부르기엔… 온기가 조금도 느껴지지 않는다.",
+    text: "기름도 없이 타는 푸른 불꽃. 성화라 부르기엔… 온기가 조금도 없다.",
   },
   {
     id: "pillar", name: "홈 파인 석주", x: 6, y: 15,

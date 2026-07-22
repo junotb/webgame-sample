@@ -6,7 +6,9 @@ import { STATUS_COLOR, STATUS_NAME } from "../../core/statuses";
 import { visualRandom } from "../../core/random";
 import { spawnImpactBurst } from "../../battle-fx";
 import type { MonsterView } from "../../monsters";
+import { monsterPx } from "../../monsters";
 import { GridEnemy, Member } from "../../state";
+import { LOG_HEAL, LOG_HURT } from "../../ui/battle-log";
 
 export interface EnemyVisualRef { node: PIXI.Container; monster: MonsterView; }
 
@@ -15,7 +17,7 @@ export function createCombatPresenter(opts: {
   enemies: GridEnemy[];
   enemyVisuals: Map<string, EnemyVisualRef>;
   party: Member[];
-  log: (text: string) => void;
+  log: (text: string, color?: number) => void;
   onEnemyDeath: (enemy: GridEnemy) => void;
 }) {
   const { root, enemies, enemyVisuals, party, log, onEnemyDeath } = opts;
@@ -27,7 +29,8 @@ export function createCombatPresenter(opts: {
     const visual = enemyVisuals.get(enemy.id);
     const onScreen = visual && visual.node.parent;
     const x = onScreen ? visual.node.x + (visualRandom() * 26 - 13) : W / 2;
-    const y = onScreen ? visual.node.y - 130 * visual.node.scale.y : 200;
+    /* 팝업은 체급별 머리 위 — 거대 몬스터는 몸통에 겹치지 않게 더 높이 */
+    const y = onScreen ? visual.node.y - (monsterPx(ENEMY_DEFS[enemy.defId]) + 26) * visual.node.scale.y : 200;
     const text = txt(String(label), 26, color, { weight: "900", shadow: true });
     text.anchor.set(0.5); text.x = x; text.y = y; root.addChild(text);
     tween(text, { y: y - 44, alpha: 0 }, 750, { onDone: () => text.destroy() });
@@ -58,7 +61,8 @@ export function createCombatPresenter(opts: {
       const enemy = "target" in event ? enemyOf(event.target) : undefined;
       if (event.t === "miss" && enemy) popDamage(enemy, "빗나감!", C.dim);
       else if (event.t === "hit" && enemy) {
-        log(`→ ${ENEMY_DEFS[enemy.defId].name} ${event.amount} ${DAMAGE_META[event.dtype].name} 피해${event.crit ? " — 치명타!" : ""}`);
+        log(`→ ${ENEMY_DEFS[enemy.defId].name} ${event.amount} ${DAMAGE_META[event.dtype].name} 피해${event.crit ? " — 치명타!" : ""}`,
+          DAMAGE_META[event.dtype].color);
         if (event.crit) popDamage(enemy, "치명타!", C.border);
         if (event.resist === "weak") popDamage(enemy, "약점!", 0xff8a3c);
         else if (event.resist === "resist") popDamage(enemy, "저항", C.mp);
@@ -66,11 +70,11 @@ export function createCombatPresenter(opts: {
         popDamage(enemy, event.amount, event.resist === "immune" ? C.dim : event.mag ? 0xb99cff : 0xffffff);
         flashEnemy(enemy);
         const visual = enemyVisuals.get(enemy.id);
-        if (visual) spawnImpactBurst(root, visual.node.x, visual.node.y - 130 * visual.node.scale.y, event.dtype);
+        if (visual) spawnImpactBurst(root, visual.node.x, visual.node.y - monsterPx(ENEMY_DEFS[enemy.defId]) * 0.6 * visual.node.scale.y, event.dtype);
       } else if (event.t === "save" && enemy) popDamage(enemy, "내성!", C.epic);
       else if (event.t === "drain") {
         const drained = memberOf(event.unit);
-        if (drained) log(`→ ${drained.name} HP +${event.amount} 흡수`);
+        if (drained) log(`→ ${drained.name} HP +${event.amount} 흡수`, LOG_HEAL);
       } else if (event.t === "status" && enemy) {
         popDamage(enemy, event.on ? STATUS_NAME[event.status] : `${STATUS_NAME[event.status]} 해제`, STATUS_COLOR[event.status] ?? C.epic);
       } else if (event.t === "death") {
@@ -82,27 +86,36 @@ export function createCombatPresenter(opts: {
 
   function presentEnemy(events: BattleEvent[], attackerId: string, fallbackName: string): void {
     enemyVisuals.get(attackerId)?.monster.playMotion("attack");
-    const lines: string[] = [];
+    const lines: { text: string; color?: number }[] = [];
+    let headingSeen = false;
     for (const event of events) {
       const member = "target" in event ? memberOf(event.target) : undefined;
+      /* 첫 log는 헤딩("○○의 공격!"), 이후 log는 진형 교전 설명(전열 막힘·도약·광역 감쇠) — 버리지 않는다 */
+      if (event.t === "log") {
+        if (headingSeen) lines.push({ text: event.text, color: C.mp });
+        headingSeen = true;
+        continue;
+      }
       if (event.t === "hit" && member) {
         const tag = event.resist === "weak" ? " 약점!" : event.resist === "resist" ? " 저항" : event.resist === "immune" ? " 무효!" : "";
-        lines.push(`${member.name} -${event.amount}${tag}`);
-      } else if (event.t === "miss" && member) lines.push(`${member.name} 회피!`);
+        lines.push({ text: `${member.name} -${event.amount}${tag}`, color: LOG_HURT });
+      } else if (event.t === "miss" && member) lines.push({ text: `${member.name} 회피!` });
       else if (event.t === "death") {
-        const down = memberOf(event.unit); if (down) lines.push(`${down.name} 전투불능!`);
-      } else if (event.t === "status" && event.on && member) lines.push(`${member.name} ${STATUS_NAME[event.status]}!`);
-      else if (event.t === "status" && !event.on && event.status === "sleep" && member) lines.push(`${member.name} 각성!`);
-      else if (event.t === "save" && member) lines.push(`${member.name} 내성!`);
+        const down = memberOf(event.unit);
+        if (down) lines.push({ text: `${down.name} 전투불능!`, color: LOG_HURT });
+      } else if (event.t === "status" && event.on && member)
+        lines.push({ text: `${member.name} ${STATUS_NAME[event.status]}!`, color: STATUS_COLOR[event.status] });
+      else if (event.t === "status" && !event.on && event.status === "sleep" && member) lines.push({ text: `${member.name} 각성!` });
+      else if (event.t === "save" && member) lines.push({ text: `${member.name} 내성!` });
       else if (event.t === "cover") {
         const guard = memberOf(event.guard), covered = memberOf(event.covered);
-        if (guard && covered) lines.push(`${guard.name}(이)가 ${covered.name}을(를) 가로막았다!`);
+        if (guard && covered) lines.push({ text: `${guard.name}(이)가 ${covered.name}을(를) 가로막았다!` });
       }
     }
     const heading = events.find((event): event is Extract<BattleEvent, { t: "log" }> => event.t === "log")?.text
       ?? `${fallbackName}의 공격!`;
     log(heading);
-    for (const line of lines) log(`→ ${line}`);
+    for (const line of lines) log(`→ ${line.text}`, line.color);
     const firstHit = events.find((event): event is Extract<BattleEvent, { t: "hit" }> => event.t === "hit");
     if (firstHit) {
       partyHitFlash();

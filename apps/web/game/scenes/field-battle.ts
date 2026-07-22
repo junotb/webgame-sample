@@ -20,10 +20,12 @@ import {
 } from "../state";
 import { G } from "../state";
 import { buildPartyHUD } from "../hud";
-import { createBattleLog } from "../ui/battle-log";
+import { LOG_HEAL, LOG_HURT, createBattleLog } from "../ui/battle-log";
 
 export interface FieldBattleHandle {
   dispose(): void;
+  /** L 키 — 전투 기록 펼치기/접기 (키 입력은 필드 씬이 소유) */
+  toggleLog(): void;
 }
 
 interface EnemyView {
@@ -81,7 +83,7 @@ export function fieldBattleOverlay(opts: {
   /* ---- 전투 기록 로그 + 파티 HUD ---- */
   const battleLog = createBattleLog(W - 32);
   battleLog.node.x = 16; battleLog.node.y = 14; root.addChild(battleLog.node);
-  const log = (text: string) => battleLog.push(text);
+  const log = (text: string, color?: number) => battleLog.push(text, color);
   const memberOf = (id: string) => G.party.find((m) => `ally:${m.id}` === id);
   const hud = buildPartyHUD(root);
 
@@ -120,7 +122,8 @@ export function fieldBattleOverlay(opts: {
       else if (ev.t === "hit") {
         const v = "target" in ev ? views.get(ev.target) : undefined;
         if (v) {
-          log(`→ ${ENEMY_DEFS[v.e.defId].name} ${ev.amount} ${DAMAGE_META[ev.dtype].name} 피해${ev.crit ? " — 치명타!" : ""}`);
+          log(`→ ${ENEMY_DEFS[v.e.defId].name} ${ev.amount} ${DAMAGE_META[ev.dtype].name} 피해${ev.crit ? " — 치명타!" : ""}`,
+            DAMAGE_META[ev.dtype].color);
           const yOff = popHeight(v);
           if (ev.crit) popOn(v.node, "치명타!", C.border, yOff);
           if (ev.resist === "weak") popOn(v.node, "약점!", 0xff8a3c, yOff);
@@ -130,7 +133,7 @@ export function fieldBattleOverlay(opts: {
           v.monster.playMotion("hit");
           spawnImpactBurst(root, v.node.x, v.node.y - Math.round(monsterPx(ENEMY_DEFS[v.e.defId]) * 0.6), ev.dtype);
         } else {
-          log(`→ ${memberOf(ev.target)?.name ?? "아군"} ${ev.amount} 피해`);
+          log(`→ ${memberOf(ev.target)?.name ?? "아군"} ${ev.amount} 피해`, LOG_HURT);
           partyFlash();
         }
       } else if (ev.t === "miss") {
@@ -141,10 +144,10 @@ export function fieldBattleOverlay(opts: {
         /* 물약은 엔진 로그 문장에 수치가 있어 스킬 회복만 기록한다 */
         const m = memberOf(ev.target);
         if (m && !events.some((e2) => e2.t === "log" && e2.text.includes("회복")))
-          log(`→ ${m.name} ${ev.resource === "hp" ? "HP" : "MP"} +${ev.amount}`);
+          log(`→ ${m.name} ${ev.resource === "hp" ? "HP" : "MP"} +${ev.amount}`, LOG_HEAL);
       } else if (ev.t === "drain") {
         const m = memberOf(ev.unit);
-        if (m) log(`→ ${m.name} HP +${ev.amount} 흡수`);
+        if (m) log(`→ ${m.name} HP +${ev.amount} 흡수`, LOG_HEAL);
       } else if (ev.t === "save") {
         const v = views.get(ev.target);
         if (v) popOn(v.node, "내성!", C.epic, popHeight(v));
@@ -326,5 +329,6 @@ export function fieldBattleOverlay(opts: {
       scope.dispose();
       root.destroy({ children: true });
     },
+    toggleLog: () => battleLog.toggle(),
   };
 }

@@ -3,7 +3,12 @@
  * ===================================================================== */
 import { existsSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { ENEMY_DEFS, MONSTER_ICONS, NPCS, PARTY_SLOTS } from "../defs";
+import {
+  ENEMY_DEFS, MAP_MONSTER_CATEGORIES, MONSTER_ASSET_META, MONSTER_ICONS,
+  NPCS, PARTY_SLOTS, monsterFitsMap,
+} from "../defs";
+import { DUNGEONS } from "../dungeons";
+import { FIELDS } from "../fieldmaps";
 import { HIRES_MONSTERS } from "../monsters";
 import { NPC_SPRITE_SHEETS } from "../npc-sprites";
 import { PORTRAITS } from "../portraits";
@@ -44,6 +49,36 @@ describe("몬스터 아이콘 카탈로그", () => {
     for (const n of HIRES_MONSTERS) {
       expect(names.has(n), `카탈로그에 없음: ${n}`).toBe(true);
       expect(existsSync(`public/assets/monsters/large/${n.toLowerCase()}.png`), n).toBe(true);
+    }
+  });
+
+  it("모든 몬스터 에셋은 카테고리와 권장 서식지가 있다", () => {
+    const names = new Set(MONSTER_ICONS.map((m) => m.nameEn));
+    expect(new Set(Object.keys(MONSTER_ASSET_META))).toEqual(names);
+    for (const [name, meta] of Object.entries(MONSTER_ASSET_META)) {
+      expect(meta.habitats.length, `${name}: 서식지 없음`).toBeGreaterThan(0);
+      for (const habitat of meta.habitats) {
+        expect(MAP_MONSTER_CATEGORIES[habitat], `${name}: 잘못된 맵 ${habitat}`).toContain(meta.category);
+      }
+    }
+  });
+
+  it("현재 필드·던전 조우는 맵별 몬스터 분류와 일치한다", () => {
+    for (const field of Object.values(FIELDS)) {
+      const ids = [
+        ...field.decos.flatMap((d) => d.fight?.enemies ?? []),
+        ...(field.encounters?.groups.flat() ?? []),
+      ];
+      for (const id of ids) {
+        const def = ENEMY_DEFS[id];
+        expect(monsterFitsMap(def.img, field.id), `${field.id}: ${id}/${def.img}`).toBe(true);
+      }
+    }
+    for (const dungeon of Object.values(DUNGEONS)) {
+      for (const spawn of [...dungeon.normalSpawns, ...dungeon.symbolSpawns]) {
+        const def = ENEMY_DEFS[spawn.defId];
+        expect(monsterFitsMap(def.img, dungeon.id), `${dungeon.id}: ${spawn.defId}/${def.img}`).toBe(true);
+      }
     }
   });
 });

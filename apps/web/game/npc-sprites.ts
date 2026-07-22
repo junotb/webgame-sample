@@ -2,6 +2,11 @@
  * npc-sprites.ts — 마을 NPC 거리 스프라이트 (assets/npcs 16×16 idle 시트)
  *  시트는 64×16 가로 4프레임. NpcDef.sprite가 시트 이름을 가리키고,
  *  미로드·미지정 시 호출부가 절차적 그리기(drawAdventurer)로 폴백한다.
+ *
+ *  [보류] 현재 NpcDef 전원이 sprite 미지정 — 16×16 시트는 1인칭 대화 거리
+ *  (SCALE 6 × 빌보드 ≈ 원본 1px → 화면 ~25px)에서 마을 아트(48px 그리드,
+ *  텍셀당 ~4px)와 픽셀 밀도가 5~8배 어긋난다. 32~48px급 팩을 임포트하면
+ *  FRAME·SCALE을 재조정하고 defs/npcs.ts에 sprite를 재지정할 것.
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import type { AmbientTick } from "./ambient";

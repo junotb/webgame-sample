@@ -36,7 +36,7 @@ export const QUESTS: QuestDef[] = [
     id: "main_hermans_letter",
     kind: "main",
     name: "대스승 헤르만의 편지",
-    desc: "대스승 헤르만의 봉인된 편지를 에버모어 성으로 전달해야 한다. 먼저 크로스베일 마구간에서 이동편을 알아보자.",
+    desc: "대스승 헤르만의 봉인된 편지를 에버모어 성으로 전달해야 한다. 먼저 크로스베일 마구간에서 이동편을 알아볼 것.",
     objectives: [
       {
         id: "ask_stable",
@@ -52,7 +52,7 @@ export const QUESTS: QuestDef[] = [
     id: "main_clear_evermore_road",
     kind: "main",
     name: "에버모어로 가는 길",
-    desc: "남쪽 계곡길 서쪽의 좁은 길을 봉쇄한 산적들을 소탕하고 현상금 길드에 보고하자.",
+    desc: "남쪽 계곡길 서쪽의 좁은 길을 봉쇄한 산적들을 소탕하고 현상금 길드에 보고할 것.",
     requires: { quests: ["main_hermans_letter"] },
     objectives: [
       {
@@ -69,7 +69,7 @@ export const QUESTS: QuestDef[] = [
     id: "main_deliver_hermans_letter",
     kind: "main",
     name: "에버모어 성으로",
-    desc: "열린 계곡길이나 역마차를 이용해 에버모어 성으로 가서 연방 군주에게 헤르만의 편지를 전달하자.",
+    desc: "열린 계곡길이나 역마차를 이용해 에버모어 성으로 가서 연방 군주에게 헤르만의 편지를 전달할 것.",
     requires: { quests: ["main_clear_evermore_road"] },
     objectives: [
       {
@@ -88,7 +88,7 @@ export const QUESTS: QuestDef[] = [
     id: "side_ruined_temple",
     kind: "side",
     name: "버려진 사원의 진상 조사",
-    desc: "버려진 사원 깊은 곳에서 알 수 없는 힘으로 되살아난 사악한 교단의 주교를 조사하고, 확인한 진상을 에버모어 성에 보고하자.",
+    desc: "버려진 사원 깊은 곳에서 알 수 없는 힘으로 되살아난 사악한 교단의 주교를 조사하고, 확인한 진상을 에버모어 성에 보고할 것.",
     giver: "chamberlain",
     objectives: [
       {
@@ -105,7 +105,7 @@ export const QUESTS: QuestDef[] = [
     id: "side_goblin_orders",
     kind: "side",
     name: "고블린 작전 문서",
-    desc: "남쪽 계곡길 남쪽의 고블린 요새를 탐색하고, 북서쪽 방에서 약탈 계획이 담긴 작전 문서를 가져오자. 누가 고블린들을 사주했는지 단서가 있을지도 모른다.",
+    desc: "남쪽 계곡길 남쪽의 고블린 요새를 탐색하고, 북서쪽 방에서 약탈 계획이 담긴 작전 문서를 가져올 것. 누가 고블린들을 사주했는지 단서가 있을 수 있다.",
     giver: "kael",
     objectives: [
       {
@@ -122,7 +122,7 @@ export const QUESTS: QuestDef[] = [
     id: "side_rescue_hostages",
     kind: "side",
     name: "고블린 주둔지의 인질들",
-    desc: "남쪽 계곡길 오른쪽의 넓은 평야에 자리 잡은 고블린 주둔지에서 우리에 갇힌 인질들을 구출하자.",
+    desc: "남쪽 계곡길 오른쪽의 넓은 평야에 자리 잡은 고블린 주둔지에서 우리에 갇힌 인질들을 구출할 것.",
     giver: "kael",
     objectives: [
       {
@@ -140,7 +140,7 @@ export const QUESTS: QuestDef[] = [
     id: "side_grumbark_bounty",
     kind: "side",
     name: "현상금: 고블린 주술사 그름바크",
-    desc: "요새와 계곡길 동쪽 평야의 고블린들을 지휘해 크로스베일을 노리는 주술사 그름바크를 처단하자. 요새 북동쪽 계단 아래, 지하 알현실에 있다. 친위대를 거느린다는 보고가 있으니 만전을 기할 것.",
+    desc: "요새와 계곡길 동쪽 평야의 고블린들을 지휘해 크로스베일을 노리는 주술사 그름바크를 처단할 것. 요새 북동쪽 계단 아래, 지하 알현실에 있다. 친위대를 거느린다는 보고가 있으니 만전을 기할 것.",
     requires: { level: 6 },
     objectives: [
       {
@@ -158,7 +158,7 @@ export const QUESTS: QuestDef[] = [
     id: "job_first_promotion",
     kind: "job",
     name: "첫 번째 승급 심사",
-    desc: "파티 Lv3을 달성하고 고블린 요새의 광신도를 쓰러뜨려 상위 직업으로 나아갈 자격을 증명하자.",
+    desc: "파티 Lv3을 달성하고 고블린 요새의 광신도를 쓰러뜨려 상위 직업으로 나아갈 자격을 증명할 것.",
     requires: { level: 3 },
     objectives: [
       {
@@ -175,7 +175,7 @@ export const QUESTS: QuestDef[] = [
     id: "job_final_promotion",
     kind: "job",
     name: "최종 승급 심사",
-    desc: "파티 Lv6을 달성하고 고블린들을 지휘하는 주술사 그름바크를 쓰러뜨려 최종 직업의 자격을 증명하자.",
+    desc: "파티 Lv6을 달성하고 고블린들을 지휘하는 주술사 그름바크를 쓰러뜨려 최종 직업의 자격을 증명할 것.",
     requires: { quests: ["job_first_promotion"], level: 6 },
     objectives: [
       {
@@ -194,7 +194,7 @@ export const QUESTS: QuestDef[] = [
     id: "repeat_slimes",
     kind: "repeat",
     name: "핏눈 슬라임 현상금",
-    desc: "고블린 요새의 핏눈 슬라임 5마리를 소탕하자. 보고 후 다음 날 새 의뢰가 게시된다.",
+    desc: "고블린 요새의 핏눈 슬라임 5마리를 소탕할 것. 보고 후 다음 날 새 의뢰가 게시된다.",
     objectives: [
       {
         id: "kill_slime",
@@ -211,7 +211,7 @@ export const QUESTS: QuestDef[] = [
     id: "repeat_goblins",
     kind: "repeat",
     name: "고블린 전사 현상금",
-    desc: "고블린 요새의 전사 4마리를 소탕하자. 보고 후 다음 날 새 의뢰가 게시된다.",
+    desc: "고블린 요새의 전사 4마리를 소탕할 것. 보고 후 다음 날 새 의뢰가 게시된다.",
     objectives: [
       {
         id: "kill_goblin",
@@ -228,7 +228,7 @@ export const QUESTS: QuestDef[] = [
     id: "repeat_wolfriders",
     kind: "repeat",
     name: "늑대기수 현상금",
-    desc: "고블린 늑대기수 4마리를 소탕하자. 숙련된 파티를 위한 정기 현상금이다.",
+    desc: "고블린 늑대기수 4마리를 소탕할 것. 숙련된 일행을 위한 정기 현상금이다.",
     requires: { level: 3 },
     objectives: [
       {

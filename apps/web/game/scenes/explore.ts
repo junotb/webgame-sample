@@ -34,7 +34,7 @@ import { tileSprite, tileTex } from "../tiles";
 import { MONSTER_WORLD_H, drawMonster, monsterPx } from "../monsters";
 import type { MonsterView } from "../monsters";
 import { buildPartyHUD, pickMember } from "../hud";
-import { createBattleLog } from "../ui/battle-log";
+import { LOG_HEAL, createBattleLog } from "../ui/battle-log";
 import { eventOverlay } from "./event";
 import { createCombatPresenter } from "./explore/combat-presenter";
 import { ParticleKind, particleField } from "../ambient";
@@ -257,14 +257,14 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
   /* ---- 로그/프롬프트/힌트 ---- */
   const battleLog = createBattleLog(620);
   battleLog.node.x = (W - 620) / 2; battleLog.node.y = 12; root.addChild(battleLog.node);
-  const log = (s: string) => battleLog.push(s);
+  const log = (s: string, color?: number) => battleLog.push(s, color);
   /** 엔진 이벤트에서 로그 문장과 회복 수치를 기록으로 남긴다 */
   const logEvents = (events: BattleEvent[]) => {
     for (const ev of events) {
       if (ev.t === "log") log(ev.text);
       else if (ev.t === "healed") {
         const m = G.party.find((mm) => `ally:${mm.id}` === ev.target);
-        if (m) log(`→ ${m.name} ${ev.resource === "hp" ? "HP" : "MP"} +${ev.amount}`);
+        if (m) log(`→ ${m.name} ${ev.resource === "hp" ? "HP" : "MP"} +${ev.amount}`, LOG_HEAL);
       }
     }
   };
@@ -318,17 +318,17 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
   const hud = buildPartyHUD(root, {
     fieldHandlers: {
       recall() { toast("귀환 마법 발동!", C.arcane); fullFlash(0xffffff, 600, () => nav.town()); },
-      bless() { G.blessedNext = true; toast("축복을 받았다. 다음 전투 파티 공격력 +25%!", C.border); refresh(); },
+      bless() { G.blessedNext = true; toast("일행이 축복을 받았다. 다음 전투 파티 공격력 +25%!", C.border); refresh(); },
       darkveil() { E.veil = VEIL_TURNS; toast("어둠의 장막이 발걸음을 감춘다…", C.epic); refresh(); },
       seek() {
         const hid = D.pois.find((p) => p.id === D.hiddenChestId);
         if (hid && !E.revealed[hid.id] && !E.chestOpened[hid.id]
           && chebyshev(E.x, E.y, hid.x, hid.y) <= 6) {
           E.revealed[hid.id] = true;
-          toast("숨겨진 상자를 발견했다! (미니맵에 표시)", C.epic);
+          toast("일행이 숨겨진 상자를 발견했다! (미니맵에 표시)", C.epic);
           E.explored[hid.y * map.w + hid.x] = true;
           refresh();
-        } else toast("주변에서 아무것도 발견하지 못했다.", C.dim);
+        } else toast("주변에서 발견된 것은 없다.", C.dim);
       },
     },
   });
@@ -366,7 +366,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     if (!passable(map, nx, ny) || enemyAt(nx, ny) || poiBlocking(nx, ny) || propAt(nx, ny)) {
       bump(); return;
     }
-    if (phase === "party") cancelRound("파티는 자리를 옮겼다.");
+    if (phase === "party") cancelRound("일행은 자리를 옮겼다.");
     E.x = nx; E.y = ny;
     stepBob();
     advanceTurn();
@@ -375,7 +375,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     if (ui.menuOpen || phase === "anim" || phase === "end") return;
     E.facing = rotateFacing(E.facing, dir);
     if (ROTATE_COSTS_TURN) {
-      if (phase === "party") cancelRound("파티는 방향을 틀었다.");
+      if (phase === "party") cancelRound("일행은 방향을 틀었다.");
       advanceTurn();
     } else refresh();
   }
@@ -475,7 +475,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     if (G.party.some((m) => m.hp > 0)) return false;
     phase = "end";
     hideCmds();
-    log("파티가 전멸했다…");
+    log("일행이 전멸했다…");
     const dim = new PIXI.Graphics();
     dim.rect(0, 0, W, H).fill(0x000000); dim.alpha = 0; root.addChild(dim);
     tween(dim, { alpha: 0.78 }, 900, {
@@ -502,7 +502,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
     combat = new BattleEngine(G.party, E.enemies, { bless: blessed, items: G.items });
     combat.gridEnter();
     setModeBadge("전투! — 그리드 턴제", C.blood);
-    log("적이 파티를 발견했다! (이동·옆걸음도 한 턴을 소모한다)");
+    log("적이 일행을 발견했다! (이동·옆걸음도 한 턴을 소모한다)");
   }
   function exitCombat(): void {
     inCombat = false;
@@ -949,9 +949,9 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
         if (disarmRank < 1) {
           const dmg = chest.trapDmg;
           G.party.forEach((m) => { if (m.hp > 0) m.hp = Math.max(1, m.hp - dmg); });
-          toast(`함정이다! 파티가 ${dmg}의 피해… (함정 스킬이 있었다면)`, C.blood);
+          toast(`함정이다! 일행이 ${dmg}의 피해… (함정 스킬이 있었다면)`, C.blood);
         } else {
-          toast("함정을 해체했다. (함정 스킬)", C.green);
+          toast("일행이 함정을 해체했다. (함정 스킬)", C.green);
         }
       }
       for (const line of chest.loot()) toast(line.text, line.color ?? C.border);

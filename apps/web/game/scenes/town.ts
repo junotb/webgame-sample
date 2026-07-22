@@ -108,7 +108,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
    * ===================================================================== */
   const enterGate = (gate: TownGateDef): void => {
     if (G.town === "crossvale" && !G.flags.stableBriefed) {
-      log("에버모어로 떠날 방법부터 알아봐야 한다. 남동쪽 마구간의 마부에게 길 사정을 물어보자.");
+      log("먼저 에버모어로 떠날 방법을 알아봐야 한다. 길 사정은 남동쪽 마구간의 마부가 알고 있다.");
       return;
     }
     fullFlash(0x000000, 500, () => nav.field(gate.target));
@@ -169,7 +169,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
       G.flags.stableBriefed = true;
       questNotify({ t: "talk", npc: "crossvale_stable" });
       reportQuest("main_hermans_letter");
-      toast("마부에게 길 사정을 들었다. 크로스베일 바깥으로 이동할 수 있다.", C.border);
+      toast("일행이 마부에게 길 사정을 들었다. 이제 크로스베일 바깥으로 이동할 수 있다.", C.border);
     }
     const dest = otherTown(G.town);
     const destName = TOWNS[dest].name;
@@ -292,7 +292,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         presentation.render(movement.pose);
         hud.redraw();
         say("푹 쉬었죠? 다들 얼굴빛이 좋아졌네요. 몸과 마력이 전부 회복됐어요.");
-        fullFlash(0x000000, 900, () => toast("파티가 푹 쉬었다. 전원 HP/MP 회복!", C.text));
+        fullFlash(0x000000, 900, () => toast("일행이 푹 쉬었다. 전원 HP/MP 회복!", C.text));
       }, true);
       for (const topic of (f.topics ?? []).filter((entry) => townContentUnlocked(entry.requires, contentContext()))) {
         option(topic.label, i++, () => say(topic.text));

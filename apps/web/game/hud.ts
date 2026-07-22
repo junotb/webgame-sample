@@ -225,7 +225,7 @@ export function openStatusMenu(onClose?: () => void): void {
         return toast("전열이 최소 한 명은 있어야 한다.", C.dim);
       }
       m.back = !m.back;
-      toast(`${m.name} — ${m.back ? "후열" : "전열"}로 이동. ${m.back ? "(근접 면제·광역 감쇠, 원거리 조준 보너스 — 창은 후열에서도 찌른다)" : "(전열에서 파티를 지킨다)"}`, C.border);
+      toast(`${m.name} — ${m.back ? "후열" : "전열"}로 이동. ${m.back ? "(근접 면제·광역 감쇠, 원거리 조준 보너스 — 창은 후열에서도 찌른다)" : "(전열에서 일행을 지킨다)"}`, C.border);
       renderDetail();
     }, { size: 14 });
     swap.x = bx + 430; swap.y = by + 620 - 52; detail.addChild(swap);

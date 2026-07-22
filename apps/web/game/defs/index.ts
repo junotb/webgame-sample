@@ -9,6 +9,7 @@ export * from "./attrs";
 export * from "./classes";
 export * from "./abilities";
 export * from "./enemies";
+export * from "./monster-habitats";
 export * from "./shop";
 export * from "./loot";
 export * from "./quests";

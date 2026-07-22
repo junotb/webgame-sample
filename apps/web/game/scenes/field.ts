@@ -312,7 +312,7 @@ export function fieldScene(id: FieldId): SceneHandle {
   });
 
   const logP = panel(700, 46, { alpha: 0.82 }); logP.x = (W - 700) / 2; logP.y = 12; root.addChild(logP);
-  const logT = txt(`${F.name}에 들어섰다. 길가의 소리에 귀를 기울여 보자.`, 15, C.text);
+  const logT = txt(`일행이 ${F.name}에 들어섰다. 길가의 기척에 주의해야 한다.`, 15, C.text);
   logT.x = logP.x + 16; logT.y = 25; root.addChild(logT);
   const prompt = txt("", 16, C.text, { weight: "700", shadow: true });
   prompt.anchor.set(0.5, 1); prompt.x = W / 2; prompt.y = H - 168; root.addChild(prompt);
@@ -358,7 +358,7 @@ export function fieldScene(id: FieldId): SceneHandle {
     if (F.id === "goblinValley" && exit.target.kind === "town" && exit.target.id === "evermore"
       && !carriageUnlocked()) {
       logT.text = G.flags.banditsDefeated
-        ? "산적은 소탕했지만 아직 길드의 통행 재개 승인이 나지 않았다. 크로스베일 현상금 길드에 먼저 보고하자."
+        ? "산적은 소탕됐지만 아직 길드의 통행 재개 승인이 나지 않았다. 크로스베일 현상금 길드에 먼저 보고해야 한다."
         : "좁은 계곡을 산적들이 봉쇄하고 있다. 마구간에서 사정을 확인한 뒤 산적들을 소탕해야 한다.";
       return;
     }
@@ -388,11 +388,11 @@ export function fieldScene(id: FieldId): SceneHandle {
     if (d.id === "cage_full") {
       if (G.flags.hostagesRescued) logT.text = "문이 열린 우리 안에는 잘린 밧줄과 빈 물그릇만 남아 있다.";
       else if (questStatus("side_rescue_hostages") !== "active")
-        logT.text = "겁에 질린 인질들이 구조를 기다린다. 크로스베일의 장로 카엘에게 고블린 주둔지에 관해 물어보자.";
+        logT.text = "겁에 질린 인질들이 구조를 기다린다. 고블린 주둔지에 관해서는 크로스베일의 장로 카엘에게 물어봐야 한다.";
       else {
         G.flags.hostagesRescued = true;
         const updates = questNotify({ t: "rescue", group: "valley_hostages" });
-        logT.text = "우리의 자물쇠를 부수고 인질들을 풀어 주었다. 모두 크로스베일로 무사히 달아났다.";
+        logT.text = "일행이 자물쇠를 부수고 우리에 갇힌 인질들을 풀어 주었다. 모두 크로스베일로 무사히 달아났다.";
         if (updates[0]) logT.text += `  ${updateText(updates[0])}`;
       }
       return;
@@ -427,16 +427,16 @@ export function fieldScene(id: FieldId): SceneHandle {
             nodesById.delete(deco.id);
             logT.text = `${deco.name}을(를) 물리쳤다. 며칠이 지나면 다시 나타날 것이다.`;
           } else {
-            logT.text = "적을 물리치고 길을 재촉한다.";
+            logT.text = "일행은 적을 물리치고 길을 재촉했다.";
           }
           refresh();
         } else if (result === "defeat") {
           G.party.forEach((m) => { if (m.hp <= 0) m.hp = 1; });
-          toast("전멸했다… 정신을 차리니 크로스베일의 여관이다.", C.blood);
+          toast("일행이 전멸했다… 눈을 뜬 곳은 크로스베일의 여관이었다.", C.blood);
           G.town = "crossvale";
           nav.town();
         } else {
-          logT.text = "무사히 떨어져 나왔다. 서두르자.";
+          logT.text = "일행은 무사히 떨어져 나왔다. 갈 길을 서둘러야 한다.";
           refresh();
         }
       },
@@ -454,7 +454,7 @@ export function fieldScene(id: FieldId): SceneHandle {
       activeEvent = null;
       G.flags.banditsDefeated = true;
       const updates = questNotify({ t: "clear", symbol: "valley_bandits" });
-      logT.text = updates[0] ? updateText(updates[0]) : "산적 무리를 소탕했다. 현상금 길드에 보고하자.";
+      logT.text = updates[0] ? updateText(updates[0]) : "일행이 산적 무리를 소탕했다. 현상금 길드에 보고해야 한다.";
       refresh();
     }, { caption: "산적의 포위" });
   }
@@ -479,7 +479,10 @@ export function fieldScene(id: FieldId): SceneHandle {
   };
   return {
     onKey(k) {
-      if (activeBattle) return; // 전투 오버레이는 버튼으로만 조작
+      if (activeBattle) { // 전투 오버레이는 버튼으로만 조작 — 예외: L은 전투 기록 토글
+        if (k === "l" || k === "L" || k === "ㅣ") activeBattle.toggleLog();
+        return;
+      }
       if (activeEvent) { activeEvent.onKey?.(k); return; }
       KEYMAP[k.length === 1 ? k.toLowerCase() : k]?.();
     },

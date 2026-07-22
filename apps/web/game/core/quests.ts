@@ -188,7 +188,7 @@ export function trackerLines(max = 3): { text: string; done: boolean }[] {
 /** 진행 문구 헬퍼 — "퀘스트: 고블린 처치 3/5" / "퀘스트 완료!" */
 export function updateText(u: QuestUpdate): string {
   return u.questDone
-    ? `퀘스트 완료: ${u.quest.name} — 길드에 보고하자!`
+    ? `퀘스트 완료: ${u.quest.name} — 길드에 보고할 것!`
     : `퀘스트: ${u.objective.desc} ${u.count}/${u.objective.count}`;
 }
 

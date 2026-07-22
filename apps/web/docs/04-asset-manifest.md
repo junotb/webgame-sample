@@ -41,6 +41,15 @@
 | world/tilesets/town/structures.png | world/tilesets/town/structure.png |
 | world/tilesets/village/ground.png | world/tilesets/village/style_48/ground.png |
 | world/tilesets/village/water.png | world/tilesets/village/style_48/water.png |
+| npcs/overworked_villager.png | characters/sprites/humans/overworked_villager_animation.png |
+| npcs/adventurous_adolescent.png | characters/sprites/humans/adventurous_adolescent_animation.png |
+| npcs/boisterous_youth.png | characters/sprites/humans/boisterous_youth_animation.png |
+| npcs/elf_wayfarer.png | characters/sprites/elves/elf_wayfarer_animation.png |
+| npcs/elf_enchanter.png | characters/sprites/elves/elf_enchanter_animation.png |
+
+`npcs/` 5장(16×16 idle 시트)은 현재 **보류 상태**다 — 1인칭 근접 배율에서 마을 아트(48px 그리드)와
+픽셀 밀도가 5~8배 어긋나 `defs/npcs.ts`의 sprite 지정을 내렸다(절차적 그리기 폴백으로 표시).
+32~48px급 NPC 팩을 임포트하면 시트 교체 후 재지정한다. 상세는 `game/npc-sprites.ts` 헤더 참고.
 
 ## 추정 매핑 (가공·합성 재료)
 
@@ -65,7 +74,7 @@
 
 | 런타임 계열 | 비고 |
 | --- | --- |
-| monsters/icons/*.png (53개) | 완성본을 직접 추가. `game/defs/enemies.ts`의 MONSTER_ICONS와 연동 |
+| monsters/icons/*.png (54개) | 완성본을 직접 추가. `game/defs/enemies.ts`의 MONSTER_ICONS 및 `game/defs/monster-habitats.ts`의 카테고리·서식지와 연동 |
 | portraits/male_*.png, female_*.png (48개) | `game/portraits.ts`의 개수·인덱스 규칙과 연동 |
 
 ## 출처 미확인

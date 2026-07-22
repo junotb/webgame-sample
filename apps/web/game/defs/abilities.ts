@@ -156,7 +156,7 @@ export interface FieldSkillDef {
 }
 
 export const FIELD_SKILLS: FieldSkillDef[] = [
-  { id: "recall", skill: "wind", min: 2, name: "귀환", mp: 5, desc: "파티를 마을로 순간이동시킨다." },
+  { id: "recall", skill: "wind", min: 2, name: "귀환", mp: 5, desc: "일행을 마을로 순간이동시킨다." },
   { id: "bless", skill: "light", min: 1, name: "축복", mp: 4, desc: "다음 전투에서 파티 공격력 +25%." },
   { id: "darkveil", skill: "dark", min: 2, name: "어둠의 장막", mp: 4, desc: "한동안 인카운터율이 크게 감소." },
   { id: "seek", skill: "perception", min: 1, name: "탐색", mp: 2, desc: "주변의 숨겨진 것을 발견한다." },

@@ -371,7 +371,7 @@ export class BattleEngine {
         break;
       case "flee": {
         if (this.canFlee && this.rng() < 0.6) {
-          ev.push({ t: "log", text: "파티는 무사히 도망쳤다!" });
+          ev.push({ t: "log", text: "일행은 무사히 도망쳤다!" });
           ev.push({ t: "flee", ok: true });
           this.ended = "fled";
           return { kind: "over", result: "fled", events: ev };

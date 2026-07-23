@@ -230,7 +230,7 @@ const forestDecos: FieldDeco[] = [
   { id: "pine", name: "전나무", x: 16, y: 5, tile: "tree_03", text: "짙은 전나무 향이 바람을 타고 흐른다.", blocking: true },
   { id: "bush", name: "덤불", x: 9, y: 10, tile: "bush_01", text: "작은 새들이 덤불 속에서 재잘거린다.", blocking: true },
   { id: "flower", name: "들꽃", x: 13, y: 12, tile: "flower_01", text: "이름 모를 들꽃이 길가를 밝힌다." },
-  { id: "mushroom", name: "버섯", x: 18, y: 14, tile: "mushroom_01", text: "이끼 곁에 붉은 버섯이 돋아 있다." },
+  { id: "mushroom", name: "버섯", x: 18, y: 14, tile: "swamp_shroom_brown_obj", text: "이끼 곁에 붉은 버섯이 돋아 있다." },
 ];
 
 export const FIELDS: Record<FieldId, FieldData> = {
@@ -271,7 +271,7 @@ export const FIELDS: Record<FieldId, FieldData> = {
         text: "옛 참배로의 석주다. 바다 쪽 면만 소금에 하얗게 삭아 있다." },
       { id: "broken_cross", name: "부서진 성상", x: 7, y: 11, visual: { kind: "building", style: "broken_cross" }, blocking: true,
         text: "쓰러진 성상의 얼굴이 정으로 지워져 있다. 사원이 버려진 게 아니라… 버림받은 것처럼." },
-      { id: "cold_shrine", name: "검게 물든 제단", x: 5, y: 6, tile: "mushroom_01",
+      { id: "cold_shrine", name: "검게 물든 제단", x: 5, y: 6, tile: "swamp_shroom_brown_obj",
         text: "곶으로 오르는 길목의 작은 제단이 검게 그을려 있다. 사원 쪽에서 낮은 기도 소리가 흘러온다." },
       { id: "grave_husk", name: "참배로의 송장버섯", x: 8, y: 6, visual: { kind: "monster", defId: "husk" }, blocking: true,
         fight: { enemies: ["husk", "husk"], respawnDays: 1 },
@@ -352,7 +352,7 @@ export const FIELDS: Record<FieldId, FieldData> = {
         text: "창을 든 고블린 몇이 요새 어귀를 어슬렁거린다. 아직 일행을 눈치채지 못했다." },
       { id: "gob_totem", name: "고블린 토템", x: 12, y: 23, visual: { kind: "building", style: "goblin_totem" }, blocking: true,
         text: "해골과 넝마를 얽어 세운 조잡한 토템. 요새가 코앞이라는 경고다." },
-      { id: "valley_mushroom", name: "동굴버섯", x: 15, y: 27, tile: "mushroom_01",
+      { id: "valley_mushroom", name: "동굴버섯", x: 15, y: 27, tile: "swamp_shroom_brown_obj",
         text: "요새 어귀 바위틈에 창백한 버섯이 돋았다. 안쪽 동굴에서 스며 나온 눅눅한 냉기가 감돈다." },
     ],
     theme: {
@@ -445,7 +445,7 @@ export const FIELDS: Record<FieldId, FieldData> = {
       { id: "tomb_husk", name: "묘도 어귀의 송장버섯", x: 26, y: 14, visual: { kind: "monster", defId: "husk" }, blocking: true,
         fight: { enemies: ["husk", "husk"], respawnDays: 1 },
         text: "묘도로 오르는 언덕 초입에 창백한 송장버섯이 부풀어 있다. 묘역의 흙에서 이런 것이 자랄 리 없는데." },
-      { id: "hill_mushroom", name: "언덕 버섯", x: 26, y: 16, tile: "mushroom_01",
+      { id: "hill_mushroom", name: "언덕 버섯", x: 26, y: 16, tile: "swamp_shroom_brown_obj",
         text: "언덕 그늘에 돋은 잿빛 버섯. 묘소 쪽에서 스며 나온 서늘한 기운이 감돈다." },
       { id: "hunt_boar", name: "사냥터의 어금니멧돼지", x: 19, y: 16, visual: { kind: "monster", defId: "boar" }, blocking: true,
         fight: { enemies: ["boar"], respawnDays: 1 },

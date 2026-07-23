@@ -29,7 +29,6 @@ const SHEET_SRC = {
   trees: "/assets/world/props/nature/trees.png",
   bushes: "/assets/world/props/nature/bushes.png",
   flowers: "/assets/world/props/nature/flowers.png",
-  mushrooms: "/assets/world/props/nature/mushrooms.png",
   cave: "/assets/world/tilesets/cave/ground.png",
   fountainProp: "/assets/world/props/structures/fountain.png",
   wellProp: "/assets/world/props/village/well.png",
@@ -137,7 +136,6 @@ const FRAMES = {
   bush_02: { s: "bushes", x: 33, y: 5, w: 30, h: 24 },
   flower_01: { s: "flowers", x: 1, y: 4, w: 14, h: 9 },
   flower_02: { s: "flowers", x: 17, y: 4, w: 13, h: 9 },
-  mushroom_01: { s: "mushrooms", x: 2, y: 2, w: 11, h: 12 },
   /* ---- 고블린 요새(동굴) 표면 — cave/ground.png의 이음매 없는 암반 블록에서 슬라이스 ---- */
   cave_floor: { s: "cave", x: 88, y: 208, w: 16, h: 16 },   // 회색 암반 바닥
   cave_wall: { s: "cave", x: 272, y: 440, w: 32, h: 28 },   // 갈색 암벽

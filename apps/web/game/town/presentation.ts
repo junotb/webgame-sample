@@ -293,9 +293,10 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
     const tile: TileName = deco.id === "tree"
       ? treeTiles[(deco.x + deco.y) % treeTiles.length]
       : deco.id === "bush" ? ((deco.x + deco.y) % 2 ? "bush_01" : "bush_02")
-        : deco.id === "flower" ? ((deco.x + deco.y) % 2 ? "flower_01" : "flower_02") : "mushroom_01";
+        : deco.id === "flower" ? ((deco.x + deco.y) % 2 ? "flower_01" : "flower_02") : "swamp_shroom_brown_obj";
     const node = new PIXI.Container();
-    const sprite = tileSprite(tile); sprite.anchor.set(0.5, 1); node.addChild(sprite);
+    const sprite = tileSprite(tile, deco.id === "mushroom" ? 0.35 : 2);
+    sprite.anchor.set(0.5, 1); node.addChild(sprite);
     const tall = deco.id === "tree";
     entities.push({
       id: `deco:${deco.x},${deco.y}`, x: deco.x, y: deco.y, node,
@@ -326,7 +327,10 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
       let tile: TileName | undefined;
       let scale = 1.4, worldH = 0.12, baseH = 20;
       if (roll < 0.11) tile = hash01(x, y, 31.1, 17.9) < 0.5 ? "flower_01" : "flower_02";
-      else if (roll < 0.16) tile = "mushroom_01";
+      else if (roll < 0.16) {
+        tile = "swamp_shroom_brown_obj";
+        scale = 0.22;
+      }
       else if (roll < 0.22) {
         tile = hash01(x, y, 47.3, 29.5) < 0.5 ? "bush_01" : "bush_02";
         scale = 0.9; worldH = 0.18; baseH = 28;

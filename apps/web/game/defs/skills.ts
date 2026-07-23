@@ -46,6 +46,10 @@ export interface SkillMeta {
   name: string;
   cat: string;
   tradition?: MagicTraditionId;
+  /** UI 전반에서 학파를 빠르게 구분하는 단색 기호. */
+  icon?: string;
+  /** 아이콘·강조선에 사용하는 학파 고유색. */
+  color?: number;
   /** 주문 위력·내성 DC에 사용하는 능력치 */
   castingAttr?: "int" | "wit";
 }
@@ -61,15 +65,15 @@ export const SKILLS: Record<SkillId, SkillMeta> = {
   armor: { name: "갑옷", cat: "방어" },
   dodge: { name: "회피", cat: "방어" },
   shield: { name: "방패", cat: "방어" },
-  fire: { name: "불", cat: "마법", tradition: "elemental", castingAttr: "int" },
-  water: { name: "물", cat: "마법", tradition: "elemental", castingAttr: "int" },
-  earth: { name: "땅", cat: "마법", tradition: "elemental", castingAttr: "int" },
-  wind: { name: "바람", cat: "마법", tradition: "elemental", castingAttr: "int" },
-  spirit: { name: "영혼", cat: "마법", tradition: "self", castingAttr: "wit" },
-  mind: { name: "정신", cat: "마법", tradition: "self", castingAttr: "wit" },
-  body: { name: "육체", cat: "마법", tradition: "self", castingAttr: "wit" },
-  light: { name: "빛", cat: "마법", tradition: "divine", castingAttr: "wit" },
-  dark: { name: "어둠", cat: "마법", tradition: "divine", castingAttr: "wit" },
+  fire: { name: "불", icon: "▲", color: 0xf06a45, cat: "마법", tradition: "elemental", castingAttr: "int" },
+  water: { name: "물", icon: "▼", color: 0x55a9e8, cat: "마법", tradition: "elemental", castingAttr: "int" },
+  earth: { name: "땅", icon: "◆", color: 0xb8955a, cat: "마법", tradition: "elemental", castingAttr: "int" },
+  wind: { name: "바람", icon: "≋", color: 0x77d4c4, cat: "마법", tradition: "elemental", castingAttr: "int" },
+  spirit: { name: "영혼", icon: "◉", color: 0xb395e8, cat: "마법", tradition: "self", castingAttr: "wit" },
+  mind: { name: "정신", icon: "◇", color: 0xd182cf, cat: "마법", tradition: "self", castingAttr: "wit" },
+  body: { name: "육체", icon: "♥", color: 0xe47b91, cat: "마법", tradition: "self", castingAttr: "wit" },
+  light: { name: "빛", icon: "✦", color: 0xf3d66e, cat: "마법", tradition: "divine", castingAttr: "wit" },
+  dark: { name: "어둠", icon: "◐", color: 0x8c82b8, cat: "마법", tradition: "divine", castingAttr: "wit" },
   trapfinding: { name: "함정", cat: "보조" },
   identify: { name: "식별", cat: "보조" },
   perception: { name: "인지", cat: "보조" },
@@ -77,4 +81,10 @@ export const SKILLS: Record<SkillId, SkillMeta> = {
 
 export function isMagicSchool(skill: SkillId): skill is MagicSchoolId {
   return SKILLS[skill].tradition !== undefined;
+}
+
+/** 마법은 학파 아이콘과 함께, 일반 기술은 기존 이름으로 표시한다. */
+export function skillLabel(skill: SkillId): string {
+  const meta = SKILLS[skill];
+  return meta.icon ? `${meta.icon} ${meta.name}` : meta.name;
 }

@@ -10,7 +10,7 @@ import {
 import {
   BASIC_ATTACK, BattleEngine, BattleEvent, BattleResult, TurnState,
 } from "../core/battle-engine";
-import { CONSUMABLES, CONSUMABLE_IDS, DAMAGE_META, ENEMY_DEFS } from "../defs";
+import { CONSUMABLES, CONSUMABLE_IDS, DAMAGE_META, ENEMY_DEFS, SKILLS } from "../defs";
 import { STATUS_COLOR, STATUS_NAME } from "../core/statuses";
 import { spawnImpactBurst } from "../battle-fx";
 import { visualRandom } from "../core/random";
@@ -257,7 +257,12 @@ export function fieldBattleOverlay(opts: {
     const tt = txt(`${m.name} — 스킬 (MP ${m.mp})`, 14, C.border, { weight: "700" });
     tt.x = p.x + 14; tt.y = p.y + 10; cmdRoot.addChild(tt);
     abilities.forEach((a, i) => {
-      const b = button(`${a.name} (MP ${a.mp})`, 240, 38, () => useAbility(m, a), { size: 13 });
+      const school = SKILLS[a.skill];
+      const b = button(`${school.icon ? `${school.icon} ` : ""}${a.name} (MP ${a.mp})`, 240, 38,
+        () => useAbility(m, a), {
+          size: 13,
+          border: school.color,
+        });
       if (m.mp < a.mp) b.setDisabled(true);
       b.x = p.x + 14 + (i % 2) * 252; b.y = p.y + 44 + Math.floor(i / 2) * 46; cmdRoot!.addChild(b);
     });

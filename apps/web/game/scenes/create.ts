@@ -259,7 +259,7 @@ export function createScene(): SceneHandle {
     pool.forEach((k, i) => {
       const on = d.skills.includes(k);
       const col = i % 2, row = (i / 2) | 0;
-      const b = button(`${SKILLS[k].name}`, 148, 36, () => {
+      const b = button(`${SKILLS[k].icon ? `${SKILLS[k].icon} ` : ""}${SKILLS[k].name}`, 148, 36, () => {
         if (on) d.skills = d.skills.filter((s) => s !== k);
         else if (d.skills.length >= CREATE_SKILL_PICKS) {
           toast(`추가 기술은 ${CREATE_SKILL_PICKS}개까지만 고를 수 있다.`, C.dim);

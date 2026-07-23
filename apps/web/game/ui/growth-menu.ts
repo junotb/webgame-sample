@@ -1,14 +1,13 @@
 import * as PIXI from "pixi.js";
-import { ATTRS, ATTR_IDS, CLASSES, MAGIC_TRADITIONS, RANK_NAME, SKILLS, SkillId } from "../defs";
-import { C, H, W, button, overlayRoot, panel, txt } from "../core";
+import { ATTRS, ATTR_IDS, CLASSES, MAGIC_TRADITIONS, RANK_NAME, SKILLS, SkillId, skillLabel } from "../defs";
+import { C, H, W, backdrop, button, overlayRoot, panel, txt } from "../core";
 import {
   Member, memberRanks, spendAttrPoint, spendSkillPoint, trainableNext,
 } from "../state";
 
 export function openGrowthMenu(m: Member, onClose?: () => void): void {
   const root = new PIXI.Container(); root.zIndex = 72; overlayRoot.addChild(root);
-  const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.62 });
-  dim.eventMode = "static"; root.addChild(dim);
+  root.addChild(backdrop());
   const PW = 960, PH = 680;
   const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; root.addChild(p);
   const bx = p.x, by = p.y;
@@ -42,7 +41,7 @@ export function openGrowthMenu(m: Member, onClose?: () => void): void {
         const ct = txt(group.label, 13, C.dim); ct.x = colX; ct.y = y; content.addChild(ct); y += 22;
         for (const k of group.skills) {
           const cur = ranks[k] ?? 0;
-          const lt = txt(`${SKILLS[k].name} [${RANK_NAME[cur]}]`, 14, cur ? C.text : C.dim);
+          const lt = txt(`${skillLabel(k)} [${RANK_NAME[cur]}]`, 14, cur ? (SKILLS[k].color ?? C.text) : C.dim);
           lt.x = colX + 8; lt.y = y + 6; content.addChild(lt);
           const nxt = trainableNext(m, k);
           if (nxt) {

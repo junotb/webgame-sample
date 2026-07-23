@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import { CLASSES, ClassId, RANK_NAME, SHOP_ARMORS, SHOP_WEAPONS, SKILLS } from "../defs";
-import { C, H, W, button, overlayRoot, panel, toast, txt } from "../core";
+import { C, H, W, backdrop, button, overlayRoot, panel, toast, txt } from "../core";
 import { G, Member, canClassChange, classOptions, doClassChange, memberRanks } from "../state";
 import type { TownFacilityDef } from "../town/types";
 import { SKILL_PRICE } from "../towns";
@@ -16,8 +16,7 @@ export interface TrainingHallOptions {
 /** 무기·방어구점과 마법 길드의 구매·수련·전직 흐름. */
 export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions): void {
   const root = new PIXI.Container(); root.zIndex = 60; overlayRoot.addChild(root);
-  const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
-  dim.eventMode = "static"; root.addChild(dim);
+  root.addChild(backdrop());
   const p = panel(860, 560); p.x = (W - 860) / 2; p.y = (H - 560) / 2; root.addChild(p);
   const content = new PIXI.Container(); root.addChild(content);
   const closeBtn = button("나가기", 110, 40, close, { size: 15 });
@@ -73,7 +72,8 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
     sub.x = p.x + 28; sub.y = p.y + 56; content.addChild(sub);
     (f.trains ?? []).forEach((skill, i) => {
       const y = p.y + 92 + i * 52;
-      const b = button(`${SKILLS[skill].name}  —  ${SKILL_PRICE} G`, 280, 42, () => {
+      const icon = SKILLS[skill].icon;
+      const b = button(`${icon ? `${icon} ` : ""}${SKILLS[skill].name}  —  ${SKILL_PRICE} G`, 280, 42, () => {
         if (G.gold < SKILL_PRICE) return toast(keeperSays(f.keeper, "수련비가 모자라네요. 준비되면 다시 와요."), C.dim);
         pickMember(`${SKILLS[skill].name} — 누가 배울까?`, (member) => {
           G.gold -= SKILL_PRICE;
@@ -87,7 +87,7 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
             return rank ? `(이미 ${RANK_NAME[rank]})` : "(미습득)";
           },
         });
-      }, { size: 14 });
+      }, { size: 14, border: SKILLS[skill].color });
       b.x = p.x + 28; b.y = y; content.addChild(b);
       const d = txt(`${SKILLS[skill].cat} 계열`, 13, C.dim);
       d.x = p.x + 330; d.y = y + 12; content.addChild(d);

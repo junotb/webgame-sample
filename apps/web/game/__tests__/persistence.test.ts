@@ -41,6 +41,20 @@ describe("버전 세이브", () => {
     expect(parsed.explore.chestOpened.c1).toBe(true);
   });
 
+  it("v5 세이브(potion/mpotion만 있음)를 v6 소모품·재료 레코드로 마이그레이션한다", () => {
+    const legacy = JSON.parse(serializeGame());
+    legacy.version = 5;
+    legacy.state.items = { potion: 4, mpotion: 1 };
+    delete legacy.state.mats;
+    const parsed = parseSave(JSON.stringify(legacy));
+    expect(parsed.items.potion).toBe(4);
+    expect(parsed.items.mpotion).toBe(1);
+    expect(parsed.items.elixir).toBe(0);
+    expect(parsed.items.antidote).toBe(0);
+    expect(parsed.mats.flask).toBe(0);
+    expect(parsed.mats.herb).toBe(0);
+  });
+
   it("v1 통합 원소·영혼 숙련을 v2의 9개 학파로 마이그레이션한다", () => {
     const legacy = JSON.parse(serializeGame());
     legacy.version = 1;

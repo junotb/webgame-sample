@@ -3,7 +3,7 @@ import type { FieldId } from "../fieldmaps";
 import type { Facing, GridMap } from "../grid";
 
 export type TownId = "crossvale" | "evermore";
-export type TownSpawn = "fountain" | "gate" | "carriage" | "throne" | "westGate" | "eastGate";
+export type TownSpawn = "fountain" | "gate" | "carriage" | "throne" | "westGate" | "eastGate" | "southGate";
 
 export interface TownSpawnPos {
   x: number;

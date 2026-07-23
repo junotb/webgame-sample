@@ -1,0 +1,26 @@
+﻿{
+    "amulet":  [
+                   "equipment_amulet_01",
+                   "equipment_amulet_02",
+                   "equipment_amulet_03",
+                   "equipment_amulet_04",
+                   "equipment_amulet_05",
+                   "equipment_amulet_06",
+                   "equipment_amulet_07",
+                   "equipment_amulet_08",
+                   "equipment_amulet_09",
+                   "equipment_amulet_10"
+               ],
+    "ring":  [
+                 "equipment_ring_01",
+                 "equipment_ring_02",
+                 "equipment_ring_03",
+                 "equipment_ring_04",
+                 "equipment_ring_05",
+                 "equipment_ring_06",
+                 "equipment_ring_07",
+                 "equipment_ring_08",
+                 "equipment_ring_09",
+                 "equipment_ring_10"
+             ]
+}

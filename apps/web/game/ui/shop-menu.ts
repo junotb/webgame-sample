@@ -1,7 +1,8 @@
 import * as PIXI from "pixi.js";
 import {
-  ATTRS, AttrId, DAMAGE_META, DamageType, EquipSlot, GearDef, SLOT_META,
+  ATTRS, AttrId, ConsumableId, DAMAGE_META, DamageType, EquipSlot, GearDef, SLOT_META,
 } from "../defs";
+import { openCraftMenu } from "./craft-menu";
 import { C, H, W, button, overlayRoot, panel, toast, txt } from "../core";
 import { G, Member, equipGear } from "../state";
 import { pickMember } from "./member-picker";
@@ -96,8 +97,7 @@ export function openShopMenu(opts: {
       if (G.gold < it.price) return toast(keeperSays(keeper, "그 물건을 사기엔 돈이 조금 모자라요."), C.dim);
       if (kind === "item") {
         G.gold -= it.price;
-        if (it.id === "potion") G.items.potion++;
-        else G.items.mpotion++;
+        G.items[it.id as ConsumableId]++;
         toast(`${it.name} 구입.`); refreshGold();
         return;
       }
@@ -110,6 +110,10 @@ export function openShopMenu(opts: {
     buy.x = colX + colWidth - 116; buy.y = y; root.addChild(buy);
   });
 
+  if (kind === "item") {
+    const craft = button("조합대", 110, 40, () => openCraftMenu(refreshGold), { size: 15 });
+    craft.x = p.x + 26; craft.y = p.y + panelHeight - 56; root.addChild(craft);
+  }
   const close = button("나가기", 110, 40, () => {
     root.destroy({ children: true });
     onClose();

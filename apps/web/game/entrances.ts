@@ -12,13 +12,16 @@ import type { FieldId } from "./fieldmaps";
 import type { TownId } from "./town/types";
 import { TileName, tileSprite } from "./tiles";
 
-export type EntranceKind = "forest" | "ruins" | "valley" | "town" | "castle" | "coast";
+export type EntranceKind = "forest" | "ruins" | "valley" | "town" | "castle" | "coast" | "swamp" | "glowwood";
 
 /** 필드로 나가는 입구 — 필드의 지형 테마를 예고한다. */
 export const FIELD_ENTRANCE_KIND: Record<FieldId, EntranceKind> = {
   coastRoad: "coast",
   goblinValley: "valley",
   hermanForest: "forest",
+  evermoreOutskirts: "forest",
+  mistmarsh: "swamp",
+  gleamwood: "glowwood",
 };
 
 /** 마을로 돌아가는 입구 — 마을의 성격(전원 마을·성곽 도시)을 예고한다. */
@@ -32,6 +35,7 @@ export const DUNGEON_ENTRANCE_KIND: Record<DungeonId, EntranceKind> = {
   fortress: "valley",
   fortressB1: "valley", // 필드에서 직접 잇지 않는 지하층 — 요새와 같은 재질
   temple: "ruins",
+  royalTomb: "ruins",
 };
 
 /** 입구 주변 외곽 벽 스킨 — 출구를 감싼 벽을 목적지 재질로 갈아입히고,
@@ -50,6 +54,8 @@ export const ENTRANCE_WALL_SKIN: Record<EntranceKind, EntranceWallSkin> = {
   town: { base: "village_wall_brick", gate: "village_door_wood" },
   castle: { base: "village_wall_stone", gate: "village_door_arch" },
   coast: { base: "village_wall_plaster", gate: "door_obj" },
+  swamp: { base: "trunk_wall", gate: "door_obj" },
+  glowwood: { base: "trunk_wall", gate: "door_obj" },
 };
 
 export interface EntranceVisual {
@@ -118,6 +124,21 @@ const BUILDERS: Record<EntranceKind, () => EntranceVisual> = {
     { tile: "shore_boat_obj", x: -42, scale: 0.5 },
     { tile: "flower_01", x: 36 },
   ], 0.75, 88),
+  /** 늪길 — 이끼 늘어진 버드나무가 울타리문 위로 드리운다. */
+  swamp: () => assemble(62, [
+    { tile: "swamp_willow_obj", x: -40, scale: 0.85 },
+    { tile: "fence_wing_obj", x: 0, scale: 2.6 },
+    { tile: "fence_gate_obj", x: 0, scale: 2.1 },
+    { tile: "swamp_shroom_violet_obj", x: 42, scale: 0.55 },
+  ], 1.1, 157),
+  /** 빛숲길 — 등불나무 두 그루 사이의 울타리문, 문가에 발광 수정. */
+  glowwood: () => assemble(62, [
+    { tile: "glow_tree_small_obj", x: -46, scale: 1.05 },
+    { tile: "glow_tree_small_obj", x: 46, scale: 1.05, flip: true },
+    { tile: "fence_wing_obj", x: 0, scale: 2.6 },
+    { tile: "fence_gate_obj", x: 0, scale: 2.1 },
+    { tile: "glow_crystal_green_obj", x: 24, scale: 0.5 },
+  ], 0.85, 111),
 };
 
 /** 목적지 테마에 맞는 입구 노드를 새로 만든다 (호출마다 새 인스턴스). */

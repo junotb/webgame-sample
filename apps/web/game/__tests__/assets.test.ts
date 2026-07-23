@@ -86,7 +86,7 @@ describe("몬스터 아이콘 카탈로그", () => {
 describe("NPC 거리 스프라이트", () => {
   it("시트 목록과 assets/npcs 파일은 1:1로 대응한다", () => {
     const files = new Set(
-      readdirSync("public/assets/npcs")
+      (existsSync("public/assets/npcs") ? readdirSync("public/assets/npcs") : [])
         .filter((f) => f.endsWith(".png"))
         .map((f) => f.replace(/\.png$/, "")),
     );

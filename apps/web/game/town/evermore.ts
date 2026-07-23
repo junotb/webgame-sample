@@ -34,18 +34,20 @@ export const EVERMORE_ROWS = [
   "#..........................#",
   "#..........................#",
   "#..........................#",
-  "############################",
+  "#############+##############",
 ] as const;
 
 export const EVERMORE_MAP = parseMap([...EVERMORE_ROWS]);
 
 /* ---- 진입 지점 ----
  *  carriage: 크로스베일에서 역마차로 도착 — 남단 마차 광장(북향)
- *  throne: 알현실 편지 전달 이벤트 후 복귀 — 알현실 문 앞(북향) */
-export const EVERMORE_STARTS: Record<"carriage" | "throne" | "gate", TownSpawnPos> = {
+ *  throne: 알현실 편지 전달 이벤트 후 복귀 — 알현실 문 앞(북향)
+ *  southGate: 근교 필드에서 남문으로 귀환 — 남문 안쪽(북향) */
+export const EVERMORE_STARTS: Record<"carriage" | "throne" | "gate" | "southGate", TownSpawnPos> = {
   carriage: { x: 13, y: 20, facing: 0 },
   throne: { x: 13, y: 6, facing: 0 },
   gate: { x: 1, y: 20, facing: 1 },
+  southGate: { x: 13, y: 22, facing: 0 },
 };
 
 export const EVERMORE_FACILITIES: TownFacilityDef[] = [
@@ -110,8 +112,10 @@ export const EVERMORE_DECOS: TownDecoDef[] = [
   },
 ];
 
-/** 에버모어 성에는 던전으로 나가는 성문이 없다 */
-export const EVERMORE_GATES: TownGateDef[] = [];
+/** 남문 — 근교 필드(강변·사냥터)로 직결되는 신설 성문 */
+export const EVERMORE_GATES: TownGateDef[] = [
+  { id: "south", x: 13, y: 23, label: "남문 — 에버모어 근교", prompt: "[Z] 남문 밖으로 — 에버모어 근교", target: "evermoreOutskirts" },
+];
 
 /** 레지스트리에 바로 등록할 수 있는 완전한 에버모어 정의. */
 export const EVERMORE_TOWN: TownData = {

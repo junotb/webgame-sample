@@ -29,9 +29,13 @@ export type MonsterHabitatId =
   | "coastRoad"
   | "goblinValley"
   | "hermanForest"
+  | "evermoreOutskirts"
+  | "mistmarsh"
+  | "gleamwood"
   | "fortress"
   | "fortressB1"
-  | "temple";
+  | "temple"
+  | "royalTomb";
 
 export interface MonsterAssetMeta {
   category: MonsterCategory;
@@ -47,7 +51,7 @@ export const MONSTER_ASSET_META: Record<string, MonsterAssetMeta> = {
   Pincercap: meta("fungus", "temple", "coastRoad"),
   Facecap: meta("fungus", "temple"),
   Slugcap: meta("fungus", "coastRoad", "temple"),
-  Corpsecap: meta("fungus", "coastRoad", "temple"),
+  Corpsecap: meta("fungus", "coastRoad", "temple", "evermoreOutskirts", "royalTomb", "mistmarsh", "gleamwood"),
   Feelercap: meta("fungus", "temple"),
   Manyheadcap: meta("fungus", "temple"),
   Stingcap: meta("fungus", "coastRoad", "temple"),
@@ -63,32 +67,32 @@ export const MONSTER_ASSET_META: Record<string, MonsterAssetMeta> = {
   Mandrake: meta("plant", "hermanForest"),
   Facebloom: meta("plant", "hermanForest", "temple"),
   Bluebloom: meta("plant", "hermanForest", "coastRoad"),
-  Tendrilbloom: meta("plant", "coastRoad", "temple"),
+  Tendrilbloom: meta("plant", "coastRoad", "temple", "mistmarsh", "gleamwood"),
   Berryclump: meta("plant", "hermanForest"),
   Grumpygourd: meta("plant", "hermanForest"),
 
   Sproutslime: meta("ooze", "hermanForest"),
-  Glareslime: meta("ooze", "hermanForest", "goblinValley", "fortress"),
+  Glareslime: meta("ooze", "hermanForest", "goblinValley", "fortress", "evermoreOutskirts", "mistmarsh", "gleamwood"),
   Bubbleslime: meta("ooze", "coastRoad"),
   Oozeslime: meta("ooze", "fortress", "temple"),
   Puddingslime: meta("ooze", "hermanForest"),
   Slickjelly: meta("ooze", "coastRoad"),
   Weepslime: meta("ooze", "temple"),
-  Eyeblob: meta("ooze", "temple", "fortressB1"),
+  Eyeblob: meta("ooze", "temple", "fortressB1", "royalTomb"),
   Dropslime: meta("ooze", "coastRoad", "hermanForest"),
 
   Burrowrat: meta("beast", "goblinValley", "fortress"),
   Wingspider: meta("beast", "temple", "fortress"),
-  Fanghare: meta("beast", "hermanForest", "goblinValley"),
+  Fanghare: meta("beast", "hermanForest", "goblinValley", "evermoreOutskirts"),
   Redbat: meta("beast", "coastRoad", "fortress"),
   Stagbeetle: meta("beast", "goblinValley", "hermanForest"),
   Spotspider: meta("beast", "hermanForest", "temple"),
   Porterbug: meta("beast", "goblinValley", "fortress"),
-  Duskbat: meta("beast", "coastRoad", "temple", "fortressB1"),
+  Duskbat: meta("beast", "coastRoad", "temple", "fortressB1", "evermoreOutskirts", "royalTomb", "mistmarsh", "gleamwood"),
   Grassmantis: meta("beast", "hermanForest"),
   Tubbybird: meta("beast", "coastRoad", "hermanForest"),
   Lancewasp: meta("beast", "coastRoad", "goblinValley"),
-  Tuskboar: meta("beast", "goblinValley", "hermanForest"),
+  Tuskboar: meta("beast", "goblinValley", "hermanForest", "evermoreOutskirts", "mistmarsh"),
   Hopperrat: meta("beast", "goblinValley", "fortress"),
   Whitewing: meta("beast", "coastRoad"),
   Mosstoad: meta("beast", "coastRoad", "hermanForest"),
@@ -100,7 +104,7 @@ export const MONSTER_ASSET_META: Record<string, MonsterAssetMeta> = {
   Goblinoccultist: meta("humanoid", "fortressB1"),
   Voodooshaman: meta("humanoid", "fortressB1", "temple"),
   Fallenbishop: meta("undead", "temple"),
-  Frostwraith: meta("spirit", "fortress", "fortressB1", "temple"),
+  Frostwraith: meta("spirit", "fortress", "fortressB1", "temple", "royalTomb"),
 };
 
 /** 맵의 핵심 생태 테마. 현재 조우뿐 아니라 이후 추가 가능한 범위도 포함한다. */
@@ -108,9 +112,13 @@ export const MAP_MONSTER_CATEGORIES: Record<MonsterHabitatId, readonly MonsterCa
   coastRoad: ["fungus", "plant", "ooze", "beast"],
   goblinValley: ["humanoid", "beast", "ooze"],
   hermanForest: ["plant", "ooze", "beast"],
+  evermoreOutskirts: ["beast", "plant", "ooze", "fungus"],
+  mistmarsh: ["ooze", "fungus", "plant", "beast"],
+  gleamwood: ["plant", "fungus", "ooze", "beast"],
   fortress: ["humanoid", "beast", "ooze", "spirit"],
   fortressB1: ["humanoid", "beast", "ooze", "spirit"],
   temple: ["fungus", "plant", "ooze", "beast", "undead", "spirit", "humanoid"],
+  royalTomb: ["fungus", "ooze", "beast", "undead", "spirit"],
 };
 
 export function monsterCategory(nameEn: string): MonsterCategory | undefined {

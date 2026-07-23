@@ -1,0 +1,181 @@
+﻿{
+    "leather":  {
+                    "armor":  [
+                                  "equipment_armor_01",
+                                  "equipment_armor_02",
+                                  "equipment_armor_03",
+                                  "equipment_armor_04",
+                                  "equipment_armor_05",
+                                  "equipment_armor_08",
+                                  "equipment_armor_11"
+                              ],
+                    "boots":  [
+                                  "equipment_boots_02",
+                                  "equipment_boots_03",
+                                  "equipment_boots_04",
+                                  "equipment_boots_05",
+                                  "equipment_boots_06",
+                                  "equipment_boots_07",
+                                  "equipment_boots_08",
+                                  "equipment_boots_09"
+                              ],
+                    "gauntlets":  [
+                                      "equipment_gauntlets_01",
+                                      "equipment_gauntlets_02",
+                                      "equipment_gauntlets_03",
+                                      "equipment_gauntlets_04",
+                                      "equipment_gauntlets_05",
+                                      "equipment_gauntlets_06",
+                                      "equipment_gauntlets_07",
+                                      "equipment_gauntlets_10"
+                                  ],
+                    "helmet":  [
+                                   "equipment_helmet_01",
+                                   "equipment_helmet_02",
+                                   "equipment_helmet_03",
+                                   "equipment_helmet_05"
+                               ],
+                    "shield":  [
+                                   "equipment_shield_01",
+                                   "equipment_shield_02",
+                                   "equipment_shield_05",
+                                   "equipment_shield_06",
+                                   "equipment_shield_07",
+                                   "equipment_shield_09",
+                                   "equipment_shield_10"
+                               ]
+                },
+    "iron":  {
+                 "armor":  [
+                               "equipment_armor_07",
+                               "equipment_armor_09",
+                               "equipment_armor_12",
+                               "equipment_armor_15",
+                               "equipment_armor_17",
+                               "equipment_armor_19"
+                           ],
+                 "boots":  [
+                               "equipment_boots_10",
+                               "equipment_boots_12",
+                               "equipment_boots_13",
+                               "equipment_boots_20"
+                           ],
+                 "gauntlets":  [
+                                   "equipment_gauntlets_08",
+                                   "equipment_gauntlets_11",
+                                   "equipment_gauntlets_14",
+                                   "equipment_gauntlets_16",
+                                   "equipment_gauntlets_18"
+                               ],
+                 "helmet":  [
+                                "equipment_helmet_04",
+                                "equipment_helmet_08",
+                                "equipment_helmet_09",
+                                "equipment_helmet_13"
+                            ],
+                 "shield":  [
+                                "equipment_shield_03",
+                                "equipment_shield_04",
+                                "equipment_shield_08",
+                                "equipment_shield_13",
+                                "equipment_shield_16"
+                            ]
+             },
+    "steel":  {
+                  "armor":  [
+                                "equipment_armor_13",
+                                "equipment_armor_16"
+                            ],
+                  "boots":  [
+                                "equipment_boots_14",
+                                "equipment_boots_16",
+                                "equipment_boots_17",
+                                "equipment_boots_18"
+                            ],
+                  "gauntlets":  [
+                                    "equipment_gauntlets_12",
+                                    "equipment_gauntlets_15"
+                                ],
+                  "helmet":  [
+                                 "equipment_helmet_06",
+                                 "equipment_helmet_10",
+                                 "equipment_helmet_12",
+                                 "equipment_helmet_14"
+                             ],
+                  "shield":  [
+                                 "equipment_shield_12",
+                                 "equipment_shield_14",
+                                 "equipment_shield_17",
+                                 "equipment_shield_18",
+                                 "equipment_shield_20"
+                             ]
+              },
+    "gold":  {
+                 "armor":  [
+                               "equipment_armor_14"
+                           ],
+                 "boots":  [
+                               "equipment_boots_15"
+                           ],
+                 "gauntlets":  [
+                                   "equipment_gauntlets_13"
+                               ],
+                 "helmet":  [
+
+                            ],
+                 "shield":  [
+                                "equipment_shield_15"
+                            ]
+             },
+    "special":  {
+                    "armor":  [
+                                  "equipment_armor_06",
+                                  "equipment_armor_10",
+                                  "equipment_armor_18"
+                              ],
+                    "boots":  [
+                                  "equipment_boots_01",
+                                  "equipment_boots_11",
+                                  "equipment_boots_19"
+                              ],
+                    "gauntlets":  [
+                                      "equipment_gauntlets_09",
+                                      "equipment_gauntlets_17"
+                                  ],
+                    "helmet":  [
+                                   "equipment_helmet_07",
+                                   "equipment_helmet_11"
+                               ],
+                    "shield":  [
+                                   "equipment_shield_11",
+                                   "equipment_shield_19"
+                               ]
+                },
+    "extras":  {
+                   "head":  [
+                                "equipment_crown",
+                                "equipment_hat_01",
+                                "equipment_helmet",
+                                "equipment_hood_01",
+                                "equipment_hood_02",
+                                "equipment_hood_03",
+                                "equipment_mask_01",
+                                "equipment_skull_helmet_01",
+                                "equipment_wizard_hat"
+                            ],
+                   "body_hands":  [
+                                      "equipment_tunic_01",
+                                      "equipment_bracers_01",
+                                      "equipment_gloves",
+                                      "equipment_gloves_01"
+                                  ],
+                   "feet":  [
+                                "equipment_boot",
+                                "equipment_red_boots"
+                            ],
+                   "shield":  [
+                                  "equipment_red_shield",
+                                  "equipment_wooden_shield"
+                              ]
+               }
+}

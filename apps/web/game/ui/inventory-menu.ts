@@ -1,7 +1,7 @@
 import * as PIXI from "pixi.js";
 import {
-  ATTRS, ATTR_IDS, DAMAGE_META, DamageType, OwnedGear, RANK_NAME, RARITY_META,
-  SLOT_META, gearDisplayName,
+  ATTRS, ATTR_IDS, DAMAGE_META, DamageType, MATERIALS, MATERIAL_IDS, OwnedGear,
+  RANK_NAME, RARITY_META, SLOT_META, gearDisplayName,
 } from "../defs";
 import { C, H, W, button, overlayRoot, panel, toast, txt } from "../core";
 import {
@@ -55,6 +55,12 @@ export function openBagMenu(onClose?: () => void): void {
     title.x = bx + 28; title.y = by + 18; content.addChild(title);
     const info = txt(`소지금 ${G.gold} G     ·     파티 식별 ${RANK_NAME[partyIdentifyRank()]}     ·     ${G.bag.length}점`, 14, C.text);
     info.x = bx + 28; info.y = by + 54; content.addChild(info);
+    const ownedMats = MATERIAL_IDS.filter((id) => G.mats[id] > 0)
+      .map((id) => `${MATERIALS[id].name} ×${G.mats[id]}`);
+    if (ownedMats.length) {
+      const matT = txt(`조합 재료: ${ownedMats.join("  ")}  (도구점 조합대에서 물약으로)`, 12, C.dim, { wrap: PW - 56 });
+      matT.x = bx + 28; matT.y = by + 74; content.addChild(matT);
+    }
     if (!G.bag.length) {
       const empty = txt("가방이 비어 있다. 적을 처치하면 확률로 장비가 드랍된다.", 15, C.dim);
       empty.x = bx + 28; empty.y = by + 100; content.addChild(empty);

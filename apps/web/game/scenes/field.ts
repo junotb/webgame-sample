@@ -11,7 +11,7 @@ import { ParticleKind, particleField, swaySprite } from "../ambient";
 import { gameplayRandom } from "../core/random";
 import { RARITY_META, gearDisplayName } from "../defs";
 import { FieldBattleHandle, fieldBattleOverlay } from "./field-battle";
-import { LEVEL_AP, LEVEL_SP, gainExpParty, rollDropToBag } from "../state";
+import { LEVEL_AP, LEVEL_SP, gainExpParty, rollDropToBag, rollMaterialToState } from "../state";
 import {
   DUNGEON_ENTRANCE_KIND, ENTRANCE_WALL_SKIN, EntranceVisual,
   FIELD_ENTRANCE_KIND, TOWN_ENTRANCE_KIND, entranceNode,
@@ -110,6 +110,31 @@ function fieldBuilding(style: Extract<NonNullable<FieldDeco["visual"]>, { kind: 
   return { node, worldH: pick.worldH, baseH: pick.baseH };
 }
 
+/* 늪·빛숲 자연물 프롭 — 프레임 크기가 제각각이라 스케일·월드 높이를 개별 지정한다.
+ * sway를 끈 프롭(수정·버섯)은 바람에 흔들리지 않는다. */
+const NATURE_PROP: Partial<Record<TileName, {
+  scale: number; worldH: number; baseH: number; sway?: boolean; squashY?: number;
+}>> = {
+  swamp_willow_obj: { scale: 0.9, worldH: 1.15, baseH: 166, sway: true },
+  swamp_willow2_obj: { scale: 0.9, worldH: 1.1, baseH: 161, sway: true },
+  swamp_deadtree_obj: { scale: 0.9, worldH: 1.02, baseH: 148, sway: true },
+  swamp_snag_obj: { scale: 0.9, worldH: 0.88, baseH: 128 },
+  swamp_lilypad_obj: { scale: 0.85, worldH: 0.16, baseH: 27, squashY: 0.42 },
+  swamp_shroom_tall_obj: { scale: 0.75, worldH: 0.98, baseH: 142, sway: true },
+  swamp_shroom_violet_obj: { scale: 0.9, worldH: 0.58, baseH: 84 },
+  swamp_shroom_brown_obj: { scale: 0.9, worldH: 0.55, baseH: 80 },
+  glow_tree_big_obj: { scale: 0.95, worldH: 1.26, baseH: 184, sway: true },
+  glow_tree_lantern_obj: { scale: 0.9, worldH: 1.16, baseH: 169, sway: true },
+  glow_tree_small_obj: { scale: 0.9, worldH: 0.66, baseH: 95, sway: true },
+  glow_crystal_purple_obj: { scale: 0.8, worldH: 0.46, baseH: 66 },
+  glow_crystal_green_obj: { scale: 0.8, worldH: 0.46, baseH: 66 },
+  glow_crystal_blue_obj: { scale: 0.8, worldH: 0.46, baseH: 66 },
+  glow_grass_obj: { scale: 1, worldH: 0.32, baseH: 47, sway: true },
+  giant_mushroom_obj: { scale: 0.8, worldH: 1.42, baseH: 207 },
+  mush_stool_blue_obj: { scale: 0.8, worldH: 0.53, baseH: 77 },
+  mush_stool_brown_obj: { scale: 0.8, worldH: 0.53, baseH: 77 },
+};
+
 function fieldNode(deco: FieldDeco): FieldNode {
   if (deco.visual?.kind === "monster") {
     const node = new PIXI.Container();
@@ -133,6 +158,22 @@ function fieldNode(deco: FieldDeco): FieldNode {
   }
 
   if (!deco.tile) throw new Error(`field deco "${deco.id}" has no visual`);
+  const nature = NATURE_PROP[deco.tile];
+  if (nature) {
+    const node = new PIXI.Container();
+    const g = new PIXI.Graphics();
+    g.ellipse(0, 3, 30 + nature.baseH * 0.18, 9).fill({ color: 0x16120e, alpha: 0.32 });
+    const s = tileSprite(deco.tile, nature.scale);
+    s.anchor.set(0.5, 1);
+    if (nature.squashY) s.scale.y = nature.scale * nature.squashY;
+    node.addChild(g, s);
+    return {
+      entity: { id: `deco:${deco.id}`, x: deco.x, y: deco.y, node, worldH: nature.worldH, baseH: nature.baseH },
+      tick: nature.sway
+        ? swaySprite(s, { amp: 0.014, period: 3600, phase: deco.x * 1.3 + deco.y * 2.1 })
+        : undefined,
+    };
+  }
   const node = new PIXI.Container();
   const s = tileSprite(deco.tile); s.anchor.set(0.5, 1); node.addChild(s);
   const tall = deco.tile.startsWith("tree_");
@@ -258,7 +299,8 @@ export function fieldScene(id: FieldId): SceneHandle {
 
   /* 필드별 부유 입자 — 해안길은 물보라, 계곡은 흙먼지, 숲은 낙엽 */
   const FIELD_PARTICLES: Record<FieldId, ParticleKind> = {
-    coastRoad: "spray", goblinValley: "dust", hermanForest: "leaves",
+    coastRoad: "spray", goblinValley: "dust", hermanForest: "leaves", evermoreOutskirts: "leaves",
+    mistmarsh: "mist", gleamwood: "fireflies",
   };
   const ambient = particleField(FIELD_PARTICLES[F.id]);
   root.addChild(ambient.node);
@@ -397,6 +439,13 @@ export function fieldScene(id: FieldId): SceneHandle {
       }
       return;
     }
+    if (d.id === "lost_prince") {
+      if (G.flags.princeFound)
+        logT.text = "왕자가 몸을 녹이던 모닥불 자리엔 재만 남았다. 어린 군주는 무사히 성으로 돌아갔다.";
+      else if (questStatus("main_ch1_wavering_crown") === "active") startPrinceEncounter();
+      else logT.text = d.text;
+      return;
+    }
     logT.text = d.text;
   }
 
@@ -413,6 +462,12 @@ export function fieldScene(id: FieldId): SceneHandle {
           G.gold += gold;
           const ups = gainExpParty(exp);
           toast(`승리! 경험치 +${exp}, ${gold} G`, C.border);
+          const mats: string[] = [];
+          for (const id of enemies) {
+            const mat = rollMaterialToState(id);
+            if (mat) mats.push(mat);
+          }
+          if (mats.length) toast(`재료 획득: ${mats.join(" · ")}`, C.border);
           for (const id of enemies) {
             const drop = rollDropToBag(ENEMY_DEFS[id].tier);
             if (drop) {
@@ -457,6 +512,24 @@ export function fieldScene(id: FieldId): SceneHandle {
       logT.text = updates[0] ? updateText(updates[0]) : "일행이 산적 무리를 소탕했다. 현상금 길드에 보고해야 한다.";
       refresh();
     }, { caption: "산적의 포위" });
+  }
+
+  /* ---- 1장: 강변 덤불 뒤에서 성을 빠져나간 어린 군주를 찾아낸다 ---- */
+  function startPrinceEncounter(): void {
+    const nodes: EventNode[] = [
+      { text: "모닥불 뒤 덤불이 흔들리더니, 흙투성이 사냥복 차림의 소년이 나뭇가지를 창처럼 겨눈 채 뛰쳐나왔다. 자수 놓인 외투가 소년의 어깨에서 흘러내린다." },
+      { name: "어린 군주", portrait: "hero", text: "다, 다가오지 마라! …궁정에서 보낸 자들인가? 돌아가서 전해라. 옥좌는 아버지의 것이지 내 것이 아니라고!" },
+      { text: "일행은 무기를 거두고 모닥불 곁에 앉았다. 헤르만의 편지를 전한 사자들이라는 말에, 소년의 굳은 어깨가 조금씩 풀렸다." },
+      { name: "어린 군주", portrait: "hero", text: "…아버지의 마지막 손님들이었군. 귀족들은 하루 종일 서약이니 인장이니 떠들면서, 정작 아버지 이야기는 아무도 하지 않아. 왕관은… 아직 너무 무거워." },
+      { text: "밤이슬이 내리기 시작했다. 일행은 어린 군주를 호위해 남문으로 향했다. 성으로 돌아가면 시종장 오르윈에게 알려야 한다." },
+    ];
+    activeEvent = eventOverlay(nodes, () => {
+      activeEvent = null;
+      G.flags.princeFound = true;
+      const updates = questNotify({ t: "talk", npc: "lost_prince" });
+      logT.text = updates[0] ? updateText(updates[0]) : "어린 군주를 찾아냈다. 성의 시종장 오르윈에게 알려야 한다.";
+      refresh();
+    }, { caption: "강변의 어린 군주" });
   }
 
   const ticker = (t: PIXI.Ticker) => {

@@ -2,11 +2,13 @@
  * state.ts — 게임 상태 (순수 로직, PIXI 비의존 / 백엔드 연동 지점)
  * ===================================================================== */
 import {
-  ABILITIES, AbilityDef, AttrId, ATTR_IDS, Attrs, CLASSES, ClassId, DamageType, ENEMY_DEFS,
-  EQUIP_SLOTS, EquipSlot, Equipped, FIELD_SKILLS, FieldSkillDef, FISTS, GearDef, LD, OwnedGear,
+  ABILITIES, AbilityDef, AttrId, ATTR_IDS, Attrs, CLASSES, ClassId, CONSUMABLES, ConsumableId,
+  CraftRecipe, DamageType, ENEMY_DEFS, EQUIP_SLOTS, EquipSlot, Equipped, FIELD_SKILLS,
+  FieldSkillDef, FISTS, GearDef, LD, MATERIALS, MaterialId, OwnedGear,
   PARTY_SLOTS, RANK_MULT, Rank, RARITY_META, ResistTable, SkillId, Tier, WeaponReach, WeaponView,
-  SKILLS, rollDrop,
+  SKILLS, canCraft, emptyItems, emptyMats, rollDrop, rollMaterialDrop,
 } from "./defs";
+import { gameplayRandom } from "./core/random";
 import { abilityMod } from "./core/dice";
 import { Store } from "./core/store";
 import { StatusInstance } from "./core/statuses";
@@ -15,6 +17,7 @@ import {
   NORMAL_SPAWNS, START, SYMBOL_SPAWNS, SpawnDef, basementMap, fortressMap,
 } from "./goblin-fortress";
 import { TEMPLE_NORMAL_SPAWNS, TEMPLE_START, TEMPLE_SYMBOL_SPAWNS, templeMap } from "./abandoned-temple";
+import { TOMB_NORMAL_SPAWNS, TOMB_START, TOMB_SYMBOL_SPAWNS, tombMap } from "./royal-tomb";
 import type { TownId } from "./town/types";
 
 export interface Member {
@@ -92,7 +95,9 @@ export interface QuestProgress {
 
 export interface GameState {
   party: Member[];
-  items: { potion: number; mpotion: number };
+  items: Record<ConsumableId, number>;
+  /** 조합 재료 — 몬스터 종족별 드랍, 도구점에서 물약으로 조합 */
+  mats: Record<MaterialId, number>;
   /** 획득했지만 미장착인 장비 (드랍·교체품). 미확인 장비는 감정 전까지 여기 머문다 */
   bag: OwnedGear[];
   gold: number;
@@ -101,10 +106,11 @@ export interface GameState {
   town: TownId;
   /** 마을 방문과 휴식으로 흐르는 월드 시계 (구버전 세이브는 최초 접근 시 생성) */
   townWorld?: { day: number; minuteOfDay: number; visits: Partial<Record<TownId, number>> };
-  /** 던전별 탐험 상태 — explore: 고블린 요새 지상 / basement: 요새 지하 / temple: 버려진 사원 */
+  /** 던전별 탐험 상태 — explore: 고블린 요새 지상 / basement: 요새 지하 / temple: 버려진 사원 / tomb: 왕실 묘소 */
   explore: ExploreState;
   basement: ExploreState;
   temple: ExploreState;
+  tomb: ExploreState;
   /** 필드 배치 전투(정예·퀘스트 몬스터) 처치 기록 — "필드id:데코id" → 처치한 월드 날짜.
    *  respawnDays가 지나면 다시 나타난다. */
   fieldFights: Record<string, number>;
@@ -114,6 +120,8 @@ export interface GameState {
     hostagesRescued: boolean; banditsDefeated: boolean;
     /** 크로스베일 마구간에서 길이 막힌 사정을 들었는가 */
     stableBriefed: boolean;
+    /** 1장 — 근교 사냥터에서 성을 빠져나간 어린 군주를 찾아냈는가 */
+    princeFound: boolean;
   };
   quests: Record<string, QuestProgress>;
   _fled?: boolean;
@@ -163,7 +171,8 @@ export function newGame(configs: CreationConfig[]): void {
         apUnspent: 0, spUnspent: 0, trained: {},
       };
     }),
-    items: { potion: 3, mpotion: 2 },
+    items: { ...emptyItems(), potion: 3, mpotion: 2 },
+    mats: emptyMats(),
     bag: [],
     gold: 120,
     blessedNext: false,
@@ -172,11 +181,13 @@ export function newGame(configs: CreationConfig[]): void {
     explore: freshFortressState(),
     basement: freshBasementState(),
     temple: freshTempleState(),
+    tomb: freshTombState(),
     fieldFights: {},
     flags: {
       intro: false, ending: false, letter: false,
       bishopDefeated: false, goblinOrders: false,
       hostagesRescued: false, banditsDefeated: false, stableBriefed: false,
+      princeFound: false,
     },
     quests: {},
   });
@@ -229,6 +240,9 @@ export function freshBasementState(): ExploreState {
 }
 export function freshTempleState(): ExploreState {
   return freshDungeonState(templeMap, TEMPLE_START, TEMPLE_NORMAL_SPAWNS, TEMPLE_SYMBOL_SPAWNS);
+}
+export function freshTombState(): ExploreState {
+  return freshDungeonState(tombMap, TOMB_START, TOMB_NORMAL_SPAWNS, TOMB_SYMBOL_SPAWNS);
 }
 
 /** 마을 → 던전 재진입 시 호출: 일반 몹 전부 리스폰 + 심볼 상태 재계산 */
@@ -355,6 +369,59 @@ export function rollDropToBag(tier: Tier): OwnedGear | null {
   const o = rollDrop(tier, partyFortune());
   if (o) addDrop(o);
   return o;
+}
+
+/* ---- 소모품 · 조합 재료 ---- */
+/** 전투 밖(마을·탐험)에서 쓸 수 있는 소모품인가 */
+export function fieldUsable(id: ConsumableId): boolean {
+  return !CONSUMABLES[id].battleOnly;
+}
+
+/** 전투 밖 소모품 사용 — 성공 시 결과 문구, 실패(개수 부족·대상 부적합) 시 null */
+export function useFieldItem(id: ConsumableId, m: Member): string | null {
+  const def = CONSUMABLES[id];
+  if (G.items[id] <= 0 || def.battleOnly) return null;
+  const down = m.hp <= 0;
+  if (down && !def.revive) return null;
+  if (!down && def.hp && m.hp >= m.maxHp && !def.mp) return null;
+  if (!def.hp && !def.full && def.mp && m.mp >= m.maxMp) return null;
+  G.items[id]--;
+  const parts: string[] = [];
+  if (def.full) { m.hp = m.maxHp; parts.push("HP 전부 회복"); }
+  else if (def.hp) {
+    m.hp = Math.min(m.maxHp, Math.max(0, m.hp) + def.hp);
+    parts.push(`HP ${def.hp} 회복`);
+  }
+  if (def.mp) { m.mp = Math.min(m.maxMp, m.mp + def.mp); parts.push(`MP ${def.mp} 회복`); }
+  return `${m.name} — ${def.name}: ${down ? "일어났다! " : ""}${parts.join(", ")}.`;
+}
+
+/** 적 처치 시 재료 드랍 판정 → 보유 재료에 추가. 획득한 재료 이름(또는 null) 반환 */
+export function rollMaterialToState(defId: string, rng: () => number = gameplayRandom): string | null {
+  const def = ENEMY_DEFS[defId];
+  if (!def) return null;
+  const mat = rollMaterialDrop(def, partyFortune(), rng);
+  if (!mat) return null;
+  G.mats[mat]++;
+  return MATERIALS[mat].name;
+}
+
+/** 조합 실행 — 재료가 충분하면 소모하고 소모품 1개 획득. 성공 시 true */
+export function craftItem(recipe: CraftRecipe): boolean {
+  if (!canCraft(recipe, G.mats)) return false;
+  for (const k of Object.keys(recipe.mats) as MaterialId[]) G.mats[k] -= recipe.mats[k] ?? 0;
+  G.items[recipe.out]++;
+  return true;
+}
+
+/** 재료 판매 — 성공 시 획득 골드 반환 */
+export function sellMaterial(id: MaterialId, n = 1): number {
+  const count = Math.min(n, G.mats[id]);
+  if (count <= 0) return 0;
+  G.mats[id] -= count;
+  const gold = MATERIALS[id].sell * count;
+  G.gold += gold;
+  return gold;
 }
 
 /** 미확인 장비를 감정한다 — 파티 식별 랭크가 희귀도 요구치 이상이면 성공. */

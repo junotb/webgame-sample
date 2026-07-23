@@ -3,14 +3,16 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  ATTRS, ATTR_IDS, CLASSES, EquipSlot, MAGIC_TRADITIONS, RANK_NAME, SLOT_META, SKILLS, SkillId,
+  ATTRS, ATTR_IDS, CLASSES, CONSUMABLES, CONSUMABLE_IDS, EquipSlot, MAGIC_TRADITIONS,
+  RANK_NAME, SLOT_META, SKILLS, SkillId,
 } from "./defs";
 import { portraitTexture } from "./portraits";
 import {
   C, H, W, button, overlayRoot, panel, toast, txt, ui,
 } from "./core";
 import {
-  G, Member, PROF_BASE, canSwapRow, equippedWeapon, expNeed, memberRanks, memberStats, partyFieldSkills,
+  G, Member, PROF_BASE, canSwapRow, equippedWeapon, expNeed, fieldUsable, memberRanks,
+  memberStats, partyFieldSkills, useFieldItem,
 } from "./state";
 import { openGrowthMenu } from "./ui/growth-menu";
 import { openBagMenu } from "./ui/inventory-menu";
@@ -113,13 +115,18 @@ export function openStatusMenu(onClose?: () => void): void {
   const p = panel(880, 620); p.x = (W - 880) / 2; p.y = (H - 620) / 2; root.addChild(p);
   const bx = p.x, by = p.y;
   const title = txt("모험 수첩", 26, C.border, { serif: true }); title.x = bx + 28; title.y = by + 16; root.addChild(title);
-  const goldT = txt(`${G.gold} G   |   치유 물약 ×${G.items.potion}   마나 물약 ×${G.items.mpotion}`, 15, C.text);
-  goldT.x = bx + 300; goldT.y = by + 26; root.addChild(goldT);
+  const itemSummary = () => {
+    const owned = CONSUMABLE_IDS.filter((id) => G.items[id] > 0)
+      .map((id) => `${CONSUMABLES[id].name} ×${G.items[id]}`);
+    return `${G.gold} G   |   ${owned.length ? owned.join("   ") : "소모품 없음"}`;
+  };
+  const goldT = txt(itemSummary(), 13, C.text, { wrap: 330 });
+  goldT.x = bx + 300; goldT.y = by + 22; root.addChild(goldT);
 
   /* 가방(인벤토리) — 미확인 장비가 있으면 강조 */
   const unidCount = G.bag.filter((o) => !o.identified).length;
   const bagBtn = button(`가방 (${G.bag.length})${unidCount ? ` · 미확인 ${unidCount}` : ""}`, 210, 34,
-    () => openBagMenu(() => { goldT.text = `${G.gold} G   |   치유 물약 ×${G.items.potion}   마나 물약 ×${G.items.mpotion}`; renderDetail(); }),
+    () => openBagMenu(() => { goldT.text = itemSummary(); renderDetail(); }),
     { size: 14, border: unidCount ? C.elite : undefined });
   bagBtn.x = bx + 640; bagBtn.y = by + 14; root.addChild(bagBtn);
 
@@ -201,12 +208,9 @@ export function openStatusMenu(onClose?: () => void): void {
     const note = txt("숙련 단계: 노비스 → 전문가 → 달인 (스킬 위력·효과 자동 강화)", 13, C.dim);
     note.x = bx + 28; note.y = by + 620 - 92; detail.addChild(note);
 
-    const useP = button("치유 물약 사용", 160, 36, () => {
-      if (G.items.potion <= 0) return toast("치유 물약이 없다.", C.dim);
-      if (m.hp >= m.maxHp) return toast(`${m.name}(은)는 이미 건강하다.`, C.dim);
-      G.items.potion--; m.hp = Math.min(m.maxHp, m.hp + 60);
-      toast(`${m.name} HP 60 회복.`); close();
-    }, { size: 14 });
+    const useP = button("아이템 사용", 160, 36, () => openFieldItemMenu(m, () => {
+      goldT.text = itemSummary(); renderDetail();
+    }), { size: 14 });
     useP.x = bx + 28; useP.y = by + 620 - 52; detail.addChild(useP);
 
     /* 진형 토글 — 전열이 최소 한 명은 남아야 한다 */
@@ -235,6 +239,38 @@ export function openStatusMenu(onClose?: () => void): void {
   const closeBtn = button("닫기", 100, 36, close, { size: 15 });
   closeBtn.x = bx + 880 - 128; closeBtn.y = by + 620 - 52; root.addChild(closeBtn);
   function close(): void { ui.menuOpen = false; root.destroy({ children: true }); onClose?.(); }
+}
+
+/* ---------- 소모품 사용 (전투 밖 — 모험 수첩에서) ---------- */
+function openFieldItemMenu(m: Member, onUsed: () => void): void {
+  const usable = CONSUMABLE_IDS.filter((id) => G.items[id] > 0 && fieldUsable(id));
+  const root = new PIXI.Container(); root.zIndex = 70; overlayRoot.addChild(root);
+  const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.5 });
+  dim.eventMode = "static"; root.addChild(dim);
+  const rows = Math.max(1, usable.length);
+  const ph = 110 + rows * 52;
+  const p = panel(620, ph); p.x = (W - 620) / 2; p.y = (H - ph) / 2; root.addChild(p);
+  const tt = txt(`${m.name} — 아이템 사용 (HP ${m.hp}/${m.maxHp} · MP ${m.mp}/${m.maxMp})`, 18, C.border, { serif: true });
+  tt.x = p.x + 24; tt.y = p.y + 16; root.addChild(tt);
+  if (!usable.length) {
+    const t = txt("여기서 쓸 수 있는 소모품이 없다. (비약·해독제는 전투 중 전용)", 14, C.dim);
+    t.x = p.x + 24; t.y = p.y + 60; root.addChild(t);
+  }
+  usable.forEach((id, i) => {
+    const def = CONSUMABLES[id];
+    const b = button(`${def.name} ×${G.items[id]}`, 230, 42, () => {
+      const line = useFieldItem(id, m);
+      if (!line) return toast("지금은 쓸 수 없다.", C.dim);
+      toast(line, C.border);
+      close(); onUsed();
+    }, { size: 14 });
+    b.x = p.x + 24; b.y = p.y + 56 + i * 52; root.addChild(b);
+    const d = txt(def.desc, 13, C.dim, { wrap: 330 });
+    d.x = p.x + 266; d.y = p.y + 64 + i * 52; root.addChild(d);
+  });
+  const closeBtn = button("닫기", 90, 36, close, { size: 14 });
+  closeBtn.x = p.x + 620 - 114; closeBtn.y = p.y + ph - 50; root.addChild(closeBtn);
+  function close(): void { root.destroy({ children: true }); }
 }
 
 /* ---------- 필드 스킬 메뉴 ---------- */

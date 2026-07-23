@@ -16,10 +16,14 @@ import {
   TEMPLE_NORMAL_SPAWNS, TEMPLE_POIS, TEMPLE_PROPS, TEMPLE_START, TEMPLE_SYMBOL_SPAWNS,
   TemplePropDef, templeFloorVariant, templeMap, templeOrnateAt, templeTorchAt,
 } from "./abandoned-temple";
+import {
+  TOMB_NORMAL_SPAWNS, TOMB_POIS, TOMB_PROPS, TOMB_START, TOMB_SYMBOL_SPAWNS,
+  tombFloorVariant, tombMap, tombOrnateAt, tombTorchAt,
+} from "./royal-tomb";
 import { ExploreState, G } from "./state";
 import type { EventNode } from "./scenes/event";
 
-export type DungeonId = "fortress" | "fortressB1" | "temple";
+export type DungeonId = "fortress" | "fortressB1" | "temple" | "royalTomb";
 
 /** 장식 소품 — 칸을 점유하는 빌보드. 정면에서 조사하면 text를 보여준다.
  *  frames를 주면 씬 ticker가 프레임을 순환시킨다 (혼불 성화 등). */
@@ -116,6 +120,23 @@ function templeTheme(): FPTheme {
     water: "village_water",
     stairs: { base: "temple_floor", decal: "stairs_decal" },
     floorTint: 0x9aa4b0, wallTint: 0xa8b2c2, ceilingTint: 0x525a6e, waterTint: 0x3e6272,
+  };
+}
+
+/** 왕실 묘소 테마 — 사원과 같은 석조이되 왕가 문장 벽이 섞이고,
+ *  진혼 등불이 드물어 더 차고 어둡다. */
+function tombTheme(): FPTheme {
+  return {
+    floorAt: (x, y) => ({ base: tombFloorVariant(x, y) }),
+    wallAt: (x, y) => (tombOrnateAt(x, y)
+      ? { base: "temple_wall_ornate" }
+      : { base: "temple_wall", decal: (x * 7 + y * 13) % 8 === 0 ? "wall_worn_decal" : undefined }),
+    doorAt: () => ({ base: "temple_wall", decal: "door_closed_obj" }),
+    torchAt: tombTorchAt,
+    ceiling: "temple_ceiling",
+    water: "village_water",
+    stairs: { base: "temple_floor", decal: "stairs_decal" },
+    floorTint: 0x8b93a2, wallTint: 0x93a08f, ceilingTint: 0x424a5c, waterTint: 0x3e6272,
   };
 }
 
@@ -286,5 +307,44 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     },
     state: () => G.temple,
     exit: { prompt: "[Z] 해안길로 나간다", go: () => nav.field("coastRoad") },
+  },
+  royalTomb: {
+    id: "royalTomb",
+    name: "왕실 묘소",
+    badge: "탐험 모드 — 왕실 묘소",
+    enterLog: "일행이 묘도의 돌계단을 내려섰다. 진혼불의 푸른 빛이 왕가의 석관들을 어루만진다…",
+    map: tombMap,
+    start: TOMB_START,
+    normalSpawns: TOMB_NORMAL_SPAWNS,
+    symbolSpawns: TOMB_SYMBOL_SPAWNS,
+    pois: TOMB_POIS,
+    props: TOMB_PROPS,
+    theme: tombTheme,
+    signText: "「연방 왕가의 영면처 — 참배객은 묘도를 벗어나지 말 것. 익랑과 석실은 묘지기의 인도 없이 들 수 없다」",
+    chests: {
+      offering: {
+        poi: "offering",
+        loot: () => {
+          G.gold += 260; G.items.potion++;
+          return [{ text: "일행은 봉헌 궤에서 260 G와 치유 물약을 손에 넣었다!", color: C.border }];
+        },
+      },
+      royal_cache: {
+        poi: "royal_cache",
+        trapDmg: 24,
+        loot: () => {
+          G.gold += 460; G.items.mpotion++;
+          return [{ text: "일행은 배장묘 벽감의 숨겨진 함에서 460 G와 마나 물약을 손에 넣었다!", color: C.border }];
+        },
+        notify: { t: "reach", poi: "royal_cache" },
+      },
+    },
+    hiddenChestId: "royal_cache",
+    intros: [],
+    symbols: {
+      tombWarden: { toast: { text: "일행이 왕가 석실을 배회하던 파수 망령을 잠재웠다!", color: C.elite } },
+    },
+    state: () => G.tomb,
+    exit: { prompt: "[Z] 묘도를 올라 근교로", go: () => nav.field("evermoreOutskirts") },
   },
 };

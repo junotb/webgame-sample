@@ -11,6 +11,7 @@ export * from "./abilities";
 export * from "./enemies";
 export * from "./monster-habitats";
 export * from "./shop";
+export * from "./consumables";
 export * from "./loot";
 export * from "./quests";
 export * from "./npcs";

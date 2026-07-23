@@ -27,9 +27,7 @@ export interface NpcDef {
   /** 마을 그리드 좌표 (칸을 점유 — 정면에서 대화) */
   gx: number;
   gy: number;
-  /** 거리 스프라이트 시트 이름 (assets/npcs) — 없으면 절차적 그리기 폴백.
-   *  현재 전원 미지정: 보유 시트(16×16)는 1인칭 근접 배율에서 픽셀 밀도가
-   *  마을 아트(48px 그리드)와 5~8배 어긋나 보류. 32~48px급 팩 임포트 시 재지정. */
+  /** 거리 스프라이트 이름 (assets/npcs) — 없으면 절차적 그리기 폴백. */
   sprite?: string;
   /** 거리 스프라이트 외투/포인트 색 (미니맵 점·폴백 그리기) */
   color: number;
@@ -46,7 +44,7 @@ export const NPCS: NpcDef[] = [
     desc: "크로스베일의 장로. 젊은 시절 대스승 헤르만과 함께 배웠다 한다.",
     greeting: "오, 헤르만의 제자들이로군. 그 노인의 편지를 들고 여기까지 오다니. 무엇이 궁금한가?",
     /* 분수(13,10) 우측 뒤 — 분수 앞 스폰(13,11 북향) 시야에 함께 들어온다 */
-    gx: 14, gy: 9, color: 0x4a4458, accent: 0xd8cba0,
+    gx: 14, gy: 9, sprite: "kael", color: 0x4a4458, accent: 0xd8cba0,
     quests: ["side_goblin_orders", "side_rescue_hostages"],
     topics: [
       {
@@ -81,7 +79,7 @@ export const NPCS: NpcDef[] = [
     id: "lokan", name: "떠돌이 상인 로칸", portrait: 19, town: "crossvale",
     desc: "거리 한켠에 짐을 푼 행상. 소문에 밝다.",
     greeting: "어이, 새 얼굴이군! 물건은 도구점에 다 넘겼지만… 이야기라면 아직 팔 게 남았지.",
-    gx: 9, gy: 16, color: 0x5a3a2a, accent: 0xc9a227,
+    gx: 9, gy: 16, sprite: "lokan", color: 0x5a3a2a, accent: 0xc9a227,
     topics: [
       {
         id: "trade", label: "장사",
@@ -102,8 +100,8 @@ export const NPCS: NpcDef[] = [
     id: "chamberlain", name: "시종장 오르윈", portrait: 21, town: "evermore",
     desc: "에버모어 성의 시종장. 연방 군주의 곁을 지킨다.",
     greeting: "먼 길 오셨습니다. 대스승의 사자(使者)라 하셨지요 — 알현실은 북쪽 대로 끝입니다.",
-    gx: 11, gy: 6, color: 0x3a4a6a, accent: 0xd8cba0,
-    quests: ["side_ruined_temple"],
+    gx: 11, gy: 6, sprite: "chamberlain", color: 0x3a4a6a, accent: 0xd8cba0,
+    quests: ["main_ch1_wavering_crown", "side_ruined_temple"],
     topics: [
       {
         id: "audience", label: "알현",
@@ -113,13 +111,23 @@ export const NPCS: NpcDef[] = [
         id: "federation", label: "연방",
         text: "에버모어는 세 성과 하나의 탑, 하나의 신전, 두 숲으로 이룬 연방의 수도입니다. 군주는 그 균형을 지키는 저울이시지요.",
       },
+      {
+        id: "young_lord", label: "어린 군주",
+        text: "선대께서 그리 급히 가실 줄은… 귀족들은 혼란을 막겠다며 서둘러 왕자님을 옥좌에 앉혔습니다. 아직 어깨가 왕관의 무게를 배우지 못하신 것뿐입니다 — 부디 너그러이 보아 주십시오.",
+        requires: { quests: ["main_deliver_hermans_letter"] },
+      },
+      {
+        id: "south_gate", label: "남문",
+        text: "이번에 남쪽 성벽에 새 문을 냈습니다. 문밖 강변은 사냥터로 쓰이는 근교지요. 동쪽 언덕에는 왕가의 묘소가 있으니, 묘역만은 함부로 들지 마시길.",
+        requires: { quests: ["main_deliver_hermans_letter"] },
+      },
     ],
   },
   {
     id: "eldwin", name: "시장 상인 엘드윈", portrait: 12, town: "evermore",
     desc: "왕도 시장의 만물상. 세 성을 잇는 물류에 밝다.",
     greeting: "왕도 시장에 오신 걸 환영합니다! 크로스베일에서 오셨다면, 오는 길이 험하진 않으셨는지요.",
-    gx: 18, gy: 9, color: 0x5a4a2a, accent: 0xc9a227,
+    gx: 18, gy: 9, sprite: "eldwin", color: 0x5a4a2a, accent: 0xc9a227,
     topics: [
       {
         id: "market", label: "시장",
@@ -135,7 +143,7 @@ export const NPCS: NpcDef[] = [
     id: "sister", name: "성직자 리아", portrait: 44, town: "evermore",
     desc: "대성당의 성직자. 순례자와 사자를 축복한다.",
     greeting: "여명이 그대들과 함께하기를. 대성당은 지친 이의 상처를 씻는 곳이랍니다.",
-    gx: 9, gy: 9, color: 0x4a4470, accent: 0xe8dcc0,
+    gx: 9, gy: 9, sprite: "sister_lia", color: 0x4a4470, accent: 0xe8dcc0,
     topics: [
       {
         id: "cathedral", label: "대성당",

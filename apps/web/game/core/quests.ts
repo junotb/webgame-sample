@@ -3,7 +3,7 @@
  * 씬은 사실(GameEvent)만 보고하고, 판정·진행은 전부 여기서 한다.
  * 메인은 자동 수주(체인), 서브/반복은 길드에서 수주, 보상은 길드 보고 시.
  * ===================================================================== */
-import { QUESTS, QuestDef, QuestObjectiveDef } from "../defs";
+import { CONSUMABLES, QUESTS, QuestDef, QuestObjectiveDef } from "../defs";
 import { QuestProgress, gainExpParty, gameStore, partyLevel } from "../state";
 
 const game = () => gameStore.get();
@@ -85,6 +85,8 @@ function retroCredit(q: QuestDef, p: QuestProgress): void {
       completed = !!game().flags.stableBriefed;
     } else if (o.type === "talk" && o.target === "federal_lord") {
       completed = !!game().flags.letter;
+    } else if (o.type === "talk" && o.target === "lost_prince") {
+      completed = !!game().flags.princeFound;
     }
     if (completed) p.counts[o.id] = o.count;
   }
@@ -156,7 +158,7 @@ export function reportQuest(id: string): { gold: number; exp: number; items: str
   if (r.gold) game().gold += r.gold;
   for (const it of r.items ?? []) {
     game().items[it.id] += it.n;
-    itemNames.push(`${it.id === "potion" ? "치유 물약" : "마나 물약"} ×${it.n}`);
+    itemNames.push(`${CONSUMABLES[it.id].name} ×${it.n}`);
   }
   const ups = r.exp ? gainExpParty(r.exp) : [];
   p.status = "rewarded";

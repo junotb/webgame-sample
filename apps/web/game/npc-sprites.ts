@@ -1,37 +1,35 @@
 /* =====================================================================
- * npc-sprites.ts — 마을 NPC 거리 스프라이트 (assets/npcs 16×16 idle 시트)
- *  시트는 64×16 가로 4프레임. NpcDef.sprite가 시트 이름을 가리키고,
+ * npc-sprites.ts — 마을 NPC 거리 스프라이트 로더
+ *  런타임 이미지는 96×96 단일 idle 프레임이다. NpcDef.sprite가 이름을 가리키고,
  *  미로드·미지정 시 호출부가 절차적 그리기(drawAdventurer)로 폴백한다.
  *
- *  [보류] 현재 NpcDef 전원이 sprite 미지정 — 16×16 시트는 1인칭 대화 거리
- *  (SCALE 6 × 빌보드 ≈ 원본 1px → 화면 ~25px)에서 마을 아트(48px 그리드,
- *  텍셀당 ~4px)와 픽셀 밀도가 5~8배 어긋난다. 32~48px급 팩을 임포트하면
- *  FRAME·SCALE을 재조정하고 defs/npcs.ts에 sprite를 재지정할 것.
+ *  투명 고해상도 원본은 assets-source/npcs/town, 경량 런타임 이미지는
+ *  public/assets/npcs에 둔다. 가로 프레임을 추가하면 기존 애니메이터가 그대로 읽는다.
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import type { AmbientTick } from "./ambient";
 
 /** assets/npcs/<이름>.png 와 1:1 대응 (assets.test가 강제) */
 export const NPC_SPRITE_SHEETS = [
-  "overworked_villager",
-  "adventurous_adolescent",
-  "boisterous_youth",
-  "elf_wayfarer",
-  "elf_enchanter",
+  "kael",
+  "lokan",
+  "chamberlain",
+  "eldwin",
+  "sister_lia",
 ] as const;
 export type NpcSpriteSheet = (typeof NPC_SPRITE_SHEETS)[number];
 
-const FRAME = 16;
+const FRAME = 96;
 const FRAME_MS = 260;
-/** 절차적 NPC(≈92px)와 같은 체감 크기가 되는 확대 배율 */
-const SCALE = 6;
+/** 런타임 이미지는 표시 크기와 1:1이다. */
+const SCALE = 1;
 /** 거리 스프라이트의 표시 높이(px) — 빌보드 baseH·머리 위 마크 배치 기준 */
 export const NPC_SPRITE_PX = FRAME * SCALE;
 
 const alias = (sheet: string) => `npc-${sheet}`;
 const frameCache = new Map<string, PIXI.Texture[]>();
 
-/** boot에서 1회 호출 — 시트 전체 프리로드 (~5장, 소형) */
+/** boot에서 1회 호출 — 시트 전체 프리로드 */
 export async function loadNpcSprites(): Promise<void> {
   await PIXI.Assets.load(
     NPC_SPRITE_SHEETS.map((sheet) => ({

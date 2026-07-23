@@ -26,16 +26,18 @@ describe("퀘스트 데이터 규칙", () => {
     expect(new Set(QUESTS.map((q) => q.kind))).toEqual(new Set(["main", "side", "job", "repeat"]));
   });
 
-  it("현재 메인은 마구간 확인·산적 소탕·편지 전달의 세 단계다", () => {
+  it("현재 메인은 마구간 확인·산적 소탕·편지 전달과 확장 1장의 네 단계다", () => {
     const mains = QUESTS.filter((q) => q.kind === "main");
     expect(mains.map((q) => q.id)).toEqual([
       "main_hermans_letter",
       "main_clear_evermore_road",
       "main_deliver_hermans_letter",
+      "main_ch1_wavering_crown",
     ]);
     expect(mains[0].objectives[0]).toMatchObject({ type: "talk", target: "crossvale_stable" });
     expect(mains[1].objectives[0]).toMatchObject({ type: "clear", target: "valley_bandits" });
     expect(mains[2].objectives[0]).toMatchObject({ type: "talk", target: "federal_lord" });
+    expect(mains[3].objectives[0]).toMatchObject({ type: "talk", target: "lost_prince" });
   });
 
   it("반복 퀘스트는 재생성 몬스터 처치만 목표로 삼는다", () => {
@@ -75,6 +77,28 @@ describe("퀘스트 진행", () => {
     expect(questStatus("main_deliver_hermans_letter")).toBe("done");
     expect(reportQuest("main_deliver_hermans_letter")).not.toBeNull();
     expect(questStatus("main_deliver_hermans_letter")).toBe("rewarded");
+    expect(questStatus("main_ch1_wavering_crown")).toBe("active");
+  });
+
+  it("1장은 편지 전달 후 자동 수주되고, 왕자를 찾아 오르윈에게 보고해 닫는다", () => {
+    expect(questStatus("main_ch1_wavering_crown")).toBe("locked");
+    G.flags.stableBriefed = true;
+    questNotify({ t: "talk", npc: "crossvale_stable" });
+    reportQuest("main_hermans_letter");
+    G.flags.banditsDefeated = true;
+    questNotify({ t: "clear", symbol: "valley_bandits" });
+    reportQuest("main_clear_evermore_road");
+    questNotify({ t: "talk", npc: "federal_lord" });
+    reportQuest("main_deliver_hermans_letter");
+
+    expect(questStatus("main_ch1_wavering_crown")).toBe("active");
+    G.flags.princeFound = true;
+    questNotify({ t: "talk", npc: "lost_prince" });
+    expect(questStatus("main_ch1_wavering_crown")).toBe("done");
+    const reward = reportQuest("main_ch1_wavering_crown");
+    expect(reward).not.toBeNull();
+    expect(reward!.gold).toBeGreaterThan(0);
+    expect(questStatus("main_ch1_wavering_crown")).toBe("rewarded");
   });
 
   it("문서·인질·주교 목표와 이미 수행한 행동을 소급 인정한다", () => {

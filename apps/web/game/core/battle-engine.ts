@@ -4,7 +4,7 @@
  * Member(HP/MP)와 items는 참조로 받아 직접 갱신한다 (기존 동작 유지).
  * ===================================================================== */
 import {
-  DamageType,
+  CONSUMABLES, ConsumableId, DamageType,
   ENEMY_DEFS, EnemyDef, RANK_NAME, ResistBand, ResistTable, Tier,
   SKILLS, attackDamageType, attackDamageTypes, enemyAC, enemyAcc, enemyAttackTypes,
   enemyInflictDC, enemyMelee, enemySave, enemyStatusImmune,
@@ -76,7 +76,7 @@ export type AllyAction =
   /** target: 단일 공격형은 적, heal/cover는 아군. all 기술은 생략 */
   | { type: "ability"; ability: BattleAbility; target?: UnitId }
   | { type: "guard" }
-  | { type: "item"; item: "potion" | "mpotion"; target: UnitId }
+  | { type: "item"; item: ConsumableId; target: UnitId }
   /** 전열↔후열 이동 — 턴을 소모한다. 전열 최소 인원 검증은 UI가 담당 */
   | { type: "formation" }
   | { type: "flee" };
@@ -97,7 +97,7 @@ export class BattleEngine {
   readonly tier: Tier;
   readonly blessMult: number;
 
-  private items: { potion: number; mpotion: number };
+  private items: Partial<Record<ConsumableId, number>>;
   private rng: () => number;
   private queue: UnitId[] = [];
   private qi = 0;
@@ -109,7 +109,7 @@ export class BattleEngine {
   constructor(
     party: Member[],
     enemies: string[] | GridEnemy[],
-    opts: { bless?: boolean; items?: { potion: number; mpotion: number }; rng?: () => number } = {},
+    opts: { bless?: boolean; items?: Partial<Record<ConsumableId, number>>; rng?: () => number } = {},
   ) {
     this.allies = party.map((m) => ({ kind: "ally", id: `ally:${m.id}`, m, statuses: [] }));
     this.enemies = enemies.map((input, i) => {
@@ -127,7 +127,7 @@ export class BattleEngine {
       return order.indexOf(e.def.tier) > order.indexOf(top) ? e.def.tier : top;
     }, "일반");
     this.blessMult = opts.bless ? 1.25 : 1;
-    this.items = opts.items ?? { potion: 0, mpotion: 0 };
+    this.items = opts.items ?? {};
     this.rng = opts.rng ?? gameplayRandom;
   }
 
@@ -245,7 +245,7 @@ export class BattleEngine {
     return ev;
   }
 
-  gridItem(item: "potion" | "mpotion", targetMemberId: string): BattleEvent[] {
+  gridItem(item: ConsumableId, targetMemberId: string): BattleEvent[] {
     const ev: BattleEvent[] = [];
     this.execItem(item, this.gridAlly(targetMemberId), ev);
     return ev;
@@ -627,19 +627,46 @@ export class BattleEngine {
     ev.push({ t: "log", text: `${actor.m.name}(이)가 ${target.m.name}의 앞을 가로막는다! (다음 공격 대신 받기)` });
   }
 
-  private execItem(item: "potion" | "mpotion", target: EngineAlly, ev: BattleEvent[]): void {
-    if (item === "potion") {
-      this.items.potion--;
-      const revived = target.m.hp <= 0;
-      target.m.hp = Math.min(target.m.maxHp, Math.max(0, target.m.hp) + 60);
-      ev.push({ t: "healed", target: target.id, amount: 60, resource: "hp" });
-      ev.push({ t: "log", text: revived ? `${target.m.name}(이)가 일어났다! HP 60 회복.` : `${target.m.name} HP 60 회복.` });
-    } else {
-      this.items.mpotion--;
-      target.m.mp = Math.min(target.m.maxMp, target.m.mp + 25);
-      ev.push({ t: "healed", target: target.id, amount: 25, resource: "mp" });
-      ev.push({ t: "log", text: `${target.m.name} MP 25 회복.` });
+  private execItem(item: ConsumableId, target: EngineAlly, ev: BattleEvent[]): void {
+    const def = CONSUMABLES[item];
+    this.items[item] = (this.items[item] ?? 0) - 1;
+    const revived = target.m.hp <= 0 && !!def.revive;
+    const parts: string[] = [];
+    if (def.full) {
+      const amount = target.m.maxHp - Math.max(0, target.m.hp);
+      target.m.hp = target.m.maxHp;
+      ev.push({ t: "healed", target: target.id, amount, resource: "hp" });
+      parts.push("HP 전부 회복");
+    } else if (def.hp) {
+      target.m.hp = Math.min(target.m.maxHp, Math.max(0, target.m.hp) + def.hp);
+      ev.push({ t: "healed", target: target.id, amount: def.hp, resource: "hp" });
+      parts.push(`HP ${def.hp} 회복`);
     }
+    if (def.mp) {
+      target.m.mp = Math.min(target.m.maxMp, target.m.mp + def.mp);
+      ev.push({ t: "healed", target: target.id, amount: def.mp, resource: "mp" });
+      parts.push(`MP ${def.mp} 회복`);
+    }
+    if (revived) cleanseStatuses(target.statuses);
+    if (def.cure) {
+      const removed = def.cure === "all"
+        ? cleanseStatuses(target.statuses)
+        : def.cure.filter((id) => !!findStatus(target.statuses, id));
+      if (def.cure !== "all") for (const id of removed) removeStatus(target.statuses, id);
+      for (const id of removed) ev.push({ t: "status", target: target.id, status: id, on: false });
+      parts.push(removed.length
+        ? `${removed.map((id) => STATUS_NAME[id]).join("·")} 해제`
+        : "해제할 상태가 없다");
+    }
+    if (def.buff) {
+      upsertStatus(target.statuses, { id: def.buff.id, turns: def.buff.turns, power: def.buff.power });
+      ev.push({ t: "status", target: target.id, status: def.buff.id, on: true, power: def.buff.power });
+      parts.push(`${STATUS_NAME[def.buff.id]} (${def.buff.turns}턴)`);
+    }
+    ev.push({
+      t: "log",
+      text: `${target.m.name} — ${def.name}: ${revived ? "일어났다! " : ""}${parts.join(", ")}.`,
+    });
   }
 
   private combinedResist(base: ResistTable | undefined, statuses: StatusInstance[]): ResistTable {

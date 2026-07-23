@@ -1,0 +1,79 @@
+﻿{
+    "consumables":  {
+                        "potion_red":  [
+                                           "consumable_potion_red_01",
+                                           "consumable_potion_red_02",
+                                           "consumable_potion_red_03",
+                                           "consumable_potion_red_04",
+                                           "consumable_potion_red_05"
+                                       ],
+                        "potion_blue":  [
+                                            "consumable_potion_blue_01",
+                                            "consumable_potion_blue_02",
+                                            "consumable_potion_blue_03",
+                                            "consumable_potion_blue_04",
+                                            "consumable_potion_blue_05"
+                                        ],
+                        "potion_green":  [
+                                             "consumable_potion_green_01",
+                                             "consumable_potion_green_02",
+                                             "consumable_potion_green_03",
+                                             "consumable_potion_green_04",
+                                             "consumable_potion_green_05"
+                                         ],
+                        "potion_orange":  [
+                                              "consumable_potion_orange_01",
+                                              "consumable_potion_orange_02",
+                                              "consumable_potion_orange_03",
+                                              "consumable_potion_orange_04",
+                                              "consumable_potion_orange_05"
+                                          ],
+                        "vials_flasks":  [
+                                             "consumable_blue_flask",
+                                             "consumable_purple_vial",
+                                             "consumable_red_vial",
+                                             "consumable_prismatic_flask",
+                                             "consumable_prismatic_vial"
+                                         ],
+                        "empty":  [
+                                      "consumable_empty_flask_01",
+                                      "consumable_empty_flask_02",
+                                      "consumable_empty_flask_03",
+                                      "consumable_empty_jar_01",
+                                      "consumable_empty_vial_01"
+                                  ]
+                    },
+    "misc":  {
+                 "containers":  [
+                                    "item_backpack_01",
+                                    "item_backpack_02",
+                                    "item_backpack_03",
+                                    "item_pouch_01",
+                                    "item_sack_01",
+                                    "item_sack_02"
+                                ],
+                 "documents":  [
+                                   "item_book_01",
+                                   "item_book_02",
+                                   "item_book_03",
+                                   "item_book_04",
+                                   "item_letter",
+                                   "item_parchment",
+                                   "item_scroll"
+                               ],
+                 "tools":  [
+                               "tool_axe",
+                               "tool_hammer",
+                               "tool_pickaxe",
+                               "tool_shovel",
+                               "tool_fishing_rod",
+                               "crafting_anvil"
+                           ],
+                 "other":  [
+                               "currency_gold",
+                               "currency_green_token",
+                               "effect_fire",
+                               "creature_rat"
+                           ]
+             }
+}

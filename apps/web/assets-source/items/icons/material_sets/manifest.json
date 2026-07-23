@@ -1,0 +1,163 @@
+﻿{
+    "gems":  {
+                 "white":  [
+                               "material_gem_white_01",
+                               "material_gem_white_02",
+                               "material_gem_white_03",
+                               "material_gem_white_04",
+                               "material_gem_white_05",
+                               "material_gem_white_06",
+                               "material_gem_white_07",
+                               "material_gem_white_08"
+                           ],
+                 "slate":  [
+                               "material_gem_slate_01",
+                               "material_gem_slate_02",
+                               "material_gem_slate_03",
+                               "material_gem_slate_04",
+                               "material_gem_slate_05",
+                               "material_gem_slate_06",
+                               "material_gem_slate_07",
+                               "material_gem_slate_08"
+                           ],
+                 "red":  [
+                             "material_gem_red_01",
+                             "material_gem_red_02",
+                             "material_gem_red_03",
+                             "material_gem_red_04",
+                             "material_gem_red_05",
+                             "material_gem_red_06",
+                             "material_gem_red_07",
+                             "material_gem_red_08"
+                         ],
+                 "purple":  [
+                                "material_gem_purple_01",
+                                "material_gem_purple_02",
+                                "material_gem_purple_03",
+                                "material_gem_purple_04",
+                                "material_gem_purple_05",
+                                "material_gem_purple_06",
+                                "material_gem_purple_07",
+                                "material_gem_purple_08"
+                            ],
+                 "orange":  [
+                                "material_gem_orange_01",
+                                "material_gem_orange_02",
+                                "material_gem_orange_03",
+                                "material_gem_orange_04",
+                                "material_gem_orange_05",
+                                "material_gem_orange_06",
+                                "material_gem_orange_07",
+                                "material_gem_orange_08"
+                            ],
+                 "green":  [
+                               "material_gem_green_01",
+                               "material_gem_green_02",
+                               "material_gem_green_03",
+                               "material_gem_green_04",
+                               "material_gem_green_05",
+                               "material_gem_green_06",
+                               "material_gem_green_07",
+                               "material_gem_green_08"
+                           ],
+                 "gold":  [
+                              "material_gem_gold_01",
+                              "material_gem_gold_02",
+                              "material_gem_gold_03",
+                              "material_gem_gold_04",
+                              "material_gem_gold_05",
+                              "material_gem_gold_06",
+                              "material_gem_gold_07",
+                              "material_gem_gold_08"
+                          ],
+                 "cyan":  [
+                              "material_gem_cyan_01",
+                              "material_gem_cyan_02",
+                              "material_gem_cyan_03",
+                              "material_gem_cyan_04",
+                              "material_gem_cyan_05",
+                              "material_gem_cyan_06",
+                              "material_gem_cyan_07",
+                              "material_gem_cyan_08"
+                          ],
+                 "brown":  [
+                               "material_gem_brown_01",
+                               "material_gem_brown_02",
+                               "material_gem_brown_03",
+                               "material_gem_brown_04",
+                               "material_gem_brown_05",
+                               "material_gem_brown_06",
+                               "material_gem_brown_07",
+                               "material_gem_brown_08"
+                           ],
+                 "blue":  [
+                              "material_gem_blue_01",
+                              "material_gem_blue_02",
+                              "material_gem_blue_03",
+                              "material_gem_blue_04",
+                              "material_gem_blue_05",
+                              "material_gem_blue_06",
+                              "material_gem_blue_07",
+                              "material_gem_blue_08"
+                          ],
+                 "crystal":  [
+                                 "material_red_crystal",
+                                 "material_blue_crystal"
+                             ]
+             },
+    "runes":  {
+                  "rune":  [
+                               "material_rune_01",
+                               "material_rune_02",
+                               "material_rune_03",
+                               "material_rune_04",
+                               "material_rune_05",
+                               "material_rune_06",
+                               "material_rune_07",
+                               "material_rune_08",
+                               "material_rune_09",
+                               "material_rune_10"
+                           ]
+              },
+    "monster_parts":  {
+                          "bone":  [
+                                       "material_bone",
+                                       "material_bone_pile",
+                                       "material_curved_bone",
+                                       "material_joint_bone",
+                                       "material_ribcage",
+                                       "material_skull",
+                                       "material_crowned_skull",
+                                       "material_skeletal_hand",
+                                       "material_shadow_hand"
+                                   ],
+                          "organ":  [
+                                        "material_brain",
+                                        "material_heart",
+                                        "material_eyeballs",
+                                        "material_monster_eye",
+                                        "material_rabbit_head"
+                                    ],
+                          "part":  [
+                                       "material_claw",
+                                       "material_fangs",
+                                       "material_horn",
+                                       "material_red_feather",
+                                       "material_orange_feather"
+                                   ]
+                      },
+    "plants":  {
+                   "plant":  [
+                                 "material_plant_01",
+                                 "material_plant_02",
+                                 "material_sprout",
+                                 "material_leaf",
+                                 "material_root",
+                                 "material_flower_01",
+                                 "material_berries",
+                                 "material_mandrake",
+                                 "material_clover_01",
+                                 "material_clover_02"
+                             ]
+               }
+}

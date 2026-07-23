@@ -61,6 +61,13 @@ const SHEET_SRC = {
   titleSky1: "/assets/world/backgrounds/title_sky_01.png",
   titleSky2: "/assets/world/backgrounds/title_sky_02.png",
   titleSky3: "/assets/world/backgrounds/title_sky_03.png",
+  natureA2: "/assets/world/tilesets/nature/a2_nature.png",
+  swampWater: "/assets/world/tilesets/swamp/water_animation.png",
+  swampPlants: "/assets/world/tilesets/nature/nature_water_swamp_plants.png",
+  swampShrooms: "/assets/world/props/swamp/swamp_mushrooms.png",
+  glowForest: "/assets/world/tilesets/nature/nature_glowing_forest.png",
+  mushForest: "/assets/world/tilesets/nature/mushroom_forest.png",
+  hermanForestBg: "/assets/world/backgrounds/herman_forest.png",
 } as const;
 type SheetName = keyof typeof SHEET_SRC;
 
@@ -193,6 +200,33 @@ const FRAMES = {
   soulflame_obj_0: { s: "templeFire", x: 298, y: 131, w: 28, h: 61 },
   soulflame_obj_1: { s: "templeFire", x: 346, y: 131, w: 28, h: 61 },
   soulflame_obj_2: { s: "templeFire", x: 394, y: 131, w: 28, h: 61 },
+  /* ---- 자연 지표면 (a2_nature 오토타일 — 각 블록의 좌상단 48px이 이음매 없는 채움 타일) ---- */
+  forest_grass_floor: { s: "natureA2", x: 0, y: 144, w: 48, h: 48 },  // 짙은 숲그늘 풀
+  swamp_mud_floor: { s: "natureA2", x: 0, y: 288, w: 48, h: 48 },     // 검붉은 수렁 진흙
+  trunk_wall: { s: "natureA2", x: 592, y: 208, w: 64, h: 64 },        // 빽빽한 나무줄기 벽
+  swamp_water: { s: "swampWater", x: 24, y: 64, w: 48, h: 48 },       // 탁한 늪물 (1프레임 내부)
+  /* ---- 늪 프롭 (빌보드, 투명 여백 제외 실경계) ---- */
+  swamp_willow_obj: { s: "swampPlants", x: 406, y: 148, w: 109, h: 185 },  // 이끼 늘어진 버드나무
+  swamp_willow2_obj: { s: "swampPlants", x: 530, y: 155, w: 103, h: 179 }, // 수양버들 (가지 늘어짐)
+  swamp_deadtree_obj: { s: "swampPlants", x: 674, y: 170, w: 92, h: 164 }, // 잎 진 고사목
+  swamp_snag_obj: { s: "swampPlants", x: 576, y: 625, w: 94, h: 142 },     // 뿌리 드러난 옹이나무
+  swamp_lilypad_obj: { s: "swampPlants", x: 99, y: 200, w: 91, h: 70 },    // 큰 수련잎
+  swamp_shroom_tall_obj: { s: "swampShrooms", x: 12, y: 32, w: 52, h: 189 },  // 망사 갓 장대버섯
+  swamp_shroom_violet_obj: { s: "swampShrooms", x: 129, y: 3, w: 59, h: 93 }, // 보랏빛 삿갓버섯
+  swamp_shroom_brown_obj: { s: "swampShrooms", x: 196, y: 6, w: 54, h: 89 },  // 넓적 갈색버섯
+  /* ---- 빛숲 프롭 (nature_glowing_forest — 등불 열매·수정·발광 풀) ---- */
+  glow_tree_big_obj: { s: "glowForest", x: 98, y: 236, w: 141, h: 194 },     // 등불 열매 큰 나무
+  glow_tree_lantern_obj: { s: "glowForest", x: 249, y: 242, w: 127, h: 188 }, // 맨가지 등불나무
+  glow_tree_small_obj: { s: "glowForest", x: 1, y: 230, w: 91, h: 106 },      // 작은 등불나무
+  glow_crystal_purple_obj: { s: "glowForest", x: 580, y: 217, w: 57, h: 83 },
+  glow_crystal_green_obj: { s: "glowForest", x: 674, y: 217, w: 59, h: 83 },
+  glow_crystal_blue_obj: { s: "glowForest", x: 722, y: 217, w: 40, h: 83 },
+  glow_grass_obj: { s: "glowForest", x: 447, y: 529, w: 115, h: 47 },         // 오색 발광 풀숲
+  giant_mushroom_obj: { s: "mushForest", x: 490, y: 29, w: 253, h: 259 },     // 거대 갈색 버섯
+  mush_stool_blue_obj: { s: "mushForest", x: 9, y: 480, w: 75, h: 96 },       // 푸른 갓 버섯
+  mush_stool_brown_obj: { s: "mushForest", x: 0, y: 576, w: 84, h: 96 },      // 갈색 갓 버섯
+  /* ---- 은둔림 배경 — 가을빛 숲 원경 (정적 1장) ---- */
+  herman_forest_bg: { s: "hermanForestBg", x: 0, y: 0, w: 576, h: 324 },
   /* ---- 타이틀 — 푸른 달밤 (별하늘 베이스 + 달 프롭 + 흐르는 구름) ---- */
   title_sky_base: { s: "titleSky1", x: 0, y: 0, w: 576, h: 324 },
   title_sky_moon: { s: "titleSky2", x: 216, y: 52, w: 152, h: 164 }, // 달 실경계 + 여유 — 위치를 자유 배치하는 프롭

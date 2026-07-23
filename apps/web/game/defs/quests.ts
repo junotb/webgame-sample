@@ -2,6 +2,8 @@
  * defs/quests.ts — 퀘스트 정의 (진행은 G.quests)
  * ===================================================================== */
 
+import type { ConsumableId } from "./consumables";
+
 export type QuestKind = "main" | "side" | "job" | "repeat";
 
 export interface QuestObjectiveDef {
@@ -24,7 +26,7 @@ export interface QuestDef {
   rewards: {
     gold?: number;
     exp?: number;
-    items?: { id: "potion" | "mpotion"; n: number }[];
+    items?: { id: ConsumableId; n: number }[];
   };
   /** 반복 의뢰를 보고한 날부터 다시 열릴 때까지 필요한 월드 일수 */
   repeatEveryDays?: number;
@@ -81,6 +83,27 @@ export const QUESTS: QuestDef[] = [
       },
     ],
     rewards: { exp: 100 },
+  },
+  /* ---- 확장 메인 1장 — 흔들리는 왕관 ----
+   * 편지 전달 직후 연방 군주가 급사하고 어린 왕자가 즉위한다(배경 사건).
+   * 궁정의 압박을 못 이긴 어린 군주가 성을 빠져나가며 장이 시작된다. */
+  {
+    id: "main_ch1_wavering_crown",
+    kind: "main",
+    name: "흔들리는 왕관",
+    desc: "연방 군주가 급서하고 어린 왕자가 왕관을 이었다. 그런데 새 군주가 호위도 없이 성을 빠져나갔다 — 남문 밖 근교 사냥터를 수색해 찾아내고, 성으로 모셔 온 뒤 시종장 오르윈에게 알릴 것.",
+    requires: { quests: ["main_deliver_hermans_letter"] },
+    giver: "chamberlain",
+    objectives: [
+      {
+        id: "find_prince",
+        type: "talk",
+        target: "lost_prince",
+        count: 1,
+        desc: "에버모어 근교에서 사라진 어린 군주 수색",
+      },
+    ],
+    rewards: { gold: 400, exp: 300 },
   },
 
   /* ---- 서브 ---- */

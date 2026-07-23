@@ -82,7 +82,7 @@ export const MONSTER_ICONS: MonsterIconDef[] = [
   { nameKo: "고블린 주술사", nameEn: "Goblinoccultist" },
   /* ---- 버려진 사원 로스터 (goblin_occultist 스프라이트에서 슬라이스) ---- */
   { nameKo: "되살아난 주교", nameEn: "Fallenbishop"    },
-  /* ---- 보스 전용 (assets-source/npcs/voodoo_behavior_animation에서 슬라이스, large 고해상도 동봉) ---- */
+  /* ---- 보스 전용 (assets-source/bosses/voodoo/voodoo_behavior_animation에서 슬라이스, large 고해상도 동봉) ---- */
   { nameKo: "가면 주술사",   nameEn: "Voodooshaman"    },
 ];
 
@@ -243,6 +243,45 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     /* 사나운 굴늑대 — 찌르기에 약하고 지면 충격을 흘린다 */
     res: { pierce: 1.35, earth: 0.85 },
     atkType: "pierce", // 늑대의 송곳니 돌격
+  },
+  boar: {
+    name: "어금니멧돼지",
+    hp: 92,
+    atk: 18,
+    def: 4,
+    spd: 8,
+    exp: 34,
+    gold: 24,
+    tier: "일반",
+    tags: ["living", "beast"],
+    shape: "wolf",
+    motion: "beast",
+    img: "Tuskboar",
+    color: 0x8a6a4a,
+    size: "large",
+    /* 근교 사냥터의 사나운 멧돼지 — 두꺼운 가죽이 베기를 흘리고, 돌진은 찌르기다 */
+    res: { slash: 0.8, pierce: 1.2 },
+    atkType: "pierce", // 어금니 돌진
+  },
+  hare: {
+    name: "엄니토끼",
+    hp: 48,
+    atk: 12,
+    def: 1,
+    spd: 17,
+    exp: 18,
+    gold: 12,
+    tier: "일반",
+    tags: ["living", "beast"],
+    shape: "wolf",
+    motion: "beast",
+    img: "Fanghare",
+    color: 0xc9b89a,
+    size: "small",
+    flank: true, // 튀어 오르는 도약 — 후열까지 문다
+    /* 재빠른 초식수 — 맞히기 어렵지만 맞으면 무르다 */
+    res: { pierce: 1.2 },
+    atkType: "pierce", // 엄니 물기
   },
   skeleton: {
     name: "냉기 망령",

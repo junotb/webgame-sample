@@ -69,12 +69,4 @@ export const SHOP_ARMORS: GearDef[] = [
   { id: "r2", name: "행운의 반지", slot: "ring", attrs: { fortune: 3 }, price: 240 },
 ];
 
-export const SHOP_ITEMS: GearDef[] = [
-  {
-    id: "potion",
-    name: "치유 물약",
-    price: 30,
-    desc: "아군 1명 HP 60 회복 (전투불능 회복 가능)",
-  },
-  { id: "mpotion", name: "마나 물약", price: 45, desc: "아군 1명 MP 25 회복" },
-];
+/* 소모품(SHOP_ITEMS)은 defs/consumables.ts에서 CONSUMABLES로 정의·파생된다. */

@@ -10,7 +10,7 @@ import {
 import {
   BASIC_ATTACK, BattleEngine, BattleEvent, BattleResult, TurnState,
 } from "../core/battle-engine";
-import { DAMAGE_META, ENEMY_DEFS } from "../defs";
+import { CONSUMABLES, CONSUMABLE_IDS, DAMAGE_META, ENEMY_DEFS } from "../defs";
 import { STATUS_COLOR, STATUS_NAME } from "../core/statuses";
 import { spawnImpactBurst } from "../battle-fx";
 import { visualRandom } from "../core/random";
@@ -268,19 +268,26 @@ export function fieldBattleOverlay(opts: {
   function openItemMenu(m: Member): void {
     closeCmds();
     cmdRoot = new PIXI.Container(); root.addChild(cmdRoot);
-    const p = panel(400, 150, { alpha: 0.97 }); p.x = W / 2 - 200; p.y = H - 280; cmdRoot.addChild(p);
+    const owned = CONSUMABLE_IDS.filter((id) => G.items[id] > 0);
+    const rows = Math.max(1, owned.length);
+    const p = panel(560, 60 + rows * 50, { alpha: 0.97 });
+    p.x = W / 2 - 280; p.y = H - 130 - 60 - rows * 50; cmdRoot.addChild(p);
     const tt = txt("아이템", 14, C.border, { weight: "700" }); tt.x = p.x + 14; tt.y = p.y + 10; cmdRoot.addChild(tt);
-    const mk = (label: string, cnt: number, y: number, item: "potion" | "mpotion") => {
-      const b = button(`${label} ×${cnt}`, 240, 40, () => {
-        pickAlly(`${label} — 대상 선택`, item === "potion", (t) => act({ type: "item", item, target: `ally:${t.id}` }));
+    if (!owned.length) {
+      const t = txt("쓸 수 있는 아이템이 없다.", 13, C.dim);
+      t.x = p.x + 14; t.y = p.y + 52; cmdRoot.addChild(t);
+    }
+    owned.forEach((id, i) => {
+      const def = CONSUMABLES[id];
+      const b = button(`${def.name} ×${G.items[id]}`, 220, 40, () => {
+        pickAlly(`${def.name} — 대상 선택`, !!def.revive, (t) => act({ type: "item", item: id, target: `ally:${t.id}` }));
       }, { size: 13 });
-      if (cnt <= 0) b.setDisabled(true);
-      b.x = p.x + 14; b.y = y; cmdRoot!.addChild(b);
-    };
-    mk("치유 물약 (HP 60)", G.items.potion, p.y + 44, "potion");
-    mk("마나 물약 (MP 25)", G.items.mpotion, p.y + 94, "mpotion");
+      b.x = p.x + 14; b.y = p.y + 44 + i * 50; cmdRoot!.addChild(b);
+      const d = txt(def.desc, 12, C.dim, { wrap: 280 });
+      d.x = p.x + 248; d.y = p.y + 52 + i * 50; cmdRoot!.addChild(d);
+    });
     const cb = button("닫기", 70, 30, () => showCmds(m), { size: 12 });
-    cb.x = p.x + 400 - 84; cb.y = p.y + 8; cmdRoot.addChild(cb);
+    cb.x = p.x + 560 - 84; cb.y = p.y + 8; cmdRoot.addChild(cb);
   }
 
   function showCmds(m: Member): void {

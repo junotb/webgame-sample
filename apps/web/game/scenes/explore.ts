@@ -6,7 +6,7 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  ENEMY_DEFS, RANK_NAME, RARITY_META, gearDisplayName,
+  CONSUMABLES, CONSUMABLE_IDS, ENEMY_DEFS, RANK_NAME, RARITY_META, gearDisplayName,
 } from "../defs";
 import {
   C, H, SceneHandle, SceneScope, W, button, fullFlash, nav, panel, sceneRoot,
@@ -15,7 +15,7 @@ import {
 import {
   BattleAbility, G, GridEnemy, LEVEL_AP, LEVEL_SP, Member, attackReach, canSwapRow,
   equippedWeapon, gainExpParty, memberAbilities, memberStats, partyFortune,
-  partyRank, respawnDungeonEnemies, rollDropToBag, rowBlocked,
+  partyRank, respawnDungeonEnemies, rollDropToBag, rollMaterialToState, rowBlocked,
 } from "../state";
 import { BASIC_ATTACK, BattleEngine, BattleEvent } from "../core/battle-engine";
 import { gameplayRandom } from "../core/random";
@@ -68,7 +68,7 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
   root.addChild(fp.root);
   /* 던전별 부유 입자 — 요새: 횃불 불티 / 지하: 주술 포자 / 사원: 차가운 빛먼지 */
   const DUNGEON_PARTICLES: Record<DungeonId, ParticleKind> = {
-    fortress: "embers", fortressB1: "spores", temple: "motes",
+    fortress: "embers", fortressB1: "spores", temple: "motes", royalTomb: "motes",
   };
   const ambient = particleField(DUNGEON_PARTICLES[id]);
   root.addChild(ambient.node);
@@ -785,32 +785,37 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
   function openItemMenu(): void {
     closeSub();
     subRoot = new PIXI.Container(); root.addChild(subRoot);
-    const p = panel(440, 150, { alpha: 0.97 }); p.x = 240; p.y = H - 96 - 150; subRoot.addChild(p);
+    const owned = CONSUMABLE_IDS.filter((id) => G.items[id] > 0);
+    const rows = Math.max(1, owned.length);
+    const p = panel(560, 60 + rows * 50, { alpha: 0.97 });
+    p.x = 240; p.y = H - 96 - 60 - rows * 50; subRoot.addChild(p);
     const tt = txt("아이템", 15, C.border, { weight: "700" });
     tt.x = p.x + 16; tt.y = p.y + 10; subRoot.addChild(tt);
-    const mk = (label: string, cnt: number, y: number, use: (t: Member) => void) => {
-      const b = button(`${label} ×${cnt}`, 250, 40, () => {
+    if (!owned.length) {
+      const t = txt("쓸 수 있는 아이템이 없다.", 13, C.dim);
+      t.x = p.x + 16; t.y = p.y + 52; subRoot.addChild(t);
+    }
+    owned.forEach((id, i) => {
+      const def = CONSUMABLES[id];
+      const b = button(`${def.name} ×${G.items[id]}`, 230, 40, () => {
         closeSub();
-        pickMember(`${label} — 대상 선택`, (t) => { use(t); endMemberAction(); },
-          { note: (t) => `HP ${t.hp}/${t.maxHp} MP ${t.mp}/${t.maxMp}` });
+        pickMember(`${def.name} — 대상 선택`, (t) => {
+          const events = combat?.gridItem(id, t.id) ?? [];
+          const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
+          if (line) log(line.text);
+          hud.redraw();
+          endMemberAction();
+        }, {
+          note: (t) => `HP ${t.hp}/${t.maxHp} MP ${t.mp}/${t.maxMp}`,
+          filter: (t) => def.revive ? true : t.hp > 0,
+        });
       }, { size: 14 });
-      if (cnt <= 0) b.setDisabled(true);
-      b.x = p.x + 16; b.y = y; subRoot!.addChild(b);
-    };
-    mk("치유 물약 (HP 60)", G.items.potion, p.y + 44, (t) => {
-      const events = combat?.gridItem("potion", t.id) ?? [];
-      const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
-      if (line) log(line.text);
-      hud.redraw();
-    });
-    mk("마나 물약 (MP 25)", G.items.mpotion, p.y + 94, (t) => {
-      const events = combat?.gridItem("mpotion", t.id) ?? [];
-      const line = events.find((ev): ev is Extract<BattleEvent, { t: "log" }> => ev.t === "log");
-      if (line) log(line.text);
-      hud.redraw();
+      b.x = p.x + 16; b.y = p.y + 44 + i * 50; subRoot!.addChild(b);
+      const d = txt(def.desc, 12, C.dim, { wrap: 280 });
+      d.x = p.x + 258; d.y = p.y + 52 + i * 50; subRoot!.addChild(d);
     });
     const cb = button("닫기", 76, 32, closeSub, { size: 13 });
-    cb.x = p.x + 440 - 90; cb.y = p.y + 8; subRoot.addChild(cb);
+    cb.x = p.x + 560 - 90; cb.y = p.y + 8; subRoot.addChild(cb);
   }
 
   /* ---- 공격 실행 ---- */
@@ -850,6 +855,8 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
       if (gameplayRandom() < 0.5) { G.items.potion++; line += " · 행운! 치유 물약 획득"; }
       else { G.items.mpotion++; line += " · 행운! 마나 물약 획득"; }
     }
+    const mat = rollMaterialToState(e.defId);
+    if (mat) line += ` · 재료: ${mat}`;
     const ups = gainExpParty(def.exp);
     toast(line, C.border);
     /* 장비 드랍 — 티어·운으로 판정, 가방에 추가 (미확인은 감정 필요) */

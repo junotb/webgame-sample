@@ -41,15 +41,23 @@
 | world/tilesets/town/structures.png | world/tilesets/town/structure.png |
 | world/tilesets/village/ground.png | world/tilesets/village/style_48/ground.png |
 | world/tilesets/village/water.png | world/tilesets/village/style_48/water.png |
-| npcs/overworked_villager.png | characters/sprites/humans/overworked_villager_animation.png |
-| npcs/adventurous_adolescent.png | characters/sprites/humans/adventurous_adolescent_animation.png |
-| npcs/boisterous_youth.png | characters/sprites/humans/boisterous_youth_animation.png |
-| npcs/elf_wayfarer.png | characters/sprites/elves/elf_wayfarer_animation.png |
-| npcs/elf_enchanter.png | characters/sprites/elves/elf_enchanter_animation.png |
+| world/tilesets/nature/a2_nature.png | world/tilesets/nature/a2_nature.png |
+| world/tilesets/nature/nature_water_swamp_plants.png | world/tilesets/nature/nature_water_swamp_plants.png |
+| world/tilesets/nature/nature_glowing_forest.png | world/tilesets/nature/nature_glowing_forest.png |
+| world/tilesets/nature/mushroom_forest.png | world/tilesets/nature/mushroom_forest.png |
+| world/tilesets/swamp/water_animation.png | world/tilesets/swamp/water_animation.png |
+| world/props/swamp/swamp_mushrooms.png | world/props/swamp/swamp_mushrooms.png |
+| world/backgrounds/herman_forest.png | world/backgrounds/autumn_forest/scene_03_forest/background.png |
+| npcs/kael.png | npcs/town/kael.png |
+| npcs/lokan.png | npcs/town/lokan.png |
+| npcs/chamberlain.png | npcs/town/chamberlain.png |
+| npcs/eldwin.png | npcs/town/eldwin.png |
+| npcs/sister_lia.png | npcs/town/sister_lia.png |
 
-`npcs/` 5장(16×16 idle 시트)은 현재 **보류 상태**다 — 1인칭 근접 배율에서 마을 아트(48px 그리드)와
-픽셀 밀도가 5~8배 어긋나 `defs/npcs.ts`의 sprite 지정을 내렸다(절차적 그리기 폴백으로 표시).
-32~48px급 NPC 팩을 임포트하면 시트 교체 후 재지정한다. 상세는 `game/npc-sprites.ts` 헤더 참고.
+마을 NPC 5명은 초상화와 역할을 기준으로 제작한 투명 고해상도 원본에서
+96×96 런타임 스프라이트를 축소 생성했다. 기존 16×16 idle 시트는 픽셀 밀도가
+마을 아트와 맞지 않아 NPC 소스·배포본에서 제외했다. 보스용 voodoo 시트는
+`assets-source/bosses/voodoo`로 분리했다.
 
 ## 추정 매핑 (가공·합성 재료)
 

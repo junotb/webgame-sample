@@ -6,7 +6,7 @@ import type { DungeonId } from "./dungeons";
 import { Facing, GridMap, parseMap } from "./grid";
 import type { TileName } from "./tiles";
 
-export type FieldId = "coastRoad" | "goblinValley" | "hermanForest";
+export type FieldId = "coastRoad" | "goblinValley" | "hermanForest" | "evermoreOutskirts" | "mistmarsh" | "gleamwood";
 
 export type FieldTarget =
   | { kind: "field"; id: FieldId }
@@ -28,7 +28,7 @@ export interface FieldDeco {
   y: number;
   tile?: TileName;
   visual?:
-    | { kind: "monster"; defId: "goblin" | "wolf" | "slime" | "husk" | "duskbat" | "orc" | "tendril" }
+    | { kind: "monster"; defId: "goblin" | "wolf" | "slime" | "husk" | "duskbat" | "orc" | "tendril" | "boar" | "hare" }
     | { kind: "building"; style: "bandit_hideout" | "goblin_camp" | "cage_full" | "cage_empty" | "goblin_totem" | "campfire" | "shore_boat" | "shore_dock" | "valley_rock" | "shore_netline" | "shore_net" | "broken_cross" | "ruin_column" };
   text: string;
   blocking?: boolean;
@@ -157,6 +157,72 @@ const hermanForestMap = parseMap([
   "#......................#",
   "#......................#",
   "########################",
+]);
+
+/* 에버모어 성 남문 밖의 강변 사냥터. 동서로 가로지르는 강은 서쪽 바다로
+ * 흘러들고, 중앙의 얕은 여울로만 건널 수 있다. 강 남안 동쪽 언덕에
+ * 왕실 묘소의 묘도 입구가 있다. */
+const evermoreOutskirtsMap = parseMap([
+  "##############################",
+  "#............................#",
+  "#...###..........###.........#",
+  "#............................#",
+  "#.....#.....................##",
+  "#..........####..............#",
+  "#............................#",
+  "#.###........................#",
+  "#............................#",
+  "~~~~~~~~~~~~~...~~~~~~~~~~~~~~",
+  "~~~~~~~~~~~~~...~~~~~~~~~~~~~~",
+  "#............................#",
+  "#.....##.............##......#",
+  "#............................#",
+  "#..#.....####................#",
+  "#............................#",
+  "#....##..............###.....#",
+  "#............................#",
+  "#............................#",
+  "##############################",
+]);
+
+/* 강 하류의 안개늪. 동쪽 어귀에서 서쪽으로 들어갈수록 수렁과 물웅덩이가
+ * 늘어나고, 버드나무 이끼가 시야를 가린다. 안개 탓에 멀리 보이지 않는다. */
+const mistmarshMap = parseMap([
+  "########################",
+  "#..........#####.......#",
+  "#.~~~..................#",
+  "#.~~~....#....~~~~.....#",
+  "#........#....~~~~...###",
+  "#..###...#....~~~~.....#",
+  "#....#.................#",
+  "#....#....##......###..#",
+  "#.~~.......#...........#",
+  "#.~~.......#....~~~....#",
+  "#..........#....~~~....#",
+  "#...####........~~~..###",
+  "#......................#",
+  "#..##......~~....##....#",
+  "#......................#",
+  "########################",
+]);
+
+/* 은둔림 동쪽 심부의 밤빛 숲. 등불 열매 나무와 발광 수정이 어둠 속에서
+ * 길을 밝힌다. 헤르만의 결계가 가장 짙게 남은 곳이다. */
+const gleamwoodMap = parseMap([
+  "####################",
+  "#........#.........#",
+  "#..####..#..~~~....#",
+  "#.....#.....~~~....#",
+  "#..#..#............#",
+  "#..#.....####..#####",
+  "#..#............#..#",
+  "#..######..........#",
+  "#.......#..####....#",
+  "#..~~...#.....#....#",
+  "#..~~..........#...#",
+  "#..........#.......#",
+  "#..........#.......#",
+  "####################",
 ]);
 
 const forestDecos: FieldDeco[] = [
@@ -308,9 +374,16 @@ export const FIELDS: Record<FieldId, FieldData> = {
   hermanForest: {
     id: "hermanForest", name: "헤르만의 은둔림", badge: "동쪽 필드 — 은둔림",
     map: hermanForestMap, start: { x: 2, y: 12, facing: 1 },
-    exits: [{ x: 1, y: 12, label: "서쪽 길 — 크로스베일", prompt: "[Z] 서쪽으로 — 크로스베일", target: { kind: "town", id: "crossvale", spawn: "eastGate" } }],
+    exits: [
+      { x: 1, y: 12, label: "서쪽 길 — 크로스베일", prompt: "[Z] 서쪽으로 — 크로스베일", target: { kind: "town", id: "crossvale", spawn: "eastGate" } },
+      { x: 22, y: 8, label: "동쪽 심부 — 반딧불 빛숲", prompt: "[Z] 동쪽 심부로 — 반딧불 빛숲", target: { kind: "field", id: "gleamwood" } },
+    ],
     decos: [
       ...forestDecos,
+      { id: "gleam_shard", name: "발광 수정 조각", x: 21, y: 7, tile: "glow_crystal_blue_obj",
+        text: "동쪽 심부 쪽 땅에 푸른 수정 조각이 박혀 은은히 빛난다. 숲 깊은 곳에서 굴러 나온 듯하다." },
+      { id: "pond_lily", name: "연못 수련", x: 12, y: 9, tile: "swamp_lilypad_obj",
+        text: "연못 가장자리에 넓은 수련잎이 떠 있다. 개구리 한 마리가 잎 위에서 볕을 쬔다." },
       { id: "oldOak", name: "늙은 떡갈나무", x: 12, y: 8, tile: "tree_04", text: "나무껍질에 희미한 마도 문양이 새겨져 있다. 헤르만의 숲임이 틀림없다.", blocking: true },
       /* --- 헤르만의 흔적: 표석·식지 않은 화덕이 은둔자의 부재를 이야기한다 --- */
       { id: "herman_stone", name: "헤르만의 표석", x: 10, y: 3, visual: { kind: "building", style: "valley_rock" }, blocking: true,
@@ -329,9 +402,175 @@ export const FIELDS: Record<FieldId, FieldData> = {
       groups: [["slime"], ["slime", "slime"]],
     },
     theme: {
-      background: { sky: 0x668c8d, horizon: 0xa9bd92, ridge: 0x3d5c3d },
-      floor: "floor", floorDecal: "pave_decal", wall: "wall", wallDecal: "wall_worn_decal",
-      ceiling: "ceiling", water: "water", floorTint: 0x617f42, wallTint: 0x46603c,
+      /* 가을빛 숲 원경 + 짙은 숲그늘 풀바닥 + 나무줄기 벽 — 지붕 덮인 던전이 아니라 하늘 열린 숲길 */
+      background: { sky: 0x668c8d, horizon: 0xa9bd92, ridge: 0x3d5c3d, texture: "herman_forest_bg", tint: 0xe8ddc8 },
+      floor: "forest_grass_floor", wall: "trunk_wall",
+      ceiling: null, water: "water", floorTint: 0xb9cf96, wallTint: 0xc9a878, waterTint: 0x77a08a,
+    },
+  },
+  evermoreOutskirts: {
+    id: "evermoreOutskirts", name: "에버모어 근교", badge: "남쪽 필드 — 에버모어 근교",
+    map: evermoreOutskirtsMap, start: { x: 14, y: 2, facing: 2 },
+    exits: [
+      { x: 14, y: 1, label: "북쪽 남문 — 에버모어 성", prompt: "[Z] 북쪽으로 — 에버모어 성", target: { kind: "town", id: "evermore", spawn: "southGate" } },
+      { x: 28, y: 15, label: "동쪽 언덕 묘도 — 왕실 묘소", prompt: "[Z] 묘도 안으로 — 왕실 묘소", target: { kind: "explore", dungeon: "royalTomb" } },
+      { x: 1, y: 17, label: "서쪽 하류 — 안개늪", prompt: "[Z] 하류로 — 안개늪", target: { kind: "field", id: "mistmarsh" } },
+    ],
+    decos: [
+      /* --- 강 하류: 늪지대의 전조 --- */
+      { id: "river_willow", name: "강가 버드나무", x: 3, y: 12, tile: "swamp_willow2_obj", blocking: true,
+        text: "가지를 강물에 드리운 버드나무다. 하류로 갈수록 이런 나무가 늘고 물비린내가 짙어진다." },
+      { id: "ford_lily", name: "여울 수련", x: 13, y: 11, tile: "swamp_lilypad_obj",
+        text: "여울 아래 잔잔한 물목에 수련잎이 몇 장 떠 있다. 하류 늪에서 씨가 떠내려온 것이리라." },
+      /* --- 북안: 성벽 아래의 강변 생활권 --- */
+      { id: "river_dock", name: "빨래터 좌대", x: 5, y: 8, visual: { kind: "building", style: "shore_dock" }, blocking: true,
+        text: "성 사람들이 쓰는 낮은 빨래터 좌대다. 두들긴 빨랫감의 물비린내가 강바람에 실려 온다." },
+      { id: "hunter_fire", name: "사냥꾼의 모닥불", x: 20, y: 5, visual: { kind: "building", style: "campfire" },
+        text: "근교 사냥꾼이 피워 둔 모닥불. \"요즘 묘소 쪽 언덕엔 얼씬도 안 하오. 밤마다 푸른 불빛이 오르내린단 말이지…\"" },
+      { id: "old_oak", name: "강가 참나무", x: 10, y: 4, tile: "tree_01", blocking: true,
+        text: "강을 굽어보는 오래된 참나무. 사냥꾼들이 활줄을 걸어 말리던 자국이 남아 있다." },
+      { id: "north_bush", name: "찔레 덤불", x: 17, y: 6, tile: "bush_02", blocking: true,
+        text: "산토끼가 드나드는 찔레 덤불이다. 올가미 흔적이 여럿 흩어져 있다." },
+      { id: "ford_slime", name: "여울가의 슬라임", x: 8, y: 11, visual: { kind: "monster", defId: "slime" }, blocking: true,
+        fight: { enemies: ["slime", "slime"], respawnDays: 1 },
+        text: "여울 가까운 물풀 사이에 슬라임이 웅크리고 있다. 강을 타고 상류에서 떠내려온 잡것이다." },
+      /* --- 남안: 사냥터와 묘소로 오르는 언덕길 --- */
+      { id: "south_flower", name: "강변 들꽃", x: 12, y: 12,
+        tile: "flower_01", text: "남안 초지를 수놓은 들꽃. 조문객들이 꺾어 가는지 길가 쪽만 듬성하다." },
+      { id: "hunt_bats", name: "사냥터의 어둠박쥐", x: 23, y: 12, visual: { kind: "monster", defId: "duskbat" }, blocking: true,
+        fight: { enemies: ["duskbat", "duskbat", "duskbat"], respawnDays: 1 },
+        text: "해질녘 사냥터 위를 어둠박쥐 떼가 낮게 맴돈다. 근래 부쩍 수가 늘었다고 사냥꾼들이 투덜댔다." },
+      { id: "road_column", name: "옛 가도 이정표", x: 25, y: 13, visual: { kind: "building", style: "ruin_column" }, blocking: true,
+        text: "왕실 장례 행렬이 오르던 옛 가도의 석주 이정표다. 「동쪽 언덕 — 왕가의 영면처」" },
+      { id: "tomb_husk", name: "묘도 어귀의 송장버섯", x: 26, y: 14, visual: { kind: "monster", defId: "husk" }, blocking: true,
+        fight: { enemies: ["husk", "husk"], respawnDays: 1 },
+        text: "묘도로 오르는 언덕 초입에 창백한 송장버섯이 부풀어 있다. 묘역의 흙에서 이런 것이 자랄 리 없는데." },
+      { id: "hill_mushroom", name: "언덕 버섯", x: 26, y: 16, tile: "mushroom_01",
+        text: "언덕 그늘에 돋은 잿빛 버섯. 묘소 쪽에서 스며 나온 서늘한 기운이 감돈다." },
+      { id: "hunt_boar", name: "사냥터의 어금니멧돼지", x: 19, y: 16, visual: { kind: "monster", defId: "boar" }, blocking: true,
+        fight: { enemies: ["boar"], respawnDays: 1 },
+        text: "덤불을 헤집던 멧돼지가 콧김을 뿜으며 이쪽을 노려본다. 사냥꾼들이 겨울 양식으로 노리는 놈이다." },
+      /* --- 남안 서쪽 구석: 성을 빠져나간 어린 군주의 은신처 (1장) --- */
+      { id: "lost_prince", name: "덤불 뒤의 모닥불", x: 5, y: 15, visual: { kind: "building", style: "campfire" },
+        text: "강 하류 덤불 뒤에 서투르게 피운 작은 모닥불이다. 곁에 값비싼 자수가 놓인 외투가 아무렇게나 개켜져 있다." },
+    ],
+    encounters: {
+      chance: 0.06,
+      groups: [["hare"], ["hare", "hare"], ["slime"], ["duskbat", "duskbat"], ["boar"], ["slime", "duskbat"]],
+    },
+    theme: {
+      background: {
+        sky: 0x8fb0c9, horizon: 0xc9cfa0, ridge: 0x55684f,
+        texture: "coast_sky_base",
+        layers: ["coast_sky_cloud_back", "coast_sky_cloud_near"],
+        tint: 0xdfeadf,
+      },
+      floor: "village_grass", floorDecal: "pave2_decal", wall: "cave_wall", wallDecal: "wall_worn_decal",
+      ceiling: null, water: "village_water",
+      floorTint: 0x7f9c4e, wallTint: 0x6e7f55, waterTint: 0x5b8fae, viewDistance: 7,
+    },
+  },
+  mistmarsh: {
+    id: "mistmarsh", name: "하류 안개늪", badge: "서쪽 필드 — 하류 안개늪",
+    map: mistmarshMap, start: { x: 21, y: 12, facing: 3 },
+    exits: [
+      { x: 22, y: 12, label: "동쪽 강길 — 에버모어 근교", prompt: "[Z] 동쪽으로 — 에버모어 근교", target: { kind: "field", id: "evermoreOutskirts" } },
+    ],
+    decos: [
+      /* --- 동쪽 어귀: 늪의 문턱 --- */
+      { id: "gate_willow", name: "어귀의 버드나무", x: 19, y: 10, tile: "swamp_willow_obj", blocking: true,
+        text: "이끼를 발처럼 늘어뜨린 버드나무가 늪 어귀를 지킨다. 가지 사이로 안개가 느리게 흘러나온다." },
+      { id: "marsh_shroom", name: "장대버섯", x: 20, y: 6, tile: "swamp_shroom_tall_obj", blocking: true,
+        text: "사람 키를 넘는 장대버섯이다. 망사 같은 갓자락이 안개에 젖어 늘어져 있다." },
+      /* --- 중부: 물웅덩이 사이의 좁은 길 --- */
+      { id: "drowned_snag", name: "물에 잠긴 옹이나무", x: 13, y: 7, tile: "swamp_snag_obj", blocking: true,
+        text: "뿌리를 드러낸 옹이나무가 수렁에 반쯤 잠겨 있다. 뿌리 틈에 물새 둥지가 비어 있다." },
+      { id: "pool_lily", name: "늪 수련", x: 15, y: 6, tile: "swamp_lilypad_obj",
+        text: "탁한 웅덩이 위에 수련잎이 넓게 떠 있다. 잎 밑에서 무언가 물살을 가르고 지나갔다." },
+      { id: "marsh_slime", name: "수렁 슬라임", x: 8, y: 6, visual: { kind: "monster", defId: "slime" }, blocking: true,
+        fight: { enemies: ["slime", "slime", "slime"], respawnDays: 1 },
+        text: "진흙을 뒤집어쓴 슬라임 무리가 수렁 속에서 몸을 부풀린다. 늪물에 몸이 불어 여느 놈들보다 크다." },
+      { id: "marsh_bloom", name: "늪의 촉수꽃", x: 6, y: 9, visual: { kind: "monster", defId: "tendril" }, blocking: true,
+        fight: { enemies: ["tendril"], respawnDays: 2 },
+        text: "썩은 물을 빨아올린 촉수꽃이 웅덩이 가에 뿌리내렸다. 꽃잎 안쪽에서 삼킨 잔뼈가 비친다." },
+      /* --- 서부 깊은 늪: 고사목 군락 --- */
+      { id: "dead_grove", name: "고사목", x: 4, y: 4, tile: "swamp_deadtree_obj", blocking: true,
+        text: "잎을 모두 떨군 고사목이 잿빛 하늘을 할퀸다. 늪이 숲이었던 시절의 마지막 증인이다." },
+      { id: "violet_caps", name: "보랏빛 삿갓버섯", x: 3, y: 12, tile: "swamp_shroom_violet_obj",
+        text: "고사목 그늘에 보랏빛 삿갓버섯이 무리 지어 돋았다. 갓 밑에서 희미한 단내가 난다." },
+      { id: "marsh_husk", name: "늪가의 송장버섯", x: 7, y: 13, visual: { kind: "monster", defId: "husk" }, blocking: true,
+        fight: { enemies: ["husk", "husk"], respawnDays: 1 },
+        text: "가라앉은 짐승의 잔해 위로 송장버섯이 창백하게 부풀었다. 안개가 포자를 멀리 실어 나른다." },
+      { id: "marsh_boar", name: "진창의 어금니멧돼지", x: 9, y: 2, visual: { kind: "monster", defId: "boar" }, blocking: true,
+        fight: { enemies: ["boar"], respawnDays: 1 },
+        text: "진창에 몸을 굴리던 멧돼지가 흙탕물을 튀기며 일어선다. 진흙 갑옷을 두른 셈이라 성질이 더 사납다." },
+    ],
+    encounters: {
+      chance: 0.08,
+      groups: [["slime"], ["slime", "slime"], ["husk"], ["husk", "duskbat"], ["slime", "husk"]],
+    },
+    theme: {
+      background: { sky: 0x76837a, horizon: 0x99987b, ridge: 0x39432f },
+      floor: "swamp_mud_floor", wall: "trunk_wall",
+      ceiling: null, water: "swamp_water",
+      floorTint: 0xa8a08a, wallTint: 0x6f7a5f, waterTint: 0x8fa080, viewDistance: 5,
+    },
+  },
+  gleamwood: {
+    id: "gleamwood", name: "반딧불 빛숲", badge: "동쪽 필드 — 반딧불 빛숲",
+    map: gleamwoodMap, start: { x: 2, y: 11, facing: 1 },
+    exits: [
+      { x: 1, y: 11, label: "서쪽 숲길 — 헤르만의 은둔림", prompt: "[Z] 서쪽으로 — 은둔림", target: { kind: "field", id: "hermanForest" } },
+    ],
+    decos: [
+      /* --- 서쪽 어귀: 등불나무 가로수 --- */
+      { id: "lantern_gate", name: "등불나무", x: 4, y: 12, tile: "glow_tree_small_obj", blocking: true,
+        text: "가지 끝마다 등불 열매가 맺힌 작은 나무다. 밤이 깊을수록 열매가 밝아진다." },
+      { id: "glow_meadow", name: "발광 풀숲", x: 6, y: 10, tile: "glow_grass_obj",
+        text: "오색으로 빛나는 풀이 융단처럼 깔렸다. 발을 디디면 빛가루가 신발 위로 떠오른다." },
+      { id: "gleam_bloom", name: "빛숲의 촉수꽃", x: 8, y: 11, visual: { kind: "monster", defId: "tendril" }, blocking: true,
+        fight: { enemies: ["tendril"], respawnDays: 2 },
+        text: "발광 풀의 빛을 탐한 촉수꽃이 길가에 뿌리내렸다. 꽃잎이 반딧불 흉내로 깜빡이며 벌레를 꾄다." },
+      /* --- 중부: 수정 골짜기 --- */
+      { id: "crystal_purple", name: "자수정 기둥", x: 8, y: 4, tile: "glow_crystal_purple_obj", blocking: true,
+        text: "사람 키만 한 자수정이 흙을 뚫고 솟았다. 표면에 헤르만의 결계 문양이 어른거린다." },
+      { id: "crystal_green", name: "취록 수정", x: 13, y: 6, tile: "glow_crystal_green_obj", blocking: true,
+        text: "초록빛 수정 다발이다. 가까이 서면 낮은 공명음이 뼛속까지 울린다." },
+      { id: "gleam_slime", name: "빛을 삼킨 슬라임", x: 15, y: 4, visual: { kind: "monster", defId: "slime" }, blocking: true,
+        fight: { enemies: ["slime", "slime"], respawnDays: 1 },
+        text: "수정 곁에서 빛가루를 삼킨 슬라임이 몸속에 별처럼 반짝이는 알갱이를 띄운 채 일렁인다." },
+      /* --- 북동부: 거대 버섯 그늘 --- */
+      { id: "giant_cap", name: "거대 버섯", x: 16, y: 2, tile: "giant_mushroom_obj", blocking: true,
+        text: "지붕만 한 갓을 펼친 거대 버섯이다. 갓 아래는 비를 피할 만큼 넓고, 포자가 눈처럼 내린다." },
+      { id: "blue_stool", name: "푸른 갓 버섯", x: 14, y: 1, tile: "mush_stool_blue_obj", blocking: true,
+        text: "걸터앉기 좋은 높이의 푸른 버섯. 갓 위에 누군가 오래 앉았던 자국이 남아 있다." },
+      { id: "gleam_husk", name: "버섯 그늘의 송장버섯", x: 18, y: 3, visual: { kind: "monster", defId: "husk" }, blocking: true,
+        fight: { enemies: ["husk", "husk"], respawnDays: 1 },
+        text: "거대 버섯의 그늘에 송장버섯이 몰래 끼어 자랐다. 겉모습만 닮았을 뿐, 갓 밑의 살기는 숨기지 못한다." },
+      /* --- 남동부: 달빛 연못 --- */
+      { id: "moon_lily", name: "달빛 수련", x: 15, y: 11, tile: "swamp_lilypad_obj",
+        text: "연못 위 수련잎이 별하늘을 받아 은은히 빛난다. 잎 가장자리에 이슬이 구슬처럼 맺혔다." },
+      { id: "lantern_elder", name: "큰 등불나무", x: 18, y: 8, tile: "glow_tree_big_obj", blocking: true,
+        text: "숲에서 가장 오래된 등불나무다. 수백 개의 열매가 일제히 숨 쉬듯 밝아졌다 어두워진다." },
+      { id: "bare_lantern", name: "맨가지 등불나무", x: 10, y: 7, tile: "glow_tree_lantern_obj", blocking: true,
+        text: "잎을 떨군 가지 끝에 등불 열매만 매달렸다. 바람이 지나면 열매들이 풍경처럼 흔들린다." },
+      { id: "gleam_bats", name: "빛숲의 어둠박쥐", x: 17, y: 12, visual: { kind: "monster", defId: "duskbat" }, blocking: true,
+        fight: { enemies: ["duskbat", "duskbat", "duskbat"], respawnDays: 1 },
+        text: "등불 열매에 꾀는 벌레를 노리고 어둠박쥐 떼가 낮게 맴돈다. 빛을 등진 날개 그림자가 어지럽다." },
+    ],
+    encounters: {
+      chance: 0.06,
+      groups: [["slime"], ["slime", "slime"], ["duskbat", "duskbat"]],
+    },
+    theme: {
+      /* 푸른 달밤 별하늘 아래 발광 숲 — 밤빛에 맞춰 바닥·벽을 차게 가라앉힌다 */
+      background: {
+        sky: 0x2c3a5e, horizon: 0x44507a, ridge: 0x1e2a44,
+        texture: "title_sky_base", layers: ["title_sky_clouds"], tint: 0xaebadd,
+      },
+      floor: "forest_grass_floor", wall: "trunk_wall",
+      ceiling: null, water: "village_water",
+      floorTint: 0x6c86a0, wallTint: 0x5c6c92, waterTint: 0x3f6a9a, viewDistance: 6,
     },
   },
 };

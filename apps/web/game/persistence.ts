@@ -1,7 +1,7 @@
-import { ENEMY_DEFS } from "./defs";
-import { GameState, freshBasementState, freshTempleState, gameStore, replaceGameState } from "./state";
+import { ENEMY_DEFS, emptyItems, emptyMats } from "./defs";
+import { GameState, freshBasementState, freshTempleState, freshTombState, gameStore, replaceGameState } from "./state";
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 6;
 
 export interface SaveEnvelope {
   version: number;
@@ -31,7 +31,7 @@ export function parseSave(raw: string): GameState {
   try { parsed = JSON.parse(raw); }
   catch { throw new Error("세이브 JSON을 읽을 수 없다"); }
   if (!isRecord(parsed) || typeof parsed.version !== "number") throw new Error("세이브 형식이 잘못되었다");
-  if (parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3 && parsed.version !== SAVE_VERSION)
+  if (parsed.version < 1 || parsed.version > SAVE_VERSION)
     throw new Error(`지원하지 않는 세이브 버전: ${parsed.version}`);
   validateState(parsed.state);
   const state = structuredClone(parsed.state);
@@ -71,12 +71,19 @@ export function parseSave(raw: string): GameState {
   state.explore.enemies = state.explore.enemies.filter(
     (e) => ENEMY_DEFS[e.defId] && e.defId !== "lord");
   state.fieldFights ??= {};
+  /* v4 → v5: 확장 지역 1차 — 왕실 묘소 상태 신설 (근교 필드는 상태 비보존 필드라 이관 없음) */
+  state.tomb ??= freshTombState();
+  /* v5 → v6: 소모품 다변화 — items를 전 소모품 레코드로 확장, 조합 재료(mats) 신설.
+   * 구 세이브의 potion/mpotion 수량은 그대로 승계된다. */
+  state.items = { ...emptyItems(), ...state.items };
+  state.mats = { ...emptyMats(), ...(state.mats ?? {}) };
   /* v1 안에서 추가된 퀘스트 월드 플래그는 구 세이브에 안전한 기본값을 보충한다. */
   state.flags.bishopDefeated ??= false;
   state.flags.goblinOrders ??= state.explore.chestOpened.c1;
   state.flags.hostagesRescued ??= false;
   state.flags.banditsDefeated ??= false;
   state.flags.stableBriefed ??= state.flags.banditsDefeated || state.flags.letter;
+  state.flags.princeFound ??= false;
   /* 산적 소탕이 서브 의뢰였던 구 세이브를 새 메인 체인으로 이어 준다.
    * 새 세이브의 '소탕 완료, 보고 전' 상태는 route 진행값이 있으므로 건드리지 않는다. */
   const oldLetter = state.quests.main_hermans_letter;

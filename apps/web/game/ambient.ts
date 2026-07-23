@@ -47,7 +47,7 @@ export function bobSprite(target: PIXI.Container, opts: SwayOptions & { pixels?:
   };
 }
 
-export type ParticleKind = "leaves" | "motes" | "embers" | "spray" | "dust" | "spores";
+export type ParticleKind = "leaves" | "motes" | "embers" | "spray" | "dust" | "spores" | "fireflies" | "mist";
 
 interface ParticleSpec {
   count: number;
@@ -75,6 +75,8 @@ const PARTICLE_SPECS: Record<ParticleKind, ParticleSpec> = {
   spray: { count: 18, colors: [0xf2f8ff, 0xd8ecf4], rMin: 1, rMax: 2.2, vyMin: 10, vyMax: 26, vx: 42, alphaMin: 0.14, alphaMax: 0.4, wobble: 10 },
   dust: { count: 16, colors: [0xcbb489, 0xb59a6c], rMin: 1.2, rMax: 2.6, vyMin: -4, vyMax: 8, vx: 30, alphaMin: 0.12, alphaMax: 0.32, wobble: 20 },
   spores: { count: 14, colors: [0xa9d8b8, 0x7fae9a, 0xd6e8c8], rMin: 1.4, rMax: 3, vyMin: -12, vyMax: -3, vx: -6, alphaMin: 0.16, alphaMax: 0.45, wobble: 22, blend: "add" },
+  fireflies: { count: 22, colors: [0xffe98a, 0xd8ff9e, 0xa8e8ff], rMin: 1.2, rMax: 2.4, vyMin: -8, vyMax: 8, vx: 4, alphaMin: 0.3, alphaMax: 0.85, wobble: 34, blend: "add" },
+  mist: { count: 10, colors: [0xcfd8c4, 0xb9c4b0], rMin: 26, rMax: 46, vyMin: -2, vyMax: 3, vx: 12, alphaMin: 0.05, alphaMax: 0.14, wobble: 30, flat: true },
 };
 
 interface Particle {

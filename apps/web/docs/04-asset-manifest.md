@@ -48,16 +48,18 @@
 | world/tilesets/swamp/water_animation.png | world/tilesets/swamp/water_animation.png |
 | world/props/swamp/swamp_mushrooms.png | world/props/swamp/swamp_mushrooms.png |
 | world/backgrounds/herman_forest.png | world/backgrounds/autumn_forest/scene_03_forest/background.png |
-| npcs/kael.png | npcs/town/kael.png |
-| npcs/lokan.png | npcs/town/lokan.png |
-| npcs/chamberlain.png | npcs/town/chamberlain.png |
-| npcs/eldwin.png | npcs/town/eldwin.png |
-| npcs/sister_lia.png | npcs/town/sister_lia.png |
-
-마을 NPC 5명은 초상화와 역할을 기준으로 제작한 투명 고해상도 원본에서
-96×96 런타임 스프라이트를 축소 생성했다. 기존 16×16 idle 시트는 픽셀 밀도가
-마을 아트와 맞지 않아 NPC 소스·배포본에서 제외했다. 보스용 voodoo 시트는
-`assets-source/bosses/voodoo`로 분리했다.
+| items/icons/consumables.png | items/icons/item_sets/consumables.png |
+| items/icons/misc.png | items/icons/item_sets/misc.png |
+| items/icons/gems.png | items/icons/material_sets/gems.png |
+| items/icons/plants.png | items/icons/material_sets/plants.png |
+| items/icons/monster_parts.png | items/icons/material_sets/monster_parts.png |
+| items/icons/weapons.png | items/icons/weapon_sets/uniques.png |
+| items/icons/armor_leather.png | items/icons/armor_sets/leather.png |
+| items/icons/armor_iron.png | items/icons/armor_sets/iron.png |
+| items/icons/armor_steel.png | items/icons/armor_sets/steel.png |
+| items/icons/armor_special.png | items/icons/armor_sets/special.png |
+| items/icons/armor_extras.png | items/icons/armor_sets/extras.png |
+| items/icons/accessories.png | items/icons/accessory_sets/accessories.png |
 
 ## 추정 매핑 (가공·합성 재료)
 
@@ -66,7 +68,6 @@
 | world/props/nature/trees.png | world/props/nature/base/tree_01~04.png |
 | world/props/nature/bushes.png | world/props/nature/base/bush_01~02.png |
 | world/props/nature/flowers.png | world/props/nature/base/flower_01~02.png |
-| world/props/nature/mushrooms.png | world/props/nature/base/mushroom_01.png |
 | world/props/buildings/facility_emblems.png | world/props/buildings/facility_signs.png |
 | world/props/buildings/door_chest_animation.png | world/props/buildings/doors/door_animation.png 계열 |
 | world/props/structures/fountain.png | world/props/structures/fountain_01/02_animation.png |
@@ -77,13 +78,24 @@
 | world/tilesets/village/facades.png | world/tilesets/village/style_48/walls·roofs·building_decor.png |
 | world/tilesets/nature/water_coast_animation.png | world/effects/water/water_shore_animation.png 계열 |
 | world/decals/floor/cracks.png, world/decals/wall/cracks.png | world/decals/ (ground·wall 계열) |
+| npcs/kael.png | npcs/town/kael.png (96×96 축소) |
+| npcs/lokan.png | npcs/town/lokan.png (96×96 축소) |
+| npcs/chamberlain.png | npcs/town/chamberlain.png (96×96 축소) |
+| npcs/eldwin.png | npcs/town/eldwin.png (96×96 축소) |
+| npcs/sister_lia.png | npcs/town/sister_lia.png (96×96 축소) |
+
+마을 NPC 5명은 초상화와 역할을 기준으로 제작한 투명 고해상도 원본에서
+96×96 런타임 스프라이트를 축소 생성했다. 기존 16×16 idle 시트는 픽셀 밀도가
+마을 아트와 맞지 않아 NPC 소스·배포본에서 제외했다. 보스용 voodoo 시트는
+`assets-source/bosses/voodoo`로 분리했다.
 
 ## 원본 없음 (public/에 직접 추가)
 
 | 런타임 계열 | 비고 |
 | --- | --- |
 | monsters/icons/*.png (54개) | 완성본을 직접 추가. `game/defs/enemies.ts`의 MONSTER_ICONS 및 `game/defs/monster-habitats.ts`의 카테고리·서식지와 연동 |
-| portraits/male_*.png, female_*.png (48개) | `game/portraits.ts`의 개수·인덱스 규칙과 연동 |
+| monsters/bosses/goblin_*_animation.png (15개) | 고블린 킹·로드·블레이드·자이언트 보스 후보의 런타임 애니메이션 시트. 개별 원본 프레임은 `assets-source/monsters/sprites/goblin_bosses/`에 보존 |
+| portraits/halfling_male_*.png, halfling_female_*.png, goblin_*.png (96개) | `game/portraits.ts`의 개수·인덱스 규칙과 연동 |
 
 ## 출처 미확인
 
@@ -94,9 +106,9 @@
 
 ## 검증 방법
 
-확정 매핑은 아래로 재검증할 수 있다(양쪽 md5 목록을 만들어 해시 교집합 비교):
+`game/__tests__/assets.test.ts`의 "에셋 매니페스트" 테스트가 이 문서를 파싱해 자동 검증한다:
 
-```bash
-cd apps/web
-find assets-source public/assets -type f -exec md5sum {} +
-```
+- **확정 매핑**: 양쪽 파일 존재 + md5 일치
+- **추정 매핑·출처 미확인**: 런타임 파일 존재
+
+표를 갱신하면 `npx vitest run game/__tests__/assets.test.ts`로 확인한다.

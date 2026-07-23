@@ -1,14 +1,16 @@
 /* =====================================================================
  * assets.test.ts — 에셋 파일 ↔ 카탈로그 정합성 검증
  * ===================================================================== */
-import { existsSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ENEMY_DEFS, MAP_MONSTER_CATEGORIES, MONSTER_ASSET_META, MONSTER_ICONS,
-  NPCS, PARTY_SLOTS, monsterFitsMap,
+  NPCS, PARTY_SLOTS, SHOP_ARMORS, SHOP_WEAPONS, monsterFitsMap,
 } from "../defs";
 import { DUNGEONS } from "../dungeons";
 import { FIELDS } from "../fieldmaps";
+import { GEAR_ICON_FRAMES, SHEET_SRC } from "../item-icons";
 import { HIRES_MONSTERS } from "../monsters";
 import { NPC_SPRITE_SHEETS } from "../npc-sprites";
 import { PORTRAITS } from "../portraits";
@@ -108,6 +110,20 @@ describe("에셋 참조", () => {
       expect(existsSync(`public${src}`), src).toBe(true);
   });
 
+  it("아이템 아이콘 시트 파일이 존재한다", () => {
+    for (const src of Object.values(SHEET_SRC))
+      expect(existsSync(`public${src}`), src).toBe(true);
+  });
+
+  it("모든 상점 장비는 아이콘 프레임이 있고 시트 범위 안이다", () => {
+    for (const g of [...SHOP_WEAPONS, ...SHOP_ARMORS]) {
+      const frame = GEAR_ICON_FRAMES[g.name];
+      expect(frame, `프레임 없음: ${g.name}`).toBeTruthy();
+      expect(frame.x % 32, `${g.name}: x 정렬`).toBe(0);
+      expect(frame.y % 32, `${g.name}: y 정렬`).toBe(0);
+    }
+  });
+
   it("NPC·파티 프리셋 초상화 인덱스는 실재 파일을 가리킨다", () => {
     const idxs = [
       ...NPCS.map((n) => n.portrait),
@@ -117,6 +133,48 @@ describe("에셋 참조", () => {
       const name = PORTRAITS[i - 1];
       expect(name, `portrait ${i}`).toBeTruthy();
       expect(existsSync(`public/assets/portraits/${name}.png`), name).toBe(true);
+    }
+  });
+});
+
+describe("에셋 매니페스트 (docs/04-asset-manifest.md)", () => {
+  const doc = readFileSync("docs/04-asset-manifest.md", "utf8");
+
+  /** `## title` 섹션의 표에서 [1열, 2열] 행을 뽑는다. 헤더·구분선은 .png 미포함으로 걸러진다 */
+  const tableRows = (title: string): [string, string][] => {
+    const start = doc.indexOf(`## ${title}`);
+    expect(start, `섹션 없음: ${title}`).toBeGreaterThanOrEqual(0);
+    const rest = doc.slice(start);
+    const end = rest.indexOf("\n## ", 1);
+    return (end === -1 ? rest : rest.slice(0, end))
+      .split("\n")
+      .filter((l) => l.startsWith("|"))
+      .map((l) => l.split("|").map((c) => c.trim()))
+      .filter((c) => c[1]?.includes(".png"))
+      .map((c) => [c[1], c[2]]);
+  };
+
+  const md5 = (p: string) => createHash("md5").update(readFileSync(p)).digest("hex");
+
+  it("확정 매핑: 양쪽 파일이 존재하고 내용(md5)이 동일하다", () => {
+    const rows = tableRows("확정 매핑");
+    expect(rows.length).toBeGreaterThan(0);
+    for (const [rt, src] of rows) {
+      const rtPath = `public/assets/${rt}`;
+      const srcPath = `assets-source/${src}`;
+      expect(existsSync(rtPath), `런타임 없음: ${rt}`).toBe(true);
+      expect(existsSync(srcPath), `원본 없음: ${src}`).toBe(true);
+      expect(md5(rtPath), `md5 불일치: ${rt} ← ${src}`).toBe(md5(srcPath));
+    }
+  });
+
+  it("추정 매핑·출처 미확인: 런타임 파일이 존재한다", () => {
+    for (const title of ["추정 매핑", "출처 미확인"]) {
+      for (const [rt] of tableRows(title)) {
+        for (const p of rt.split(",").map((s) => s.trim())) {
+          expect(existsSync(`public/assets/${p}`), `런타임 없음: ${p}`).toBe(true);
+        }
+      }
     }
   });
 });

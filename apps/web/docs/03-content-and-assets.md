@@ -112,7 +112,7 @@ assets-source/
 ├── ambient/                       배경·환경 이미지
 ├── characters/sprites/            종족별 캐릭터 스프라이트 (elves, goblins, humans …)
 ├── items/icons/                   장비·재료·소모품 아이콘 (weapon_sets/ 시트 포함)
-├── monsters/sprites/              몬스터 스프라이트 원본
+├── monsters/sprites/              몬스터 스프라이트 원본 (보스별 개별 프레임 포함)
 ├── npcs/                          NPC 원본
 └── world/
     ├── backgrounds/               테마별 장면 배경 (테마/scene_XX_이름/ 구조)
@@ -122,6 +122,7 @@ assets-source/
     └── tilesets/                  지형·건물·지역용 타일 시트
 
 public/assets/
+├── monsters/bosses/               보스 전용 런타임 애니메이션 시트
 ├── monsters/icons/                런타임 몬스터 아이콘
 ├── portraits/                     파티·NPC 초상화
 └── world/
@@ -235,7 +236,7 @@ tree.PNG
 
 #### 초상화
 
-초상화는 `male_01.png`, `female_01.png` 형식을 사용하며 `game/portraits.ts`의 개수와 1-based 인덱스 규칙을 따른다.
+초상화는 `halfling_male_01.png`, `halfling_female_01.png`, `goblin_01.png` 형식을 사용하며 `game/portraits.ts`의 개수와 1-based 인덱스 규칙을 따른다.
 
 ### 에셋 검증
 

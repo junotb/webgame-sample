@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import { CLASSES } from "../defs";
-import { C, H, W, button, overlayRoot, panel, txt } from "../core";
+import { C, H, W, backdrop, button, overlayRoot, panel, txt } from "../core";
 import { G, Member } from "../state";
 
 export interface MemberPickerOptions {
@@ -15,8 +15,7 @@ export function pickMember(
   opts: MemberPickerOptions = {},
 ): void {
   const root = new PIXI.Container(); root.zIndex = 70; overlayRoot.addChild(root);
-  const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.55 });
-  dim.eventMode = "static"; root.addChild(dim);
+  root.addChild(backdrop());
   const ph = 96 + G.party.length * 56;
   const p = panel(520, ph); p.x = (W - 520) / 2; p.y = (H - ph) / 2; root.addChild(p);
   const tt = txt(title, 20, C.border, { serif: true }); tt.x = p.x + 22; tt.y = p.y + 14; root.addChild(tt);

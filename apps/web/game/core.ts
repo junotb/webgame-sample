@@ -11,8 +11,9 @@ export const W = 1280;
 export const H = 720;
 
 export const C = {
-  bg: 0x131020, panel: 0x1d1830, panelHi: 0x2a2244,
-  border: 0xc9a227, text: 0xe8dcc0, dim: 0x9a8f78,
+  bg: 0x0d0b16, panel: 0x191526, panelHi: 0x29213c,
+  panelLow: 0x100d19, border: 0xd0aa45, borderSoft: 0x67562f,
+  text: 0xeee4cf, dim: 0xa89d87,
   blood: 0xa33b3b, arcane: 0x8f7ff0,
   hp: 0xc0503c, mp: 0x4f6fd0, exp: 0xc9a227,
   green: 0x5e8c5a, night: 0x0d0a18,
@@ -160,9 +161,30 @@ export function txt(s: string, size: number, color: number = C.text, opts: TxtOp
 export function panel(w: number, h: number,
   opts: { fill?: number; alpha?: number; border?: number; borderAlpha?: number; r?: number } = {}): PIXI.Graphics {
   const g = new PIXI.Graphics();
-  g.roundRect(0, 0, w, h, opts.r ?? 10).fill({ color: opts.fill ?? C.panel, alpha: opts.alpha ?? 0.96 });
-  g.roundRect(0, 0, w, h, opts.r ?? 10).stroke({ width: 2, color: opts.border ?? C.border, alpha: opts.borderAlpha ?? 0.75 });
-  g.roundRect(3, 3, w - 6, h - 6, (opts.r ?? 10) - 3).stroke({ width: 1, color: 0x000000, alpha: 0.35 });
+  const r = opts.r ?? 10;
+  const border = opts.border ?? C.border;
+  /* One restrained, carved-metal frame shared by every HUD card and modal. */
+  g.roundRect(0, 0, w, h, r).fill({ color: C.panelLow, alpha: 0.82 });
+  g.roundRect(2, 2, w - 4, h - 4, Math.max(2, r - 2))
+    .fill({ color: opts.fill ?? C.panel, alpha: opts.alpha ?? 0.97 });
+  g.roundRect(1, 1, w - 2, h - 2, Math.max(2, r - 1))
+    .stroke({ width: 2, color: border, alpha: opts.borderAlpha ?? 0.78 });
+  g.roundRect(5, 5, w - 10, h - 10, Math.max(2, r - 4))
+    .stroke({ width: 1, color: C.borderSoft, alpha: 0.48 });
+  g.moveTo(14, 7).lineTo(Math.min(w - 14, 76), 7)
+    .stroke({ width: 1, color: border, alpha: 0.55 });
+  g.moveTo(Math.max(14, w - 76), h - 7).lineTo(w - 14, h - 7)
+    .stroke({ width: 1, color: border, alpha: 0.32 });
+  return g;
+}
+
+/** Shared modal scrim: consistent opacity plus a subtle inner vignette. */
+export function backdrop(alpha = 0.66): PIXI.Graphics {
+  const g = new PIXI.Graphics();
+  g.rect(0, 0, W, H).fill({ color: 0x05040a, alpha });
+  g.rect(18, 18, W - 36, H - 36)
+    .stroke({ width: 2, color: C.borderSoft, alpha: 0.18 });
+  g.eventMode = "static";
   return g;
 }
 
@@ -174,16 +196,34 @@ export interface Btn extends PIXI.Container {
 export function button(label: string, w: number, h: number, onTap: () => void,
   opts: { fill?: number; border?: number; size?: number; color?: number } = {}): Btn {
   const c = new PIXI.Container() as Btn;
+  let pressed = false;
   const g = panel(w, h, { fill: opts.fill ?? C.panelHi, border: opts.border ?? C.border, r: 8 });
   const t = txt(label, opts.size ?? 18, opts.color ?? C.text, { weight: "700" });
   t.anchor.set(0.5); t.x = w / 2; t.y = h / 2;
   c.addChild(g, t);
   c.eventMode = "static"; c.cursor = "pointer";
   c.on("pointertap", () => { if (!c.disabled) onTap(); });
-  c.on("pointerover", () => { if (!c.disabled) c.alpha = 0.85; });
-  c.on("pointerout", () => { c.alpha = c.disabled ? 0.45 : 1; });
+  c.on("pointerover", () => {
+    if (c.disabled) return;
+    g.tint = 0xfff2c2;
+    t.style.fill = 0xffffff;
+  });
+  c.on("pointerout", () => {
+    g.tint = 0xffffff;
+    t.style.fill = opts.color ?? C.text;
+    c.alpha = c.disabled ? 0.42 : 1;
+    if (pressed) { c.position.y -= 1; pressed = false; }
+  });
+  c.on("pointerdown", () => {
+    if (!c.disabled && !pressed) { c.position.y += 1; pressed = true; }
+  });
+  const release = () => { if (pressed) { c.position.y -= 1; pressed = false; } };
+  c.on("pointerup", release);
+  c.on("pointerupoutside", release);
   c.setDisabled = (v: boolean) => {
-    c.disabled = v; c.alpha = v ? 0.45 : 1; c.cursor = v ? "default" : "pointer";
+    c.disabled = v; c.alpha = v ? 0.42 : 1; c.cursor = v ? "default" : "pointer";
+    if (v) { g.tint = 0xb8b1a4; t.style.fill = C.dim; }
+    else { g.tint = 0xffffff; t.style.fill = opts.color ?? C.text; }
   };
   c.labelText = t;
   return c;

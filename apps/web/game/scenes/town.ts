@@ -12,7 +12,7 @@ import {
   GearDef, NPCS, NpcDef, QUESTS, SHOP_ITEMS,
 } from "../defs";
 import {
-  C, H, SceneHandle, SceneScope, W, button, fullFlash, nav, overlayRoot, panel,
+  C, H, SceneHandle, SceneScope, W, backdrop, button, fullFlash, nav, overlayRoot, panel,
   sceneRoot, setModeBadge, toast, tween, txt, ui,
 } from "../core";
 import { G, partyLevel } from "../state";
@@ -174,8 +174,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const dest = otherTown(G.town);
     const destName = TOWNS[dest].name;
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
-    dim.eventMode = "static"; rootS.addChild(dim);
+    rootS.addChild(backdrop());
     const p = panel(620, 300); p.x = (W - 620) / 2; p.y = (H - 300) / 2; rootS.addChild(p);
     const tt = txt("마굿간 — 역마차", 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
@@ -206,8 +205,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     if (!G.flags.letter) { fullFlash(0x000000, 600, () => nav.letter()); return; }
     overlayOpen = true;
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
-    dim.eventMode = "static"; rootS.addChild(dim);
+    rootS.addChild(backdrop());
     const p = panel(620, 240); p.x = (W - 620) / 2; p.y = (H - 240) / 2; rootS.addChild(p);
     const tt = txt("알현실 — 연방 군주", 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
@@ -233,8 +231,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   function inn(f: TownFacilityDef): void {
     overlayOpen = true;
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
-    dim.eventMode = "static"; rootS.addChild(dim);
+    rootS.addChild(backdrop());
     const PW = 720, PH = 430;
     const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; rootS.addChild(p);
     const title = txt(f.name, 24, C.border, { serif: true }); title.x = p.x + 28; title.y = p.y + 20; rootS.addChild(title);
@@ -308,8 +305,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   function openTemple(f: TownFacilityDef): void {
     overlayOpen = true;
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
-    dim.eventMode = "static"; rootS.addChild(dim);
+    rootS.addChild(backdrop());
     const p = panel(640, 320); p.x = (W - 640) / 2; p.y = (H - 320) / 2; rootS.addChild(p);
     const tt = txt(f.title ?? f.name, 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
@@ -333,8 +329,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   function openBountyGuild(f: TownFacilityDef): void {
     overlayOpen = true;
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
-    dim.eventMode = "static"; rootS.addChild(dim);
+    rootS.addChild(backdrop());
     const p = panel(860, 650); p.x = (W - 860) / 2; p.y = (H - 650) / 2; rootS.addChild(p);
     const content = new PIXI.Container(); rootS.addChild(content);
     const closeBtn = button("나가기", 110, 40, close, { size: 15 });
@@ -439,8 +434,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   function openNpc(npc: NpcDef): void {
     overlayOpen = true;
     const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
-    dim.eventMode = "static"; rootS.addChild(dim);
+    rootS.addChild(backdrop());
     const PW = 820, PH = 480;
     const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; rootS.addChild(p);
 

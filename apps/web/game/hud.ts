@@ -8,7 +8,7 @@ import {
 } from "./defs";
 import { portraitTexture } from "./portraits";
 import {
-  C, H, W, button, overlayRoot, panel, toast, txt, ui,
+  C, H, W, backdrop, button, overlayRoot, panel, toast, txt, ui,
 } from "./core";
 import {
   G, Member, PROF_BASE, canSwapRow, equippedWeapon, expNeed, fieldUsable, memberRanks,
@@ -16,6 +16,7 @@ import {
 } from "./state";
 import { openGrowthMenu } from "./ui/growth-menu";
 import { openBagMenu } from "./ui/inventory-menu";
+import { itemIcon } from "./item-icons";
 export { pickMember } from "./ui/member-picker";
 
 /** 장비 요약 — 슬롯별 아이템(공격/방어/능력치 태그). 빈 슬롯은 "—" */
@@ -110,8 +111,7 @@ export function buildPartyHUD(container: PIXI.Container, opts: { fieldHandlers?:
 export function openStatusMenu(onClose?: () => void): void {
   if (ui.menuOpen) return; ui.menuOpen = true;
   const root = new PIXI.Container(); root.zIndex = 60; overlayRoot.addChild(root);
-  const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
-  dim.eventMode = "static"; root.addChild(dim);
+  root.addChild(backdrop());
   const p = panel(880, 620); p.x = (W - 880) / 2; p.y = (H - 620) / 2; root.addChild(p);
   const bx = p.x, by = p.y;
   const title = txt("모험 수첩", 26, C.border, { serif: true }); title.x = bx + 28; title.y = by + 16; root.addChild(title);
@@ -198,7 +198,7 @@ export function openStatusMenu(onClose?: () => void): void {
       const line = group.skills
         .map((k) => {
           const rk = r[k] ?? 0;
-          return rk ? `${SKILLS[k].name} [${RANK_NAME[rk]}]` : null;
+          return rk ? `${SKILLS[k].icon ? `${SKILLS[k].icon} ` : ""}${SKILLS[k].name} [${RANK_NAME[rk]}]` : null;
         })
         .filter(Boolean).join("   ");
       const lt = txt(`${group.label} │ ${line || "—"}`, 14, line ? C.text : C.dim, { wrap: 800 });
@@ -245,8 +245,7 @@ export function openStatusMenu(onClose?: () => void): void {
 function openFieldItemMenu(m: Member, onUsed: () => void): void {
   const usable = CONSUMABLE_IDS.filter((id) => G.items[id] > 0 && fieldUsable(id));
   const root = new PIXI.Container(); root.zIndex = 70; overlayRoot.addChild(root);
-  const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.5 });
-  dim.eventMode = "static"; root.addChild(dim);
+  root.addChild(backdrop());
   const rows = Math.max(1, usable.length);
   const ph = 110 + rows * 52;
   const p = panel(620, ph); p.x = (W - 620) / 2; p.y = (H - ph) / 2; root.addChild(p);
@@ -258,15 +257,17 @@ function openFieldItemMenu(m: Member, onUsed: () => void): void {
   }
   usable.forEach((id, i) => {
     const def = CONSUMABLES[id];
+    const icon = itemIcon(id, 40);
+    icon.x = p.x + 24; icon.y = p.y + 57 + i * 52; root.addChild(icon);
     const b = button(`${def.name} ×${G.items[id]}`, 230, 42, () => {
       const line = useFieldItem(id, m);
       if (!line) return toast("지금은 쓸 수 없다.", C.dim);
       toast(line, C.border);
       close(); onUsed();
     }, { size: 14 });
-    b.x = p.x + 24; b.y = p.y + 56 + i * 52; root.addChild(b);
-    const d = txt(def.desc, 13, C.dim, { wrap: 330 });
-    d.x = p.x + 266; d.y = p.y + 64 + i * 52; root.addChild(d);
+    b.x = p.x + 70; b.y = p.y + 56 + i * 52; root.addChild(b);
+    const d = txt(def.desc, 13, C.dim, { wrap: 280 });
+    d.x = p.x + 312; d.y = p.y + 64 + i * 52; root.addChild(d);
   });
   const closeBtn = button("닫기", 90, 36, close, { size: 14 });
   closeBtn.x = p.x + 620 - 114; closeBtn.y = p.y + ph - 50; root.addChild(closeBtn);
@@ -278,8 +279,7 @@ export function openFieldSkillMenu(handlers: FieldHandlers, onClose?: () => void
   if (ui.menuOpen) return; ui.menuOpen = true;
   const list = partyFieldSkills();
   const root = new PIXI.Container(); root.zIndex = 60; overlayRoot.addChild(root);
-  const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.55 });
-  dim.eventMode = "static"; root.addChild(dim);
+  root.addChild(backdrop());
   const ph = 120 + Math.max(1, list.length) * 58;
   const p = panel(640, ph); p.x = (W - 640) / 2; p.y = (H - ph) / 2; root.addChild(p);
   const title = txt("필드 스킬", 24, C.border, { serif: true }); title.x = p.x + 24; title.y = p.y + 16; root.addChild(title);
@@ -289,12 +289,13 @@ export function openFieldSkillMenu(handlers: FieldHandlers, onClose?: () => void
   }
   list.forEach((entry, i) => {
     const f = entry.def;
-    const b = button(`${f.name}  (${entry.caster.name} · MP ${f.mp})`, 280, 44, () => {
+    const school = SKILLS[f.skill];
+    const b = button(`${school.icon ? `${school.icon} ` : ""}${f.name}  (${entry.caster.name} · MP ${f.mp})`, 280, 44, () => {
       if (entry.caster.mp < f.mp) return toast(`${entry.caster.name}의 MP가 부족하다.`, C.dim);
       close();
       entry.caster.mp -= f.mp;
       handlers[f.id]?.();
-    }, { size: 15 });
+    }, { size: 15, border: school.color });
     b.x = p.x + 24; b.y = p.y + 62 + i * 58; root.addChild(b);
     const d = txt(f.desc, 14, C.dim); d.x = p.x + 320; d.y = p.y + 62 + i * 58 + 12; root.addChild(d);
   });

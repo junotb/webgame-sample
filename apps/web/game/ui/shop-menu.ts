@@ -3,11 +3,12 @@ import {
   ATTRS, AttrId, ConsumableId, DAMAGE_META, DamageType, EquipSlot, GearDef, SLOT_META,
 } from "../defs";
 import { openCraftMenu } from "./craft-menu";
-import { C, H, W, button, overlayRoot, panel, toast, txt } from "../core";
+import { C, H, W, backdrop, button, overlayRoot, panel, toast, txt } from "../core";
 import { G, Member, equipGear } from "../state";
 import { pickMember } from "./member-picker";
 import { keeperSays } from "../town/content";
 import type { TownKeeperDef } from "../town/types";
+import { gearIcon, itemIcon } from "../item-icons";
 
 export type ShopKind = "weapon" | "armor" | "item";
 
@@ -61,8 +62,7 @@ export function openShopMenu(opts: {
 }): void {
   const { title, goods, kind, onChange, onClose, keeper } = opts;
   const root = new PIXI.Container(); root.zIndex = 60; overlayRoot.addChild(root);
-  const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.6 });
-  dim.eventMode = "static"; root.addChild(dim);
+  root.addChild(backdrop());
   const twoCol = goods.length > 6;
   const cols = twoCol ? 2 : 1;
   const rows = Math.ceil(goods.length / cols);
@@ -91,8 +91,12 @@ export function openShopMenu(opts: {
     const colX = p.x + 26 + col * (colWidth + 8);
     const y = p.y + 116 + row * 64;
     const desc = kind === "item" ? (it.desc ?? "") : gearDesc(it);
-    const nameText = txt(`${it.name}  —  ${desc}`, 14, C.text, { wrap: colWidth - 128 });
-    nameText.x = colX; nameText.y = y + 8; root.addChild(nameText);
+    const icon = kind === "item" ? itemIcon(it.id as ConsumableId, 42) : gearIcon(it.name, 42);
+    const nameText = txt(`${it.name}  —  ${desc}`, 14, C.text, {
+      wrap: colWidth - (icon ? 178 : 128),
+    });
+    if (icon) { icon.x = colX; icon.y = y; root.addChild(icon); }
+    nameText.x = colX + (icon ? 50 : 0); nameText.y = y + 8; root.addChild(nameText);
     const buy = button(`${it.price} G`, 110, 42, () => {
       if (G.gold < it.price) return toast(keeperSays(keeper, "그 물건을 사기엔 돈이 조금 모자라요."), C.dim);
       if (kind === "item") {

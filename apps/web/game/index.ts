@@ -11,6 +11,7 @@ import { loadMonsterIcons } from "./monsters";
 import { loadNpcSprites } from "./npc-sprites";
 import { loadTiles } from "./tiles";
 import { loadBattleFx } from "./battle-fx";
+import { loadItemIcons } from "./item-icons";
 import { G, newGame } from "./state";
 import { PARTY_SLOTS } from "./defs";
 import { titleScene } from "./scenes/title";
@@ -28,7 +29,9 @@ export async function boot(
   fonts: { displayFont: string; bodyFont: string },
 ): Promise<() => void> {
   await initPixi(el, fonts);
-  await Promise.all([loadPortraits(), loadTiles(), loadMonsterIcons(), loadNpcSprites(), loadBattleFx()]);
+  await Promise.all([
+    loadPortraits(), loadTiles(), loadMonsterIcons(), loadNpcSprites(), loadBattleFx(), loadItemIcons(),
+  ]);
   attachInput();
 
   /* nav 배선 — 씬 간 순환 import 방지 라우터 */

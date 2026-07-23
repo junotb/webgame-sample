@@ -6,13 +6,13 @@ import * as PIXI from "pixi.js";
 import {
   CONSUMABLES, CRAFT_RECIPES, MATERIALS, MATERIAL_IDS, MaterialId, canCraft,
 } from "../defs";
-import { C, H, W, button, overlayRoot, panel, toast, txt } from "../core";
+import { C, H, W, backdrop, button, overlayRoot, panel, toast, txt } from "../core";
 import { G, craftItem, sellMaterial } from "../state";
+import { itemIcon } from "../item-icons";
 
 export function openCraftMenu(onChange: () => void, onClose?: () => void): void {
   const root = new PIXI.Container(); root.zIndex = 66; overlayRoot.addChild(root);
-  const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.62 });
-  dim.eventMode = "static"; root.addChild(dim);
+  root.addChild(backdrop());
   const PW = 880, PH = 170 + CRAFT_RECIPES.length * 54;
   const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; root.addChild(p);
   const bx = p.x, by = p.y;
@@ -38,10 +38,12 @@ export function openCraftMenu(onChange: () => void, onClose?: () => void): void 
         .map((k) => `${MATERIALS[k].name} ${G.mats[k]}/${r.mats[k]}`)
         .join(" · ");
       const ok = canCraft(r, G.mats);
+      const icon = itemIcon(r.out, 40);
+      icon.x = bx + 28; icon.y = y; content.addChild(icon);
       const nameT = txt(`${out.name}  (보유 ×${G.items[r.out]})`, 15, ok ? C.text : C.dim, { weight: "700" });
-      nameT.x = bx + 28; nameT.y = y; content.addChild(nameT);
+      nameT.x = bx + 76; nameT.y = y; content.addChild(nameT);
       const needT = txt(need, 12, ok ? C.border : C.dim);
-      needT.x = bx + 28; needT.y = y + 22; content.addChild(needT);
+      needT.x = bx + 76; needT.y = y + 22; content.addChild(needT);
       const b = button("조합", 96, 40, () => {
         if (craftItem(r)) { toast(`${out.name} 완성!`, C.border); onChange(); render(); }
         else toast("재료가 부족하다.", C.dim);

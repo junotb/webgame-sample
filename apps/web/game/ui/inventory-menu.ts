@@ -3,11 +3,12 @@ import {
   ATTRS, ATTR_IDS, DAMAGE_META, DamageType, MATERIALS, MATERIAL_IDS, OwnedGear,
   RANK_NAME, RARITY_META, SLOT_META, gearDisplayName,
 } from "../defs";
-import { C, H, W, button, overlayRoot, panel, toast, txt } from "../core";
+import { C, H, W, backdrop, button, overlayRoot, panel, toast, txt } from "../core";
 import {
   G, equipFromBag, identifyGear, partyIdentifyRank, sellGear, sellPrice,
 } from "../state";
 import { pickMember } from "./member-picker";
+import { gearIcon } from "../item-icons";
 
 function ownedSlotName(o: OwnedGear): string {
   return o.slot === "ring" ? "반지" : SLOT_META[o.slot].name;
@@ -40,8 +41,7 @@ function ownedDesc(o: OwnedGear): string {
 
 export function openBagMenu(onClose?: () => void): void {
   const root = new PIXI.Container(); root.zIndex = 66; overlayRoot.addChild(root);
-  const dim = new PIXI.Graphics(); dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.62 });
-  dim.eventMode = "static"; root.addChild(dim);
+  root.addChild(backdrop());
   const PW = 940, PH = 620;
   const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; root.addChild(p);
   const bx = p.x, by = p.y;
@@ -71,10 +71,14 @@ export function openBagMenu(onClose?: () => void): void {
     rows.forEach((o, i) => {
       const y = by + 92 + i * 62;
       const rm = RARITY_META[o.rarity];
+      /* 미확인이어도 기반 이름은 드러나 있으므로 아이콘은 그대로 보여준다 */
+      const icon = gearIcon(o.base, 44);
+      if (icon) { icon.x = bx + 28; icon.y = y + 4; content.addChild(icon); }
+      const tx = bx + 28 + (icon ? 54 : 0);
       const nameT = txt(`${gearDisplayName(o)}  [${rm.name}]`, 16, o.identified ? rm.color : C.dim, { weight: "700" });
-      nameT.x = bx + 28; nameT.y = y; content.addChild(nameT);
-      const d = txt(ownedDesc(o), 13, C.text, { wrap: 560 });
-      d.x = bx + 28; d.y = y + 24; content.addChild(d);
+      nameT.x = tx; nameT.y = y; content.addChild(nameT);
+      const d = txt(ownedDesc(o), 13, C.text, { wrap: 560 - (icon ? 54 : 0) });
+      d.x = tx; d.y = y + 24; content.addChild(d);
       let btnX = bx + 616;
       if (!o.identified) {
         const canId = partyIdentifyRank() >= rm.idReq;

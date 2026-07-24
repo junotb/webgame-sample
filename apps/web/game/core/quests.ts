@@ -4,6 +4,7 @@
  * 메인은 자동 수주(체인), 서브/반복은 길드에서 수주, 보상은 길드 보고 시.
  * ===================================================================== */
 import { CONSUMABLES, QUESTS, QuestDef, QuestObjectiveDef } from "../defs";
+import { events } from "./events";
 import { QuestProgress, gainExpParty, gameStore, partyLevel } from "../state";
 
 const game = () => gameStore.get();
@@ -26,6 +27,14 @@ export interface QuestUpdate {
   count: number;
   /** 이 갱신으로 퀘스트 전체가 완료(보고 대기)됨 */
   questDone: boolean;
+}
+
+function reportDestination(q: QuestDef): string {
+  const turnIn = q.turnIn;
+  if (!turnIn) return "현상금 길드에 보고";
+  return turnIn.type === "npc"
+    ? `${turnIn.label}에게 보고`
+    : `${turnIn.label}에 보고`;
 }
 
 export function questDef(id: string): QuestDef {
@@ -60,10 +69,44 @@ export function questStatus(id: string): QuestStatus {
   return requirementsMet(q) ? "available" : "locked";
 }
 
-/** 길드 게시판용 목록 (메인 자동 수주 동기화 포함) */
+/* ---- 주간 현상금 ----
+ * 길드는 weekly_* 풀에서 매주(월드 7일) 하나를 무작위로 게시한다.
+ * 추첨 결과는 townWorld.weeklyBounty에 저장되어 세이브를 넘어 유지된다. */
+const WEEKLY_POOL = QUESTS.filter((q) => q.id.startsWith("weekly_"));
+
+export function isWeeklyBounty(id: string): boolean {
+  return id.startsWith("weekly_");
+}
+
+function worldDay(): number { return game().townWorld?.day ?? 1; }
+
+/** 이번 주에 게시된 주간 현상금 id. 주가 바뀌면 직전과 다른 의뢰를 새로 뽑는다. */
+export function weeklyBountyId(): string | null {
+  if (!WEEKLY_POOL.length) return null;
+  const world = (game().townWorld ??= { day: 1, minuteOfDay: 8 * 60, visits: {} });
+  const week = Math.floor((worldDay() - 1) / 7);
+  const cur = world.weeklyBounty;
+  if (cur && cur.week === week && WEEKLY_POOL.some((q) => q.id === cur.id)) return cur.id;
+  const candidates = WEEKLY_POOL.filter((q) => q.id !== cur?.id);
+  const pool = candidates.length ? candidates : WEEKLY_POOL;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  world.weeklyBounty = { week, id: pick.id };
+  return pick.id;
+}
+
+/** 길드 게시판용 목록 (메인 자동 수주 동기화 포함)
+ *  주간 현상금은 이번 주에 게시된 하나만 노출한다 — 단, 지난주에 수주해
+ *  아직 들고 있는 의뢰는 보고할 수 있게 계속 보여준다. */
 export function questList(): { def: QuestDef; status: QuestStatus; progress?: QuestProgress }[] {
   syncMainQuests();
-  return QUESTS.map((def) => ({ def, status: questStatus(def.id), progress: game().quests[def.id] }));
+  const weekly = weeklyBountyId();
+  return QUESTS
+    .filter((def) => {
+      if (!isWeeklyBounty(def.id) || def.id === weekly) return true;
+      const p = game().quests[def.id];
+      return p?.status === "active" || p?.status === "done";
+    })
+    .map((def) => ({ def, status: questStatus(def.id), progress: game().quests[def.id] }));
 }
 
 /** clear형 목표는 수주 시점의 defeated 플래그를 소급 인정 (메인 체인 잠김 방지) */
@@ -113,6 +156,8 @@ export function syncMainQuests(): QuestDef[] {
   for (const q of QUESTS) {
     if (q.kind !== "main" || game().quests[q.id]) continue;
     if (!requirementsMet(q)) continue;
+    /* Named story-givers must deliver their own briefing. */
+    if (q.autoStart === false) continue;
     const p: QuestProgress = { status: "active", counts: {}, times: 0 };
     retroCredit(q, p);
     game().quests[q.id] = p;
@@ -131,6 +176,11 @@ export function questNotify(ev: GameEvent): QuestUpdate[] {
     for (const o of q.objectives) {
       const cur = p.counts[o.id] ?? 0;
       if (cur >= o.count) continue;
+      if (q.sequential) {
+        const firstIncomplete = q.objectives.find((candidate) =>
+          (p.counts[candidate.id] ?? 0) < candidate.count);
+        if (firstIncomplete?.id !== o.id) continue;
+      }
       const hit =
         (ev.t === "kill" && o.type === "kill" && o.target === ev.defId) ||
         (ev.t === "clear" && o.type === "clear" && o.target === ev.symbol) ||
@@ -163,9 +213,15 @@ export function reportQuest(id: string): { gold: number; exp: number; items: str
   const ups = r.exp ? gainExpParty(r.exp) : [];
   p.status = "rewarded";
   p.times += 1;
-  if (q.kind === "repeat")
-    p.availableAtDay = (game().townWorld?.day ?? 1) + (q.repeatEveryDays ?? 1);
+  if (q.kind === "repeat") {
+    const day = game().townWorld?.day ?? 1;
+    /* 주간 현상금은 다음 주 시작일에 새로 추첨된다 — 그때까지 잠근다 */
+    p.availableAtDay = isWeeklyBounty(id)
+      ? day - ((day - 1) % 7) + 7
+      : day + (q.repeatEveryDays ?? 1);
+  }
   syncMainQuests(); // 메인 체인 다음 단계 자동 수주
+  events.emit("quest:rewarded", { id });
   return { gold: r.gold ?? 0, exp: r.exp ?? 0, items: itemNames, ups };
 }
 
@@ -177,7 +233,7 @@ export function trackerLines(max = 3): { text: string; done: boolean }[] {
     const p = game().quests[q.id];
     if (!p || (p.status !== "active" && p.status !== "done")) continue;
     if (p.status === "done") {
-      out.push({ text: `${q.name} — 완료! 길드에 보고`, done: true });
+      out.push({ text: `${q.name} — 완료! ${reportDestination(q)}`, done: true });
     } else {
       const o = q.objectives.find((x) => (p.counts[x.id] ?? 0) < x.count) ?? q.objectives[0];
       out.push({ text: `${q.name} — ${o.desc} ${p.counts[o.id] ?? 0}/${o.count}`, done: false });
@@ -189,8 +245,14 @@ export function trackerLines(max = 3): { text: string; done: boolean }[] {
 
 /** 진행 문구 헬퍼 — "퀘스트: 고블린 처치 3/5" / "퀘스트 완료!" */
 export function updateText(u: QuestUpdate): string {
-  return u.questDone
-    ? `퀘스트 완료: ${u.quest.name} — 길드에 보고할 것!`
+  if (u.questDone) {
+    return `퀘스트 완료: ${u.quest.name} — ${reportDestination(u.quest)}할 것!`;
+  }
+  const progress = game().quests[u.quest.id];
+  const next = u.quest.objectives.find((objective) =>
+    (progress?.counts[objective.id] ?? 0) < objective.count);
+  return next && next.id !== u.objective.id
+    ? `목표 완료: ${u.objective.desc} — 다음 목표: ${next.desc}`
     : `퀘스트: ${u.objective.desc} ${u.count}/${u.objective.count}`;
 }
 

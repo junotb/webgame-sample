@@ -266,15 +266,14 @@ function createEntities(town: TownData, npcs: readonly NpcDef[]): {
   for (const deco of town.decos) {
     if (deco.id === "statue") {
       const node = new PIXI.Container();
-      const g = new PIXI.Graphics();
-      g.ellipse(0, 2, 24, 6).fill({ color: 0x000000, alpha: 0.3 });
-      g.roundRect(-20, -22, 40, 22, 4).fill(0x4a4560);
-      g.roundRect(-20, -22, 40, 22, 4).stroke({ width: 2, color: 0x6a657f, alpha: 0.7 });
-      g.roundRect(-10, -76, 20, 54, 8).fill(0x8a86a0);
-      g.circle(0, -86, 11).fill(0x9a96b0);
-      g.roundRect(-13, -60, 26, 8, 3).fill({ color: 0x7a7690, alpha: 0.9 });
-      node.addChild(g);
-      entities.push({ id: `statue:${deco.x},${deco.y}`, x: deco.x, y: deco.y, node, worldH: 0.62, baseH: 92 });
+      const shadow = new PIXI.Graphics();
+      shadow.ellipse(0, 2, 26, 6).fill({ color: 0x000000, alpha: 0.3 });
+      /* 군주상은 갑주 기사상, 그 외(사자상 등)는 날개 달린 수호상 */
+      const lord = deco.name.includes("군주");
+      const sprite = tileSprite(lord ? "statue_lord_obj" : "statue_guard_obj", lord ? 0.8 : 0.9);
+      sprite.anchor.set(0.5, 1);
+      node.addChild(shadow, sprite);
+      entities.push({ id: `statue:${deco.x},${deco.y}`, x: deco.x, y: deco.y, node, worldH: 0.62, baseH: 94 });
     }
     if (deco.id === "barrel" || deco.id === "crate") {
       const node = new PIXI.Container();

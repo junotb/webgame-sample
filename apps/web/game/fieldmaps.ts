@@ -295,7 +295,7 @@ export const FIELDS: Record<FieldId, FieldData> = {
       floorTint: 0xd9c894, wallTint: 0x9aa0a6, waterTint: 0x6f9db4, viewDistance: 7,
     },
     encounters: {
-      chance: 0.08,
+      chance: 0.06,
       groups: [["husk"], ["duskbat", "duskbat"], ["husk", "duskbat"], ["husk", "husk"]],
     },
   },
@@ -320,7 +320,7 @@ export const FIELDS: Record<FieldId, FieldData> = {
         text: "덜 마른 장작과 부서진 방패를 태운 불길이다. 매캐한 연기가 해풍에 낮게 깔린다." },
       { id: "garrison_guard", name: "주둔지 경비병", x: 28, y: 8, visual: { kind: "monster", defId: "goblin" }, blocking: true,
         fight: { enemies: ["goblin", "goblin"], respawnDays: 1 },
-        text: "창과 방패로 무장한 고블린 전사가 포로 우리와 해안 쪽을 번갈아 감시한다." },
+        text: "창과 방패로 무장한 고블린 블레이드가 포로 우리와 해안 쪽을 번갈아 감시한다." },
       { id: "wolf_scout", name: "고블린 늑대기수", x: 29, y: 14, visual: { kind: "monster", defId: "wolf" }, blocking: true,
         fight: { enemies: ["wolf", "wolf"], respawnDays: 1 },
         text: "굶주린 굴늑대가 바닷바람의 냄새를 맡는다. 등에 탄 고블린 정찰병은 계곡 입구를 노려보고 있다." },
@@ -367,8 +367,9 @@ export const FIELDS: Record<FieldId, FieldData> = {
       floorTint: 0xa18c52, wallTint: 0x80654b, waterTint: 0x577581, viewDistance: 7,
     },
     encounters: {
-      chance: 0.09,
-      groups: [["goblin"], ["goblin", "goblin"], ["wolf"], ["goblin", "wolf"], ["slime", "slime"]],
+      chance: 0.06,
+      /* 잡몹 조우는 계곡의 들짐승 — 고블린은 주둔지·순찰 POI와 요새 안에서만 만난다 */
+      groups: [["rat", "rat"], ["beetle"], ["hare", "hare"], ["boar"], ["beetle", "rat"], ["slime", "slime"]],
     },
   },
   hermanForest: {
@@ -506,7 +507,7 @@ export const FIELDS: Record<FieldId, FieldData> = {
         text: "진창에 몸을 굴리던 멧돼지가 흙탕물을 튀기며 일어선다. 진흙 갑옷을 두른 셈이라 성질이 더 사납다." },
     ],
     encounters: {
-      chance: 0.08,
+      chance: 0.06,
       groups: [["slime"], ["slime", "slime"], ["husk"], ["husk", "duskbat"], ["slime", "husk"]],
     },
     theme: {

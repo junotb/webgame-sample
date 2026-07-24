@@ -5,9 +5,11 @@
  *  중앙 대분수 광장을 축으로 대성당·왕도 시장·여관이 좌우에 늘어선다.
  *
  *  구역: 북단 알현실(연방 군주) / W 대성당 · E 왕도 시장
- *        W 여관 · E 마굿간 / 중앙 대분수 · 석상 / 남단 마차 광장
+ *        W 여관 · E 시장 창고 / 중앙 대분수 / 남단 마차 광장(마굿간·석상·우물)
+ *        동문 — 고블린 계곡길(크로스베일과 잇는 옛길)
  * ===================================================================== */
 import { parseMap } from "../grid";
+import { attachDialogue, type TownFacilityShellDef } from "./dialogue";
 import type { TownData, TownDecoDef, TownFacilityDef, TownGateDef, TownSpawnPos } from "./types";
 
 export const EVERMORE_ROWS = [
@@ -23,16 +25,16 @@ export const EVERMORE_ROWS = [
   "#.#####..............#####.#",
   "#.#####..............#####.#",
   "#..........................#",
-  "#..........................#",
+  "#..........................+",
   "#.#####..............#####.#",
-  "#.####+..............+####.#",
+  "#.####+..............#####.#",
   "#.#####..............#####.#",
   "#.#####..............#####.#",
   "#..........................#",
   "#..........................#",
-  "#..........................#",
-  "#..........................#",
-  "#..........................#",
+  "#...................######.#",
+  "#...................+#####.#",
+  "#...................######.#",
   "#..........................#",
   "#############+##############",
 ] as const;
@@ -40,59 +42,32 @@ export const EVERMORE_ROWS = [
 export const EVERMORE_MAP = parseMap([...EVERMORE_ROWS]);
 
 /* ---- 진입 지점 ----
- *  carriage: 크로스베일에서 역마차로 도착 — 남단 마차 광장(북향)
+ *  carriage: 크로스베일에서 역마차로 도착 — 남단 마차 광장, 마굿간 앞(북향)
  *  throne: 알현실 편지 전달 이벤트 후 복귀 — 알현실 문 앞(북향)
+ *  gate: 고블린 계곡길에서 동문으로 도보 입성 — 동문 안쪽(서향)
  *  southGate: 근교 필드에서 남문으로 귀환 — 남문 안쪽(북향) */
 export const EVERMORE_STARTS: Record<"carriage" | "throne" | "gate" | "southGate", TownSpawnPos> = {
-  carriage: { x: 13, y: 20, facing: 0 },
+  carriage: { x: 17, y: 20, facing: 0 },
   throne: { x: 13, y: 6, facing: 0 },
-  gate: { x: 1, y: 20, facing: 1 },
+  gate: { x: 26, y: 12, facing: 3 },
   southGate: { x: 13, y: 22, facing: 0 },
 };
 
-export const EVERMORE_FACILITIES: TownFacilityDef[] = [
-  { id: "throne", name: "알현실", title: "알현실 — 연방 군주", x: 13, y: 4,
-    keeper: { name: "시종장 펠릭", role: "알현 안내관", portrait: 20,
-      greetings: [
-        "군주께 드릴 말씀이 있습니까? 예법은 제가 알려 드릴 테니 너무 굳어 있진 마십시오.",
-        "처음 알현하시는 모양이군요. 서야 할 자리와 인사 순서는 들어가기 전에 제가 알려 드리겠습니다.",
-        "전하께 올릴 보고가 있다면 미리 정리해 두시지요. 길게 꾸미기보다 사실대로 말씀하시면 됩니다.",
-      ] } },
+/* 담당자·대화 텍스트는 content/town-dialogue.json에서 결합한다. */
+const EVERMORE_FACILITY_SHELLS: TownFacilityShellDef[] = [
+  { id: "throne", name: "알현실", title: "알현실 — 연방 군주", x: 13, y: 4 },
   { id: "temple", name: "대성당", title: "대성당 — 연방 대성소", x: 6, y: 8,
-    description: "높은 천장 아래 연방 각지에서 온 순례자의 기도가 울린다.",
-    keeper: { name: "성직자 리네", role: "대성당 치유사", portrait: 27,
-      greetings: [
-        "먼 길을 오셨군요. 잠깐 눈을 감고 숨을 고르세요. 상처는 그다음에 살펴볼게요.",
-        "순례자가 아니어도 괜찮아요. 지친 사람이 잠시 기대어 가는 것도 이곳의 역할이니까요.",
-        "표정만 봐도 제대로 쉬지 못한 게 보여요. 여기 앉으세요, 차근차근 돌봐 드릴게요.",
-      ] } },
+    description: "높은 천장 아래 연방 각지에서 온 순례자의 기도가 울린다." },
   { id: "item", name: "왕도 시장", title: "왕도 시장 — 만물상", x: 21, y: 8,
-    keeper: { name: "셀윈", role: "왕도 상인", portrait: 9,
-      greetings: [
-        "찾는 게 없으면 말만 하세요. 이 시장에 없는 물건도 사흘이면 구해 오는 게 제 장기니까요.",
-        "오늘은 동부에서 온 물건이 꽤 괜찮습니다. 구경만 하셔도 좋으니 천천히 둘러보세요.",
-        "가격표가 마음에 안 드십니까? 물건 보는 눈부터 보여 주시면 흥정도 생각해 보지요.",
-      ] } },
+    description: "향신료와 가죽, 갓 구운 빵 냄새가 뒤섞인 왕도 제일의 장터." },
   { id: "inn", name: "여관 '왕관과 방패'", x: 6, y: 14,
-    description: "왕도 여행객들의 이야기와 따뜻한 빵 냄새가 홀을 채운다.",
-    topics: [
-      { id: "federation", label: "연방의 소문", text: "세 성의 사절들이 다음 회의를 위해 속속 왕도에 도착하고 있다." },
-      { id: "letter", label: "헤르만의 사자", text: "대스승의 편지를 든 젊은 모험가들이 왔다는 이야기가 벌써 퍼졌다.", requires: { flags: ["letter"] } },
-    ], keeper: { name: "마르타", role: "여관 주인", portrait: 32,
-      greetings: [
-        "왕도 구경도 체력이 있어야 하지. 방부터 잡을래, 아니면 요즘 소문부터 들을래?",
-        "어서 와. 빵은 막 구웠고 침대보도 새로 갈았어. 어느 쪽부터 필요한지 말해 봐.",
-        "오늘은 각지에서 온 손님이 많아. 난롯가에 앉아 있으면 재미난 이야기 몇 개쯤은 건질걸?",
-      ] } },
-  { id: "stable", name: "마굿간", x: 21, y: 14,
-    description: "연방 각지의 문장이 달린 마차들이 가지런히 늘어서 있다.",
-    keeper: { name: "가레스", role: "왕도 마차 조합원", portrait: 17,
-      greetings: [
-        "크로스베일행은 곧 떠납니다. 짐은 단단히 묶고, 창밖 풍경은 기대하지 마세요. 빨리 달릴 거니까.",
-        "목적지가 어디십니까? 조합 마차라면 시간도 요금도 정해져 있으니 걱정하지 않으셔도 됩니다.",
-        "마지막 짐을 싣는 중입니다. 크로스베일로 가신다면 표를 받고 바로 올라타 주세요.",
-      ] } },
+    description: "왕도 여행객들의 이야기와 따뜻한 빵 냄새가 홀을 채운다." },
+  /* 남단 마차 광장의 마굿간 — 크로스베일행 역마차의 종점이자 출발점. */
+  { id: "stable", name: "마굿간", x: 20, y: 20,
+    description: "연방 각지의 문장이 달린 마차들이 가지런히 늘어서 있다." },
 ];
+
+export const EVERMORE_FACILITIES: TownFacilityDef[] = attachDialogue("evermore", EVERMORE_FACILITY_SHELLS);
 
 export const EVERMORE_DECOS: TownDecoDef[] = [
   {
@@ -110,11 +85,38 @@ export const EVERMORE_DECOS: TownDecoDef[] = [
     text: "이름 없는 사자(使者)의 석상. 편지 한 통이 나라를 이었다는 옛 이야기가 새겨져 있다.",
     blocking: true,
   },
+  {
+    id: "well", name: "마차 광장 우물", x: 4, y: 20,
+    text: "마부와 말이 함께 목을 축이는 넓은 돌우물. 두레박 줄이 반질반질 닳아 있다.",
+    blocking: true,
+  },
+  /* --- 남단 마차 광장 — 마굿간 앞 짐과 그늘 --- */
+  { id: "crate", name: "역마차 짐짝", x: 18, y: 21, text: "크로스베일행 마차에 실릴 짐짝. 연방 세 성의 봉인이 나란히 찍혀 있다.", interactive: false },
+  { id: "barrel", name: "여물통", x: 22, y: 22, text: "말들의 여물이 담긴 커다란 통. 건초 냄새가 물씬 난다.", interactive: false },
+  { id: "tree", name: "광장 느티나무", x: 5, y: 18, text: "마차를 기다리는 이들이 그늘을 빌리는 오래된 느티나무다.", interactive: false, blocking: true },
+  { id: "tree", name: "성벽 아래 참나무", x: 8, y: 21, text: "남쪽 성벽에 기대듯 자란 참나무. 가지에 낡은 등롱이 걸려 있다.", interactive: false, blocking: true },
+  { id: "bush", name: "성벽 관목", x: 3, y: 18, text: "성벽을 따라 낮게 다듬은 관목이 줄지어 있다.", interactive: false, blocking: true },
+  { id: "mushroom", name: "돌틈 버섯", x: 2, y: 21, text: "성벽 그늘의 돌틈에서 버섯이 고개를 내밀었다.", interactive: false },
+  /* --- 왕도 대로 — 가로수와 화단 --- */
+  { id: "tree", name: "대로 가로수", x: 9, y: 5, text: "알현실로 이어지는 대로를 따라 심은 왕도 가로수다.", interactive: false, blocking: true },
+  { id: "tree", name: "대로 가로수", x: 18, y: 5, text: "알현실로 이어지는 대로를 따라 심은 왕도 가로수다.", interactive: false, blocking: true },
+  { id: "tree", name: "서편 물푸레나무", x: 2, y: 11, text: "대성당 담을 따라 물푸레나무가 늘어서 있다.", interactive: false, blocking: true },
+  { id: "tree", name: "동편 물푸레나무", x: 25, y: 11, text: "동문 길목을 지키듯 선 물푸레나무다.", interactive: false, blocking: true },
+  { id: "tree", name: "여관 앞 벚나무", x: 2, y: 17, text: "여관 창가에 가지를 드리운 벚나무. 꽃잎이 창턱에 쌓인다.", interactive: false, blocking: true },
+  { id: "bush", name: "산울타리", x: 8, y: 17, text: "여관 뜰을 두른 낮은 산울타리다.", interactive: false, blocking: true },
+  { id: "bush", name: "산울타리", x: 19, y: 17, text: "창고 담을 따라 다듬은 산울타리다.", interactive: false, blocking: true },
+  { id: "flower", name: "광장 화단", x: 11, y: 10, text: "대분수 곁 화단 — 연방 문장의 일곱 색을 맞춘 꽃이 피어 있다.", interactive: false },
+  { id: "flower", name: "광장 화단", x: 16, y: 12, text: "분수 물보라를 맞은 꽃잎이 촉촉하게 빛난다.", interactive: false },
+  { id: "flower", name: "대로변 들꽃", x: 10, y: 12, text: "포석 틈에 뿌리내린 들꽃이 마차 바람에 흔들린다.", interactive: false },
+  /* --- 왕도 시장 앞 — 부려 놓은 상단 짐 --- */
+  { id: "crate", name: "상단 짐짝", x: 23, y: 11, text: "동부 상단이 부려 놓은 짐짝. '취급 주의 — 유리' 낙인이 찍혀 있다.", interactive: false },
+  { id: "barrel", name: "향신료 통", x: 24, y: 17, text: "시장 창고 앞의 향신료 통. 뚜껑 틈으로 매콤한 향이 샌다.", interactive: false },
 ];
 
-/** 남문 — 근교 필드(강변·사냥터)로 직결되는 신설 성문 */
+/** 남문 — 근교 필드(강변·사냥터) / 동문 — 고블린 계곡길(크로스베일 방면 옛길) */
 export const EVERMORE_GATES: TownGateDef[] = [
   { id: "south", x: 13, y: 23, label: "남문 — 에버모어 근교", prompt: "[Z] 남문 밖으로 — 에버모어 근교", target: "evermoreOutskirts" },
+  { id: "east", x: 27, y: 12, label: "동문 — 고블린 계곡길", prompt: "[Z] 동쪽으로 — 고블린 계곡길", target: "goblinValley" },
 ];
 
 /** 레지스트리에 바로 등록할 수 있는 완전한 에버모어 정의. */

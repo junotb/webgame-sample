@@ -76,9 +76,9 @@ export const MONSTER_ICONS: MonsterIconDef[] = [
   { nameKo: "흰깃새",       nameEn: "Whitewing"    },
   { nameKo: "이끼두꺼비",   nameEn: "Mosstoad"     },
   /* ---- 고블린 요새 로스터 (assets-source/characters/sprites/goblins에서 슬라이스) ---- */
-  { nameKo: "고블린 전사",   nameEn: "Goblinfighter"   },
+  { nameKo: "고블린 블레이드", nameEn: "Goblinblade"   },
   { nameKo: "고블린 늑대기수", nameEn: "Goblinrider"    },
-  { nameKo: "고블린 광신도", nameEn: "Goblinfanatic"   },
+  { nameKo: "고블린 로드",   nameEn: "Goblinlord"      },
   { nameKo: "고블린 주술사", nameEn: "Goblinoccultist" },
   /* ---- 버려진 사원 로스터 (goblin_occultist 스프라이트에서 슬라이스) ---- */
   { nameKo: "되살아난 주교", nameEn: "Fallenbishop"    },
@@ -206,7 +206,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     inflict: { status: "poison", chance: 0.3, save: "vital", turns: 3, power: 4 }, // 산성 점액
   },
   goblin: {
-    name: "고블린 전사",
+    name: "고블린 블레이드",
     hp: 58,
     atk: 13,
     def: 2,
@@ -217,7 +217,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     tags: ["living", "humanoid"],
     shape: "goblin",
     motion: "humanoid",
-    img: "Goblinfighter",
+    img: "Goblinblade",
     color: 0x6f8a3c,
     size: "medium",
     /* 금속 방패를 든 동굴 전사 — 전격에 약하고 어둠에 익숙하다 */
@@ -243,6 +243,43 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     /* 사나운 굴늑대 — 찌르기에 약하고 지면 충격을 흘린다 */
     res: { pierce: 1.35, earth: 0.85 },
     atkType: "pierce", // 늑대의 송곳니 돌격
+  },
+  bandit: {
+    name: "가도 산적",
+    hp: 62,
+    atk: 14,
+    def: 3,
+    spd: 10,
+    exp: 26,
+    gold: 26,
+    tier: "일반",
+    tags: ["living", "humanoid"],
+    shape: "goblin",
+    motion: "humanoid",
+    img: "Bladedwarf",
+    color: 0x8a6f4a,
+    size: "medium",
+    /* 낡은 경비대 장비 — 단검과 사냥활을 섞어 쓴다 */
+    atkTypes: ["slash", "pierce"],
+  },
+  banditBoss: {
+    name: "산적 두목",
+    hp: 150,
+    atk: 18,
+    def: 5,
+    spd: 11,
+    exp: 64,
+    gold: 90,
+    tier: "정예",
+    tags: ["living", "humanoid"],
+    shape: "orc",
+    motion: "humanoid",
+    img: "Bladedwarf",
+    color: 0xb0503a,
+    size: "large",
+    atkType: "slash",
+    /* 길을 막은 자의 위협 — 일갈이 공포를 건다 */
+    inflict: { status: "fear", chance: 0.25, save: "wit", turns: 2 },
   },
   boar: {
     name: "어금니멧돼지",
@@ -283,6 +320,44 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     res: { pierce: 1.2 },
     atkType: "pierce", // 엄니 물기
   },
+  rat: {
+    name: "굴쥐",
+    hp: 42,
+    atk: 11,
+    def: 1,
+    spd: 14,
+    exp: 16,
+    gold: 10,
+    tier: "일반",
+    tags: ["living", "beast"],
+    shape: "wolf",
+    motion: "beast",
+    img: "Burrowrat",
+    color: 0x8a7a66,
+    size: "small",
+    /* 계곡 바위틈을 파고 사는 들쥐 — 재빠르지만 몸이 무르다 */
+    res: { pierce: 1.2, fire: 1.15 },
+    atkType: "pierce", // 앞니 갉기
+  },
+  beetle: {
+    name: "사슴벌레",
+    hp: 70,
+    atk: 14,
+    def: 6,
+    spd: 6,
+    exp: 26,
+    gold: 18,
+    tier: "일반",
+    tags: ["living", "beast"],
+    shape: "wolf",
+    motion: "beast",
+    img: "Stagbeetle",
+    color: 0x4a3a2c,
+    size: "medium",
+    /* 단단한 겉날개의 대형 갑충 — 날붙이를 흘리고 둔기에 껍질이 깨진다 */
+    res: { slash: 0.7, pierce: 0.8, bludgeon: 1.3 },
+    atkType: "pierce", // 큰턱 집게
+  },
   skeleton: {
     name: "냉기 망령",
     hp: 66,
@@ -304,7 +379,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     inflict: { status: "paralyze", chance: 0.25, save: "vital", turns: 2 }, // 얼어붙는 한기
   },
   orc: {
-    name: "고블린 광신도",
+    name: "고블린 로드",
     hp: 780,
     atk: 32,
     def: 9,
@@ -315,7 +390,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     tags: ["living", "humanoid"],
     shape: "orc",
     motion: "humanoid",
-    img: "Goblinfanatic",
+    img: "Goblinlord",
     color: 0x8a6a3c,
     size: "large",
     /* 광기에 물든 상위 고블린 — 땅·물·빛에 약하고 어둠 의식에 익숙하다 */
@@ -357,7 +432,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     tags: ["living", "humanoid"],
     shape: "goblin",
     motion: "humanoid",
-    img: "Goblinfighter",
+    img: "Goblinblade",
     color: 0x4a5a8a,
     size: "large",
     /* 철갑 방패병 — 전격에 약하고 베기를 방패로 흘린다 */

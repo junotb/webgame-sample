@@ -15,4 +15,5 @@ export * from "./consumables";
 export * from "./loot";
 export * from "./quests";
 export * from "./npcs";
+export * from "./story";
 export * from "./party";

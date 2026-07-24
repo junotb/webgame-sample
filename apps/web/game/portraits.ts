@@ -17,6 +17,20 @@ export const PORTRAITS: string[] = [
 ];
 export const PORTRAIT_COUNT = PORTRAITS.length;
 
+/** 스토리 이벤트 화자별 초상화 인덱스 (halfling_male 1~23 · female 24~48 · goblin 49~96) */
+export const STORY_PORTRAITS = {
+  /** 연방 군주 — 관을 쓴 붉은 예복의 노군주 (halfling_male_23) */
+  federalLord: 23,
+  /** 어린 군주 — 금발의 소년 군주 (halfling_male_05) */
+  youngLord: 5,
+  /** 산적 두목 — 두건을 두른 험상궂은 사내 (halfling_male_15) */
+  banditBoss: 15,
+  /** 그름바크 — 로브를 두른 고블린 주술사 (goblin_20) */
+  grumbark: 48 + 20,
+  /** 되살아난 주교 카르마스 — 검은 후드의 망령 (goblin_33) */
+  karmath: 48 + 33,
+} as const;
+
 const alias = (i: number) => `portrait-${i}`;
 
 /** boot에서 1회 호출 — 전부 프리로드 */

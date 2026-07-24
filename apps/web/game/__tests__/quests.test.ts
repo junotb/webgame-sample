@@ -38,6 +38,8 @@ describe("퀘스트 데이터 규칙", () => {
     expect(mains[1].objectives[0]).toMatchObject({ type: "clear", target: "valley_bandits" });
     expect(mains[2].objectives[0]).toMatchObject({ type: "talk", target: "federal_lord" });
     expect(mains[3].objectives[0]).toMatchObject({ type: "talk", target: "lost_prince" });
+    expect(mains[3].objectives[1]).toMatchObject({ type: "talk", target: "chamberlain" });
+    expect(mains[3]).toMatchObject({ autoStart: false, sequential: true });
   });
 
   it("반복 퀘스트는 재생성 몬스터 처치만 목표로 삼는다", () => {
@@ -56,7 +58,7 @@ describe("퀘스트 진행", () => {
   beforeEach(freshGame);
 
   it("마구간 확인부터 길드 보고와 편지 전달까지 메인 체인을 순서대로 연다", () => {
-    expect(trackerLines()[0].text).toContain("대스승 헤르만의 편지");
+    expect(trackerLines()[0].text).toContain("봉인된 편지");
     expect(questStatus("main_hermans_letter")).toBe("active");
 
     G.flags.stableBriefed = true;
@@ -77,10 +79,10 @@ describe("퀘스트 진행", () => {
     expect(questStatus("main_deliver_hermans_letter")).toBe("done");
     expect(reportQuest("main_deliver_hermans_letter")).not.toBeNull();
     expect(questStatus("main_deliver_hermans_letter")).toBe("rewarded");
-    expect(questStatus("main_ch1_wavering_crown")).toBe("active");
+    expect(questStatus("main_ch1_wavering_crown")).toBe("available");
   });
 
-  it("1장은 편지 전달 후 자동 수주되고, 왕자를 찾아 오르윈에게 보고해 닫는다", () => {
+  it("1장은 오르윈에게 직접 수주하고, 왕자를 찾은 뒤 오르윈에게 보고해 닫는다", () => {
     expect(questStatus("main_ch1_wavering_crown")).toBe("locked");
     G.flags.stableBriefed = true;
     questNotify({ t: "talk", npc: "crossvale_stable" });
@@ -91,9 +93,14 @@ describe("퀘스트 진행", () => {
     questNotify({ t: "talk", npc: "federal_lord" });
     reportQuest("main_deliver_hermans_letter");
 
+    expect(questStatus("main_ch1_wavering_crown")).toBe("available");
+    expect(acceptQuest("main_ch1_wavering_crown")).toBe(true);
     expect(questStatus("main_ch1_wavering_crown")).toBe("active");
     G.flags.princeFound = true;
     questNotify({ t: "talk", npc: "lost_prince" });
+    expect(questStatus("main_ch1_wavering_crown")).toBe("active");
+    expect(trackerLines(5).some((line) => line.text.includes("오르윈에게 보고"))).toBe(true);
+    questNotify({ t: "talk", npc: "chamberlain" });
     expect(questStatus("main_ch1_wavering_crown")).toBe("done");
     const reward = reportQuest("main_ch1_wavering_crown");
     expect(reward).not.toBeNull();
@@ -161,6 +168,6 @@ describe("퀘스트 진행", () => {
     acceptQuest("side_goblin_orders");
     G.flags.goblinOrders = true;
     questNotify({ t: "collect", item: "goblin_orders" });
-    expect(trackerLines(5).some((line) => line.done && line.text.includes("고블린 작전 문서"))).toBe(true);
+    expect(trackerLines(5).some((line) => line.done && line.text.includes("빌린 손으로 쓴 명령"))).toBe(true);
   });
 });

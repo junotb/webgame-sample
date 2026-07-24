@@ -2,9 +2,21 @@
  * defs/quests.ts — 퀘스트 정의 (진행은 G.quests)
  * ===================================================================== */
 
+import questsJson from "../content/quests.json";
+import { validateQuests } from "../content/validate";
 import type { ConsumableId } from "./consumables";
 
 export type QuestKind = "main" | "side" | "job" | "repeat";
+export type ContentLocale = "en" | "ko";
+
+export interface QuestLocaleDef {
+  name: string;
+  desc: string;
+  /** objective id → player-facing instruction */
+  objectives: Record<string, string>;
+  /** Localized name of the person/place that receives the final report. */
+  turnIn?: string;
+}
 
 export interface QuestObjectiveDef {
   id: string;
@@ -15,6 +27,13 @@ export interface QuestObjectiveDef {
   desc: string;
 }
 
+export interface QuestTurnInDef {
+  type: "npc" | "facility" | "automatic";
+  target: string;
+  /** Selected-locale display label, populated by content validation. */
+  label: string;
+}
+
 export interface QuestDef {
   id: string;
   kind: QuestKind;
@@ -22,7 +41,14 @@ export interface QuestDef {
   desc: string;
   requires?: { quests?: string[]; level?: number };
   giver?: string;
+  /** false: a named giver must explicitly offer this main quest. */
+  autoStart?: boolean;
+  /** Only the first incomplete objective may react to an event. */
+  sequential?: boolean;
+  turnIn?: QuestTurnInDef;
   objectives: QuestObjectiveDef[];
+  /** Both authored scripts are retained for a future language selector. */
+  locales: Record<ContentLocale, QuestLocaleDef>;
   rewards: {
     gold?: number;
     exp?: number;
@@ -32,237 +58,5 @@ export interface QuestDef {
   repeatEveryDays?: number;
 }
 
-export const QUESTS: QuestDef[] = [
-  /* ---- 메인 — 편지를 들고 에버모어 성으로 ---- */
-  {
-    id: "main_hermans_letter",
-    kind: "main",
-    name: "대스승 헤르만의 편지",
-    desc: "대스승 헤르만의 봉인된 편지를 에버모어 성으로 전달해야 한다. 먼저 크로스베일 마구간에서 이동편을 알아볼 것.",
-    objectives: [
-      {
-        id: "ask_stable",
-        type: "talk",
-        target: "crossvale_stable",
-        count: 1,
-        desc: "크로스베일 마구간에서 에버모어행 이동편 확인",
-      },
-    ],
-    rewards: {},
-  },
-  {
-    id: "main_clear_evermore_road",
-    kind: "main",
-    name: "에버모어로 가는 길",
-    desc: "남쪽 계곡길 서쪽의 좁은 길을 봉쇄한 산적들을 소탕하고 현상금 길드에 보고할 것.",
-    requires: { quests: ["main_hermans_letter"] },
-    objectives: [
-      {
-        id: "clear_bandits",
-        type: "clear",
-        target: "valley_bandits",
-        count: 1,
-        desc: "서쪽 좁은 계곡길의 산적 무리 소탕",
-      },
-    ],
-    rewards: { gold: 250, exp: 120 },
-  },
-  {
-    id: "main_deliver_hermans_letter",
-    kind: "main",
-    name: "에버모어 성으로",
-    desc: "열린 계곡길이나 역마차를 이용해 에버모어 성으로 가서 연방 군주에게 헤르만의 편지를 전달할 것.",
-    requires: { quests: ["main_clear_evermore_road"] },
-    objectives: [
-      {
-        id: "deliver_letter",
-        type: "talk",
-        target: "federal_lord",
-        count: 1,
-        desc: "에버모어 성의 연방 군주에게 편지 전달",
-      },
-    ],
-    rewards: { exp: 100 },
-  },
-  /* ---- 확장 메인 1장 — 흔들리는 왕관 ----
-   * 편지 전달 직후 연방 군주가 급사하고 어린 왕자가 즉위한다(배경 사건).
-   * 궁정의 압박을 못 이긴 어린 군주가 성을 빠져나가며 장이 시작된다. */
-  {
-    id: "main_ch1_wavering_crown",
-    kind: "main",
-    name: "흔들리는 왕관",
-    desc: "연방 군주가 급서하고 어린 왕자가 왕관을 이었다. 그런데 새 군주가 호위도 없이 성을 빠져나갔다 — 남문 밖 근교 사냥터를 수색해 찾아내고, 성으로 모셔 온 뒤 시종장 오르윈에게 알릴 것.",
-    requires: { quests: ["main_deliver_hermans_letter"] },
-    giver: "chamberlain",
-    objectives: [
-      {
-        id: "find_prince",
-        type: "talk",
-        target: "lost_prince",
-        count: 1,
-        desc: "에버모어 근교에서 사라진 어린 군주 수색",
-      },
-    ],
-    rewards: { gold: 400, exp: 300 },
-  },
-
-  /* ---- 서브 ---- */
-  {
-    id: "side_ruined_temple",
-    kind: "side",
-    name: "버려진 사원의 진상 조사",
-    desc: "버려진 사원 깊은 곳에서 알 수 없는 힘으로 되살아난 사악한 교단의 주교를 조사하고, 확인한 진상을 에버모어 성에 보고할 것.",
-    giver: "chamberlain",
-    objectives: [
-      {
-        id: "defeat_bishop",
-        type: "clear",
-        target: "fallen_bishop",
-        count: 1,
-        desc: "되살아난 사악한 교단의 주교 퇴치 및 진상 확인",
-      },
-    ],
-    rewards: { gold: 280, exp: 140, items: [{ id: "mpotion", n: 1 }] },
-  },
-  {
-    id: "side_goblin_orders",
-    kind: "side",
-    name: "고블린 작전 문서",
-    desc: "남쪽 계곡길 남쪽의 고블린 요새를 탐색하고, 북서쪽 방에서 약탈 계획이 담긴 작전 문서를 가져올 것. 누가 고블린들을 사주했는지 단서가 있을 수 있다.",
-    giver: "kael",
-    objectives: [
-      {
-        id: "collect_orders",
-        type: "collect",
-        target: "goblin_orders",
-        count: 1,
-        desc: "고블린 작전 문서 회수",
-      },
-    ],
-    rewards: { gold: 180, exp: 90 },
-  },
-  {
-    id: "side_rescue_hostages",
-    kind: "side",
-    name: "고블린 주둔지의 인질들",
-    desc: "남쪽 계곡길 오른쪽의 넓은 평야에 자리 잡은 고블린 주둔지에서 우리에 갇힌 인질들을 구출할 것.",
-    giver: "kael",
-    objectives: [
-      {
-        id: "rescue_hostages",
-        type: "rescue",
-        target: "valley_hostages",
-        count: 1,
-        desc: "인간 우리의 인질 구출",
-      },
-    ],
-    rewards: { gold: 220, exp: 110, items: [{ id: "potion", n: 2 }] },
-  },
-  {
-    /* 현상금 길드 게시판의 대형 의뢰 — 파티 Lv6 적정 */
-    id: "side_grumbark_bounty",
-    kind: "side",
-    name: "현상금: 고블린 주술사 그름바크",
-    desc: "요새와 계곡길 동쪽 평야의 고블린들을 지휘해 크로스베일을 노리는 주술사 그름바크를 처단할 것. 요새 북동쪽 계단 아래, 지하 알현실에 있다. 친위대를 거느린다는 보고가 있으니 만전을 기할 것.",
-    requires: { level: 6 },
-    objectives: [
-      {
-        id: "slay_grumbark",
-        type: "clear",
-        target: "lord",
-        count: 1,
-        desc: "그름바크 (고블린 주술사) 처단",
-      },
-    ],
-    rewards: { gold: 900, exp: 350, items: [{ id: "potion", n: 2 }, { id: "mpotion", n: 1 }] },
-  },
-  /* ---- 직업(승급) — 파티가 자격을 공유하며 각 구성원은 개별 전직한다 ---- */
-  {
-    id: "job_first_promotion",
-    kind: "job",
-    name: "첫 번째 승급 심사",
-    desc: "파티 Lv3을 달성하고 고블린 요새의 광신도를 쓰러뜨려 상위 직업으로 나아갈 자격을 증명할 것.",
-    requires: { level: 3 },
-    objectives: [
-      {
-        id: "defeat_fanatic",
-        type: "clear",
-        target: "orc",
-        count: 1,
-        desc: "고블린 광신도 토벌",
-      },
-    ],
-    rewards: { exp: 100 },
-  },
-  {
-    id: "job_final_promotion",
-    kind: "job",
-    name: "최종 승급 심사",
-    desc: "파티 Lv6을 달성하고 고블린들을 지휘하는 주술사 그름바크를 쓰러뜨려 최종 직업의 자격을 증명할 것.",
-    requires: { quests: ["job_first_promotion"], level: 6 },
-    objectives: [
-      {
-        id: "defeat_goblin_lord",
-        type: "clear",
-        target: "lord",
-        count: 1,
-        desc: "그름바크 (고블린 주술사) 토벌",
-      },
-    ],
-    rewards: { exp: 250 },
-  },
-
-  /* ---- 반복 — 현상금 길드에서 보고 후 하루마다 재수주 ---- */
-  {
-    id: "repeat_slimes",
-    kind: "repeat",
-    name: "핏눈 슬라임 현상금",
-    desc: "고블린 요새의 핏눈 슬라임 5마리를 소탕할 것. 보고 후 다음 날 새 의뢰가 게시된다.",
-    objectives: [
-      {
-        id: "kill_slime",
-        type: "kill",
-        target: "slime",
-        count: 5,
-        desc: "핏눈 슬라임 처치",
-      },
-    ],
-    rewards: { gold: 60, exp: 25 },
-    repeatEveryDays: 1,
-  },
-  {
-    id: "repeat_goblins",
-    kind: "repeat",
-    name: "고블린 전사 현상금",
-    desc: "고블린 요새의 전사 4마리를 소탕할 것. 보고 후 다음 날 새 의뢰가 게시된다.",
-    objectives: [
-      {
-        id: "kill_goblin",
-        type: "kill",
-        target: "goblin",
-        count: 4,
-        desc: "고블린 전사 처치",
-      },
-    ],
-    rewards: { gold: 100, exp: 40 },
-    repeatEveryDays: 1,
-  },
-  {
-    id: "repeat_wolfriders",
-    kind: "repeat",
-    name: "늑대기수 현상금",
-    desc: "고블린 늑대기수 4마리를 소탕할 것. 숙련된 일행을 위한 정기 현상금이다.",
-    requires: { level: 3 },
-    objectives: [
-      {
-        id: "kill_wolf",
-        type: "kill",
-        target: "wolf",
-        count: 4,
-        desc: "고블린 늑대기수 처치",
-      },
-    ],
-    rewards: { gold: 130, exp: 55 },
-    repeatEveryDays: 1,
-  },
-];
+/* 퀘스트 데이터는 content/quests.json — 로드 시 스키마를 검증한다. */
+export const QUESTS: QuestDef[] = validateQuests(questsJson);

@@ -98,9 +98,9 @@ export const MONSTER_ASSET_META: Record<string, MonsterAssetMeta> = {
   Mosstoad: meta("beast", "coastRoad", "hermanForest"),
 
   Bladedwarf: meta("humanoid", "goblinValley", "fortress"),
-  Goblinfighter: meta("humanoid", "goblinValley", "fortress", "fortressB1"),
+  Goblinblade: meta("humanoid", "goblinValley", "fortress", "fortressB1"),
   Goblinrider: meta("humanoid", "goblinValley", "fortress", "fortressB1"),
-  Goblinfanatic: meta("humanoid", "goblinValley", "fortress"),
+  Goblinlord: meta("humanoid", "goblinValley", "fortress"),
   Goblinoccultist: meta("humanoid", "fortressB1"),
   Voodooshaman: meta("humanoid", "fortressB1", "temple"),
   Fallenbishop: meta("undead", "temple"),

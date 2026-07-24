@@ -18,5 +18,7 @@ export const TOWNS: Record<TownId, TownData> = {
 export const CARRIAGE_FARE = 40;
 /** 기술 수련 비용 (모든 시설 공통) */
 export const SKILL_PRICE = 250;
+/** 주문 습득 비용 — 티어(요구 랭크)별. starter 주문은 무료라 목록에 없다 */
+export const SPELL_PRICE: Record<1 | 2 | 3, number> = { 1: 120, 2: 400, 3: 1200 };
 /** 역마차의 반대편 목적지 */
 export const otherTown = (t: TownId): TownId => (t === "crossvale" ? "evermore" : "crossvale");

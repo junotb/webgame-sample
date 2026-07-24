@@ -1,0 +1,362 @@
+{
+  "characters": [
+    {
+      "id": "herman",
+      "portrait": 18,
+      "locales": {
+        "en": {
+          "name": "Master Herman",
+          "profile": {
+            "background": "A retired master of wards and statecraft who once advised Evermore, then withdrew after a dispute the court records omit.",
+            "personality": "Austere, patient, and sparing with praise. He prepares pupils for choices rather than giving them answers.",
+            "desire": "Put trustworthy witnesses near Evermore before the hidden power beyond the valley moves openly.",
+            "fear": "That his old allies have become the very conspiracy he once trained them to resist.",
+            "secret": "The sealed letter names a cipher shared only by Herman, Kael, and one former companion now believed dead.",
+            "voice": "Plain commands, exact nouns, and long silences. He never spends two words where one can carry the burden."
+          }
+        },
+        "ko": {
+          "name": "대스승 헤르만",
+          "profile": {
+            "background": "결계와 통치술의 대가로 한때 에버모어의 고문이었으나, 궁정 기록에서 지워진 다툼 뒤 세상을 등졌다.",
+            "personality": "엄격하고 참을성 있으며 칭찬을 아낀다. 답을 주기보다 제자들이 선택을 감당하게 준비시킨다.",
+            "desire": "계곡 너머의 숨은 세력이 모습을 드러내기 전에 믿을 만한 목격자들을 에버모어 가까이에 두려 한다.",
+            "fear": "옛 동료들이 한때 함께 막으려 했던 음모 그 자체가 되었을까 두려워한다.",
+            "secret": "봉인된 편지에는 헤르만과 카엘, 그리고 죽었다고 알려진 옛 동문 하나만 아는 암호가 적혀 있다.",
+            "voice": "꾸밈없는 명령과 정확한 명사, 긴 침묵을 쓴다. 한 단어가 짐을 질 수 있으면 두 단어를 쓰지 않는다."
+          }
+        }
+      }
+    },
+    {
+      "id": "federal_lord",
+      "portrait": 23,
+      "locales": {
+        "en": {
+          "name": "The Federal Lord",
+          "profile": {
+            "background": "The aging hereditary keeper of Evermore's High Seat, respected for holding three rival castellans in one federation for thirty years.",
+            "personality": "Wry, politically alert, and physically diminished. He hides pain to deny rivals the comfort of counting his remaining days.",
+            "desire": "Leave his son a federation still governed by oaths rather than armies.",
+            "fear": "That the power beyond the valley has already bought someone inside his council.",
+            "secret": "He recognizes the cipher in Herman's letter and knows its suspected author was once welcomed at his table.",
+            "voice": "Warm authority edged with fatigue; familiar with old comrades, oblique around danger, and never openly self-pitying."
+          }
+        },
+        "ko": {
+          "name": "연방 군주",
+          "profile": {
+            "background": "에버모어의 높은 자리를 세습한 노군주. 삼십 년 동안 경쟁하는 세 성주를 하나의 연방에 묶어 존경받았다.",
+            "personality": "익살과 정치 감각이 살아 있지만 육신은 쇠했다. 경쟁자들이 남은 날을 세는 즐거움을 누리지 못하게 고통을 숨긴다.",
+            "desire": "아들에게 군대가 아니라 맹세로 다스리는 연방을 물려주고 싶어 한다.",
+            "fear": "계곡 너머의 세력이 이미 평의회 안의 누군가를 사들였을까 두려워한다.",
+            "secret": "헤르만의 편지에 적힌 암호를 알아보며, 의심받는 작성자를 과거 자신의 식탁에 맞아들인 적이 있다.",
+            "voice": "피로 속에도 따뜻한 권위가 있다. 옛 동료에게는 격의 없고 위험은 에둘러 말하며, 자신을 불쌍히 여기지 않는다."
+          }
+        }
+      }
+    },
+    {
+      "id": "young_lord",
+      "portrait": 5,
+      "locales": {
+        "en": {
+          "name": "The Young Lord",
+          "profile": {
+            "background": "The Federal Lord's only surviving child, raised among tutors and council sessions after his mother's early death.",
+            "personality": "Intelligent, proud, frightened, and quick to hear manipulation in adult courtesy.",
+            "desire": "Be allowed to grieve his father before becoming a symbol that every faction claims to protect.",
+            "fear": "That the crown will turn every kindness around him into strategy and every friend into a jailer.",
+            "secret": "He overheard two castellans debating which regency would control him before his father was buried.",
+            "voice": "Formal phrases learned from tutors break into blunt, unfinished admissions when his fear overcomes ceremony."
+          }
+        },
+        "ko": {
+          "name": "어린 군주",
+          "profile": {
+            "background": "연방 군주의 유일하게 살아남은 자식. 어머니가 일찍 죽은 뒤 교사와 평의회 회의 사이에서 자랐다.",
+            "personality": "영리하고 자존심이 강하지만 두려움이 많으며, 어른들의 예의에서 조종하려는 뜻을 재빨리 읽는다.",
+            "desire": "모든 세력이 지켜 주겠다고 주장하는 상징이 되기 전에 아버지를 슬퍼할 시간을 얻고 싶어 한다.",
+            "fear": "왕관이 주변의 모든 친절을 계략으로, 모든 친구를 간수로 바꿀까 두려워한다.",
+            "secret": "아버지가 묻히기도 전에 두 성주가 어느 섭정이 자신을 차지할지 다투는 말을 엿들었다.",
+            "voice": "교사에게 배운 격식이 두려움에 무너지면 솔직하고 끝맺지 못한 고백으로 바뀐다."
+          }
+        }
+      }
+    },
+    {
+      "id": "bandit_boss",
+      "portrait": 15,
+      "locales": {
+        "en": {
+          "name": "Bandit Captain Veyr",
+          "profile": {
+            "background": "A former road sergeant dismissed when a castellan stopped paying his company, now keeping the same men alive through tolls and robbery.",
+            "personality": "Practical, bitter, and protective of his band. He prefers surrender to slaughter but cannot afford to look merciful.",
+            "desire": "Gather enough coin to move his people beyond the federation before winter.",
+            "fear": "Losing authority and watching desperate followers sell themselves to the goblin patron who supplied their maps.",
+            "secret": "An unknown agent paid him to close the road on the exact week Herman's letter was expected.",
+            "voice": "Soldier's brevity stripped of ceremony. Threats sound rehearsed because he has repeated them more often than he likes."
+          }
+        },
+        "ko": {
+          "name": "산적 대장 베이르",
+          "profile": {
+            "background": "한 성주가 용병대의 품삯을 끊자 쫓겨난 옛 도로 경비대장. 지금은 같은 부하들을 살리려고 통행세와 약탈에 기대고 있다.",
+            "personality": "현실적이고 냉소적이며 자기 무리를 지킨다. 학살보다 항복을 원하지만 자비로워 보일 여유가 없다.",
+            "desire": "겨울이 오기 전에 부하들을 연방 밖으로 데려갈 돈을 모으고 싶어 한다.",
+            "fear": "권위를 잃고 절박한 부하들이 지도와 돈을 댄 고블린의 후원자에게 팔려 갈까 두려워한다.",
+            "secret": "정체불명의 의뢰인이 헤르만의 편지가 도착할 바로 그 주에 길을 막으라고 돈을 주었다.",
+            "voice": "예법을 덜어 낸 군인의 짧은 말투. 원치 않게 너무 자주 되풀이한 탓에 협박이 외운 문장처럼 들린다."
+          }
+        }
+      }
+    },
+    {
+      "id": "grumbark",
+      "portrait": 68,
+      "locales": {
+        "en": {
+          "name": "Grumbark, Goblin Shaman",
+          "profile": {
+            "background": "Born to a clan used as expendable scouts, Grumbark learned court ritual from books looted out of human graves and united the valley warbands with prophecy and punishment.",
+            "personality": "Theatrical, intelligent, vindictive, and painfully conscious of human contempt.",
+            "desire": "Build a court feared enough that no human lord can again treat his people as disposable animals.",
+            "fear": "That the unseen patron who armed him always intended the goblins to die as a distraction.",
+            "secret": "He knows the patron's seal but never met its owner; orders came through a human courier whose face he could identify.",
+            "voice": "Ceremonial boasts, court titles turned into mockery, and imagery of fire, vermin, and borrowed crowns."
+          }
+        },
+        "ko": {
+          "name": "고블린 주술사 그름바크",
+          "profile": {
+            "background": "소모품 정찰병으로 쓰이던 부족에서 태어나 인간 무덤에서 약탈한 책으로 궁정 의례를 배웠고, 예언과 형벌로 계곡의 전단을 통합했다.",
+            "personality": "연극적이고 영리하며 원한이 깊다. 인간이 자신들을 멸시한다는 사실을 뼈아프게 의식한다.",
+            "desire": "어떤 인간 군주도 다시는 자기 종족을 버리는 짐승처럼 다루지 못할 만큼 두려운 궁정을 세우고 싶어 한다.",
+            "fear": "무기를 댄 숨은 후원자가 처음부터 고블린들을 눈을 돌리기 위한 희생물로 썼을까 두려워한다.",
+            "secret": "후원자의 인장은 알지만 주인을 직접 만나지는 못했다. 명령을 가져온 인간 전령의 얼굴은 알아볼 수 있다.",
+            "voice": "궁정식 허세와 비튼 칭호를 쓰며 불, 해충, 빌린 왕관에 빗댄다."
+          }
+        }
+      }
+    },
+    {
+      "id": "karmath",
+      "portrait": 81,
+      "locales": {
+        "en": {
+          "name": "Bishop Karmath, Risen",
+          "profile": {
+            "background": "Once Lia's teacher and bishop of the coastal dawn-temple, Karmath sealed himself inside after discovering blood rites among his own senior clergy.",
+            "personality": "In life compassionate but proud; in undeath, memory and guilt are twisted into hostility by an outside rite.",
+            "desire": "Beneath the compulsion, he wants the temple records found and the congregation's victims named.",
+            "fear": "That history will remember only his failure to stop the cult he led.",
+            "secret": "His final record states that the cult received instructions bearing the same unknown seal found in the valley.",
+            "voice": "Broken liturgy and funeral imagery. Brief flashes of the old teacher interrupt the threatening voice imposed on him."
+          }
+        },
+        "ko": {
+          "name": "되살아난 카르마스 주교",
+          "profile": {
+            "background": "리아의 스승이자 해안 여명 사원의 주교였다. 고위 성직자들 사이의 피의 의식을 발견하고 자신과 함께 사원을 봉인했다.",
+            "personality": "생전에는 자비롭지만 자존심이 강했다. 되살아난 뒤에는 외부의 의식이 기억과 죄책감을 적의로 뒤틀었다.",
+            "desire": "강제된 의식 아래에서는 사원의 기록이 발견되고 희생자들의 이름이 알려지기를 바란다.",
+            "fear": "자신이 이끌던 교단을 막지 못한 실패만 역사에 남을까 두려워한다.",
+            "secret": "마지막 기록에는 교단이 계곡에서 발견된 것과 같은 정체불명의 인장이 찍힌 지시를 받았다고 적혀 있다.",
+            "voice": "부서진 기도문과 장례의 이미지를 쓴다. 강요된 협박 사이로 옛 스승의 목소리가 잠깐씩 드러난다."
+          }
+        }
+      }
+    }
+  ],
+  "events": {
+    "prologue": [
+      {
+        "text": {
+          "en": "Years of training ended without ceremony. At dawn, Herman opened the gate and placed a sealed letter in the company's keeping.",
+          "ko": "오랜 수련은 아무 의식도 없이 끝났다. 새벽이 밝자 헤르만은 문을 열고 봉인된 편지를 일행에게 맡겼다."
+        }
+      },
+      {
+        "text": {
+          "en": "The seal was meant for the Federal Lord of Evermore. Herman gave only one warning: let no courtier, priest, or castellan break it first.",
+          "ko": "인장의 주인은 에버모어의 연방 군주였다. 헤르만은 단 하나만 경고했다. 궁정인도, 성직자도, 성주도 그보다 먼저 편지를 열게 두지 말 것."
+        }
+      },
+      {
+        "text": {
+          "en": "Crossvale stood between the company and the capital, but its southern road had gone silent. Ben at the southeastern stable would know why.",
+          "ko": "일행과 왕도 사이에는 크로스베일이 있었고, 마을의 남쪽 길은 소식이 끊긴 상태였다. 남동쪽 마구간의 벤이라면 까닭을 알 것이다."
+        }
+      }
+    ],
+    "letter": [
+      {
+        "speaker": "federal_lord",
+        "text": {
+          "en": "Herman's pupils. He sends young legs now that his own refuse him. Come closer—yes, that is his seal.",
+          "ko": "헤르만의 제자들이로군. 제 다리가 말을 듣지 않으니 젊은 다리를 보냈나 보구나. 가까이 오너라. 그래, 저 고집스러운 인장이 틀림없다."
+        }
+      },
+      {
+        "speaker": "federal_lord",
+        "text": {
+          "en": "So he saw the same hand beyond the valley... and names the dead among its servants. You have carried more than paper. Speak of this to no one until I summon you again.",
+          "ko": "그자도 계곡 너머의 같은 손을 보았군… 죽은 자까지 그 손의 종으로 적었어. 너희가 나른 것은 종이보다 무겁다. 다시 부를 때까지 누구에게도 말하지 마라."
+        }
+      },
+      {
+        "text": {
+          "en": "The old lord dismissed the chamber with a steady hand. Only when he turned away did a cough bend him over Herman's open letter.",
+          "ko": "노군주는 흔들림 없는 손짓으로 알현을 끝냈다. 등을 돌린 뒤에야 기침이 그를 헤르만의 펼친 편지 위로 깊이 숙이게 했다."
+        }
+      },
+      {
+        "text": {
+          "en": "Before sunset, Evermore's bells rang nine times. The Federal Lord had died in his private chamber; whether from age, illness, or the news in the letter, the palace did not say.",
+          "ko": "해가 지기 전, 에버모어의 종이 아홉 번 울렸다. 연방 군주는 침실에서 숨을 거두었다. 노쇠 때문인지, 병 때문인지, 편지에 적힌 소식 때문인지 궁정은 밝히지 않았다."
+        }
+      },
+      {
+        "text": {
+          "en": "The three castellans crowned his young heir before dawn, each claiming haste was the only shield against civil war. By noon, the boy had vanished through the south gate.",
+          "ko": "세 성주는 내전을 막을 방패는 신속함뿐이라며 새벽이 오기 전에 어린 후계자에게 관을 씌웠다. 정오가 되기 전, 소년 군주는 남문 너머로 사라졌다."
+        }
+      },
+      {
+        "text": {
+          "en": "Chamberlain Orwin has asked for Herman's envoys by name. He waits near the palace avenue in Evermore.",
+          "ko": "시종장 오르윈이 헤르만의 사자들을 지목해 찾고 있다. 그는 에버모어 궁정 대로 근처에서 기다린다."
+        }
+      }
+    ],
+    "bandit_ambush": [
+      {
+        "text": {
+          "en": "Rocks crashed down at both ends of the western pass. Men in old road-warden cloaks rose from the scree with bows already drawn.",
+          "ko": "서쪽 협로의 앞뒤로 바위가 굴러 떨어졌다. 낡은 도로 경비대 망토를 걸친 자들이 활시위를 당긴 채 자갈밭에서 일어섰다."
+        }
+      },
+      {
+        "speaker": "bandit_boss",
+        "text": {
+          "en": "Coin and cargo on the ground. I was paid to close this road, not fill it with graves. Do not make me earn the difference.",
+          "ko": "돈과 짐을 땅에 내려놔라. 난 길을 막으라는 돈을 받았지, 무덤으로 채우라는 돈은 받지 않았다. 차액까지 벌게 만들지 마."
+        }
+      },
+      {
+        "text": {
+          "en": "The company answered by drawing steel. Whatever bargain had closed the road, passage would have to be bought back in blood.",
+          "ko": "일행은 무기를 뽑아 대답했다. 어떤 거래가 길을 닫았든, 이제 통행은 피로 되사야 했다."
+        }
+      },
+      {
+        "text": {
+          "en": "When the last bow fell silent, the pass lay open. The Crossvale Bounty Guild still had to certify the road before the coaches would move.",
+          "ko": "마지막 활이 잠잠해지자 협로가 열렸다. 역마차를 다시 움직이려면 크로스베일 현상금 길드가 길의 안전을 확인해야 한다."
+        }
+      }
+    ],
+    "prince_encounter": [
+      {
+        "text": {
+          "en": "Brush stirred behind an old fire pit. A mud-streaked boy in a hunting coat sprang out with a branch leveled like a spear; gold embroidery showed beneath the torn hem.",
+          "ko": "옛 모닥불 자리 뒤 덤불이 흔들렸다. 진흙 묻은 사냥복 차림의 소년이 나뭇가지를 창처럼 겨누며 뛰쳐나왔다. 찢어진 옷단 아래로 금실 자수가 보였다."
+        }
+      },
+      {
+        "speaker": "young_lord",
+        "text": {
+          "en": "Stay back! Did the council send you? Tell them the High Seat was my father's. They put me in it before his room was cold.",
+          "ko": "물러서라! 평의회가 보냈나? 높은 자리는 아버지의 것이었다고 전해. 그들은 아버지 방이 식기도 전에 날 거기 앉혔어."
+        }
+      },
+      {
+        "text": {
+          "en": "The company lowered its weapons and named itself as the bearer of Herman's letter. At the old master's name, anger gave way to exhausted suspicion.",
+          "ko": "일행은 무기를 내리고 헤르만의 편지를 전한 사자라고 밝혔다. 대스승의 이름을 듣자 소년의 분노가 지친 경계심으로 바뀌었다."
+        }
+      },
+      {
+        "speaker": "young_lord",
+        "text": {
+          "en": "You were among Father's last guests, then. The castellans speak of seals and regents. None of them speaks his name. If I return... will you walk beside me, not behind me like a jailer?",
+          "ko": "그럼 너희가 아버지의 마지막 손님들이었군. 성주들은 인장과 섭정만 말해. 아무도 아버지 이름은 부르지 않아. 내가 돌아가면… 간수처럼 뒤가 아니라 내 곁에서 걸어 줄 수 있나?"
+        }
+      },
+      {
+        "text": {
+          "en": "The company escorted the young lord through the south gate at dusk. Orwin must be told that the child—and the crown—have returned alive.",
+          "ko": "일행은 해 질 무렵 어린 군주의 곁을 지켜 남문을 통과했다. 아이와 왕관이 모두 살아 돌아왔다고 오르윈에게 알려야 한다."
+        }
+      }
+    ],
+    "grumbark_intro": [
+      {
+        "speaker": "grumbark",
+        "anonymous": true,
+        "text": {
+          "en": "Beyond the incense, a goblin in layered robes turned upon his staff. “Mice in my audience hall. Did your human masters promise you my chair?”",
+          "ko": "향 연기 너머, 겹친 예복을 입은 고블린이 지팡이를 짚고 돌아섰다. “내 알현실에 쥐새끼들이 들었군. 인간 주인이 내 자리를 약속하더냐?”"
+        }
+      },
+      {
+        "text": {
+          "en": "This was Grumbark, architect of the raids and jailer of the valley. Yet the human maps and seals scattered around his throne made plain that his war had not begun with goblin ambition alone.",
+          "ko": "계곡의 약탈과 감금을 꾸민 그름바크였다. 그러나 옥좌 주변에 흩어진 인간의 지도와 인장은 이 전쟁이 고블린의 야심만으로 시작되지 않았음을 보여 주었다."
+        }
+      },
+      {
+        "speaker": "grumbark",
+        "text": {
+          "en": "Sworn guard, bar the way! We were beasts when they needed dying done. Let these bright little heroes learn what beasts remember.",
+          "ko": "친위대여, 길을 막아라! 죽을 일이 필요할 때 인간들은 우리를 짐승이라 불렀지. 저 빛나는 영웅들에게 짐승이 무엇을 기억하는지 가르쳐 주어라!"
+        }
+      }
+    ],
+    "grumbark_ending": [
+      {
+        "speaker": "grumbark",
+        "text": {
+          "en": "Small flames... but you burn well. Remember this: I did not choose Crossvale. The seal's owner needed your eyes turned toward me. The courier... wore a silver thorn...",
+          "ko": "작은 불꽃들이… 제법 타는구나. 기억해라. 크로스베일을 고른 것은 내가 아니다. 인장의 주인은 너희 눈이 나를 향하길 원했어. 전령은… 은빛 가시를 달고 있었다…"
+        }
+      },
+      {
+        "text": {
+          "en": "Grumbark's last claw pointed to the seal from the recovered orders. The valley war had been a screen, and someone beyond it had expected goblin and human blood to hide the hand at work.",
+          "ko": "그름바크의 마지막 손끝은 회수한 작전 문서의 인장을 가리켰다. 계곡의 전쟁은 장막이었고, 그 너머의 누군가는 고블린과 인간의 피가 움직이는 손을 가려 주리라 여겼다."
+        }
+      },
+      {
+        "text": {
+          "en": "Without their shaman, the fortress warbands began to scatter. The Crossvale Bounty Guild would pay for the victory; Kael would care more for the dying clue.",
+          "ko": "주술사를 잃은 요새의 전단들은 흩어지기 시작했다. 크로스베일 현상금 길드는 승리에 돈을 치르겠지만, 카엘은 죽어 가는 자가 남긴 단서에 더 큰 값을 매길 것이다."
+        }
+      }
+    ],
+    "karmath_intro": [
+      {
+        "speaker": "karmath",
+        "anonymous": true,
+        "text": {
+          "en": "A priest in black vestments rose before the cracked altar, trailing the stink of drowned incense. “Lia... no. Not Lia. More names for the final prayer.”",
+          "ko": "물에 잠긴 향 냄새를 끌며 검은 예복의 사제가 갈라진 제단 앞에서 일어섰다. “리아… 아니군. 리아가 아니야. 마지막 기도에 새길 이름들이로다.”"
+        }
+      },
+      {
+        "speaker": "karmath",
+        "text": {
+          "en": "The seal beneath the altar is not ours. Break it— No! Living hands must not touch the truth. Kneel, and I will write you among the forgiven.",
+          "ko": "제단 아래 인장은 우리의 것이 아니다. 그것을 부숴라— 아니! 산 자의 손은 진실에 닿아선 안 된다. 무릎 꿇어라. 용서받은 자들 사이에 너희를 적어 주마."
+        }
+      },
+      {
+        "text": {
+          "en": "Two wills fought in the bishop's ruined voice. To free Karmath and recover the records beneath the altar, the company would have to break the rite by force.",
+          "ko": "주교의 무너진 목소리 안에서 두 의지가 맞서고 있었다. 카르마스를 놓아주고 제단 아래 기록을 얻으려면 힘으로 의식을 끊어야 했다."
+        }
+      }
+    ]
+  }
+}

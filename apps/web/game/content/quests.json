@@ -1,0 +1,699 @@
+{
+  "quests": [
+    {
+      "id": "main_hermans_letter",
+      "kind": "main",
+      "locales": {
+        "en": {
+          "name": "A Letter Under Seal",
+          "desc": "Master Herman has entrusted the company with a sealed letter for the Federal Lord of Evermore. Ben, the stablemaster in southeastern Crossvale, knows whether the royal road is passable. Speak with him before leaving town.",
+          "objectives": {
+            "ask_stable": "Ask Ben at the Crossvale stable about passage to Evermore"
+          },
+          "turnIn": "Ben at the Crossvale stable"
+        },
+        "ko": {
+          "name": "봉인된 편지",
+          "desc": "대스승 헤르만은 일행에게 봉인된 편지를 맡기며 에버모어의 연방 군주에게 직접 전하라 명했다. 길을 나서기 전, 크로스베일 남동쪽 마구간의 마부 벤에게 왕도행 길이 열렸는지 물어보자.",
+          "objectives": {
+            "ask_stable": "크로스베일 마구간의 벤에게 에버모어행 길 사정 묻기"
+          },
+          "turnIn": "크로스베일 마구간의 벤"
+        }
+      },
+      "objectives": [
+        {
+          "id": "ask_stable",
+          "type": "talk",
+          "target": "crossvale_stable",
+          "count": 1
+        }
+      ],
+      "turnIn": {
+        "type": "automatic",
+        "target": "crossvale_stable"
+      },
+      "rewards": {}
+    },
+    {
+      "id": "main_clear_evermore_road",
+      "kind": "main",
+      "locales": {
+        "en": {
+          "name": "The Price of Passage",
+          "desc": "Bandits have sealed the narrow western pass through the southern valley and the coaches will not run. Break their ambush, then report the cleared road to the Crossvale Bounty Guild.",
+          "objectives": {
+            "clear_bandits": "Destroy the bandit company holding the western valley pass"
+          },
+          "turnIn": "Crossvale Bounty Guild"
+        },
+        "ko": {
+          "name": "통행의 대가",
+          "desc": "산적들이 남쪽 계곡의 서쪽 협로를 틀어막아 역마차 운행이 끊겼다. 매복한 무리를 소탕한 뒤 크로스베일 현상금 길드에 길이 열렸다고 보고하자.",
+          "objectives": {
+            "clear_bandits": "남쪽 계곡 서쪽 협로를 점거한 산적 무리 소탕"
+          },
+          "turnIn": "크로스베일 현상금 길드"
+        }
+      },
+      "requires": {
+        "quests": [
+          "main_hermans_letter"
+        ]
+      },
+      "objectives": [
+        {
+          "id": "clear_bandits",
+          "type": "clear",
+          "target": "valley_bandits",
+          "count": 1
+        }
+      ],
+      "turnIn": {
+        "type": "facility",
+        "target": "bountyGuild"
+      },
+      "rewards": {
+        "gold": 250,
+        "exp": 120
+      }
+    },
+    {
+      "id": "main_deliver_hermans_letter",
+      "kind": "main",
+      "locales": {
+        "en": {
+          "name": "The Master's Seal",
+          "desc": "The western pass and the coach road are open. Travel to Evermore, enter the audience hall at the north end of the royal avenue, and place Herman's sealed letter in the Federal Lord's own hands.",
+          "objectives": {
+            "deliver_letter": "Deliver Herman's sealed letter to the Federal Lord in Evermore"
+          },
+          "turnIn": "the Federal Lord of Evermore"
+        },
+        "ko": {
+          "name": "대스승의 인장",
+          "desc": "서쪽 협로와 왕도행 역마차가 다시 열렸다. 에버모어로 가서 북쪽 대로 끝의 알현실에 들고, 헤르만의 봉인된 편지를 연방 군주에게 직접 전하자.",
+          "objectives": {
+            "deliver_letter": "에버모어 알현실의 연방 군주에게 봉인된 편지 전달"
+          },
+          "turnIn": "에버모어의 연방 군주"
+        }
+      },
+      "requires": {
+        "quests": [
+          "main_clear_evermore_road"
+        ]
+      },
+      "objectives": [
+        {
+          "id": "deliver_letter",
+          "type": "talk",
+          "target": "federal_lord",
+          "count": 1
+        }
+      ],
+      "turnIn": {
+        "type": "automatic",
+        "target": "federal_lord"
+      },
+      "rewards": {
+        "exp": 100
+      }
+    },
+    {
+      "id": "main_ch1_wavering_crown",
+      "kind": "main",
+      "autoStart": false,
+      "sequential": true,
+      "giver": "chamberlain",
+      "locales": {
+        "en": {
+          "name": "A Crown Unsteady",
+          "desc": "The old lord is dead, the castellans have hurried his young heir onto the High Seat, and the boy has fled through the south gate. Search the royal hunting ground beyond the river, escort him home, then report to Chamberlain Orwin.",
+          "objectives": {
+            "find_prince": "Find the missing young lord near the riverside hunting ground",
+            "report_to_orwin": "Return to Evermore and report the young lord's safe return to Orwin"
+          },
+          "turnIn": "Chamberlain Orwin"
+        },
+        "ko": {
+          "name": "흔들리는 왕관",
+          "desc": "선대 군주가 숨을 거두자 세 성의 영주들은 어린 후계자를 서둘러 높은 자리에 앉혔다. 그러나 소년 군주는 남문으로 달아났다. 강 건너 왕실 사냥터에서 그를 찾아 성으로 호위한 뒤 시종장 오르윈에게 귀환을 알리자.",
+          "objectives": {
+            "find_prince": "강변 왕실 사냥터 근처에서 사라진 어린 군주 찾기",
+            "report_to_orwin": "에버모어로 돌아가 어린 군주의 무사 귀환을 오르윈에게 보고"
+          },
+          "turnIn": "시종장 오르윈"
+        }
+      },
+      "requires": {
+        "quests": [
+          "main_deliver_hermans_letter"
+        ]
+      },
+      "objectives": [
+        {
+          "id": "find_prince",
+          "type": "talk",
+          "target": "lost_prince",
+          "count": 1
+        },
+        {
+          "id": "report_to_orwin",
+          "type": "talk",
+          "target": "chamberlain",
+          "count": 1
+        }
+      ],
+      "turnIn": {
+        "type": "npc",
+        "target": "chamberlain"
+      },
+      "rewards": {
+        "gold": 400,
+        "exp": 300
+      }
+    },
+    {
+      "id": "side_ruined_temple",
+      "kind": "side",
+      "giver": "sister",
+      "locales": {
+        "en": {
+          "name": "The Last Prayer of Karmath",
+          "desc": "Sister Lia has learned that Bishop Karmath, who sealed the fallen dawn-cult inside the abandoned coastal temple, now walks there again. Reach the shattered altar, end whatever binds him to it, recover proof of the rite, and return to Lia.",
+          "objectives": {
+            "defeat_bishop": "Lay the risen Bishop Karmath to rest and recover the altar records"
+          },
+          "turnIn": "Sister Lia at Evermore Cathedral"
+        },
+        "ko": {
+          "name": "카르마스의 마지막 기도",
+          "desc": "성직자 리아는 타락한 여명 교단을 해안의 버려진 사원에 봉인했던 카르마스 주교가 그곳에서 다시 걷는다는 소식을 들었다. 무너진 제단에 이르러 그를 붙든 힘을 끊고 의식의 기록을 확보한 뒤 리아에게 돌아가자.",
+          "objectives": {
+            "defeat_bishop": "되살아난 카르마스 주교를 잠재우고 제단의 기록 확보"
+          },
+          "turnIn": "에버모어 대성당의 성직자 리아"
+        }
+      },
+      "objectives": [
+        {
+          "id": "defeat_bishop",
+          "type": "clear",
+          "target": "fallen_bishop",
+          "count": 1
+        }
+      ],
+      "turnIn": {
+        "type": "npc",
+        "target": "sister"
+      },
+      "rewards": {
+        "gold": 280,
+        "exp": 140,
+        "items": [
+          {
+            "id": "mpotion",
+            "n": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "side_goblin_orders",
+      "kind": "side",
+      "giver": "kael",
+      "locales": {
+        "en": {
+          "name": "Orders in a Borrowed Hand",
+          "desc": "Kael believes the goblins did not choose Crossvale as a target on their own. Search the northwestern command room of the goblin fortress, recover their written orders without destroying the seal, and bring the document back to him.",
+          "objectives": {
+            "collect_orders": "Recover the sealed orders from the fortress's northwestern command room"
+          },
+          "turnIn": "Elder Kael in Crossvale"
+        },
+        "ko": {
+          "name": "빌린 손으로 쓴 명령",
+          "desc": "장로 카엘은 고블린들이 스스로 크로스베일을 노린 것이 아니라고 의심한다. 고블린 요새 북서쪽 지휘실을 수색해 인장을 훼손하지 않은 채 작전 문서를 회수하고 카엘에게 가져가자.",
+          "objectives": {
+            "collect_orders": "고블린 요새 북서쪽 지휘실에서 인장이 찍힌 작전 문서 회수"
+          },
+          "turnIn": "크로스베일의 장로 카엘"
+        }
+      },
+      "objectives": [
+        {
+          "id": "collect_orders",
+          "type": "collect",
+          "target": "goblin_orders",
+          "count": 1
+        }
+      ],
+      "turnIn": {
+        "type": "npc",
+        "target": "kael"
+      },
+      "rewards": {
+        "gold": 180,
+        "exp": 90
+      }
+    },
+    {
+      "id": "side_rescue_hostages",
+      "kind": "side",
+      "giver": "lokan",
+      "locales": {
+        "en": {
+          "name": "The Price of a Name",
+          "desc": "Goblins struck Lokan's caravan in the valley and dragged away the porters who trusted him to see them safely through. Find the timber stockade on the eastern plain, break open the prisoners' cage, and return to Lokan when they are clear.",
+          "objectives": {
+            "rescue_hostages": "Free Lokan's porters from the cage in the eastern goblin stockade"
+          },
+          "turnIn": "the merchant Lokan in Crossvale"
+        },
+        "ko": {
+          "name": "이름의 값",
+          "desc": "고블린들이 계곡에서 로칸의 대상 행렬을 덮치고, 그를 믿고 길을 나선 짐꾼들을 끌고 갔다. 동쪽 평야의 목책 주둔지를 찾아 우리를 부수고 포로들을 풀어 준 뒤 로칸에게 돌아가자.",
+          "objectives": {
+            "rescue_hostages": "동쪽 고블린 목책의 우리에 갇힌 로칸의 짐꾼 구출"
+          },
+          "turnIn": "크로스베일의 상인 로칸"
+        }
+      },
+      "objectives": [
+        {
+          "id": "rescue_hostages",
+          "type": "rescue",
+          "target": "valley_hostages",
+          "count": 1
+        }
+      ],
+      "turnIn": {
+        "type": "npc",
+        "target": "lokan"
+      },
+      "rewards": {
+        "gold": 220,
+        "exp": 110,
+        "items": [
+          {
+            "id": "potion",
+            "n": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "side_grumbark_bounty",
+      "kind": "side",
+      "locales": {
+        "en": {
+          "name": "Bounty: Grumbark, Goblin Shaman",
+          "desc": "Grumbark commands the fortress and the warbands gathering on the eastern plain. Descend the northeastern stair to the underground audience hall and kill him. Guild reports warn that two sworn guards remain at his side.",
+          "objectives": {
+            "slay_grumbark": "Defeat Grumbark and his sworn guard in the underground audience hall"
+          },
+          "turnIn": "Crossvale Bounty Guild"
+        },
+        "ko": {
+          "name": "현상금: 고블린 주술사 그름바크",
+          "desc": "그름바크는 요새와 동쪽 평야에 모인 고블린 전단을 지휘한다. 요새 북동쪽 계단을 내려가 지하 알현실에서 그를 처단하자. 친위병 둘이 끝까지 곁을 지킨다는 길드 보고가 있다.",
+          "objectives": {
+            "slay_grumbark": "지하 알현실에서 그름바크와 친위병 처단"
+          },
+          "turnIn": "크로스베일 현상금 길드"
+        }
+      },
+      "requires": {
+        "level": 6
+      },
+      "objectives": [
+        {
+          "id": "slay_grumbark",
+          "type": "clear",
+          "target": "lord",
+          "count": 1
+        }
+      ],
+      "turnIn": {
+        "type": "facility",
+        "target": "bountyGuild"
+      },
+      "rewards": {
+        "gold": 900,
+        "exp": 350,
+        "items": [
+          {
+            "id": "potion",
+            "n": 2
+          },
+          {
+            "id": "mpotion",
+            "n": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "job_first_promotion",
+      "kind": "job",
+      "locales": {
+        "en": {
+          "name": "The First Reckoning",
+          "desc": "Reach party level 3 and defeat the Goblin Lord who commands the fortress's upper halls. Bring proof of the victory to the guild to earn the right to choose an advanced calling.",
+          "objectives": {
+            "defeat_fanatic": "Defeat the Goblin Lord in the upper fortress"
+          },
+          "turnIn": "Crossvale Bounty Guild"
+        },
+        "ko": {
+          "name": "첫 번째 증명",
+          "desc": "파티 레벨 3을 달성하고 요새 상층을 지휘하는 고블린 로드를 쓰러뜨리자. 승리의 증표를 길드에 제출하면 상위 직업을 선택할 자격을 얻는다.",
+          "objectives": {
+            "defeat_fanatic": "고블린 요새 상층의 고블린 로드 토벌"
+          },
+          "turnIn": "크로스베일 현상금 길드"
+        }
+      },
+      "requires": {
+        "level": 3
+      },
+      "objectives": [
+        {
+          "id": "defeat_fanatic",
+          "type": "clear",
+          "target": "orc",
+          "count": 1
+        }
+      ],
+      "turnIn": {
+        "type": "facility",
+        "target": "bountyGuild"
+      },
+      "rewards": {
+        "exp": 100
+      }
+    },
+    {
+      "id": "job_final_promotion",
+      "kind": "job",
+      "locales": {
+        "en": {
+          "name": "The Final Reckoning",
+          "desc": "Reach party level 6 and break Grumbark's command over the valley. Defeating the shaman in his underground audience hall proves the company ready for its final calling.",
+          "objectives": {
+            "defeat_goblin_lord": "Defeat Grumbark in the underground audience hall"
+          },
+          "turnIn": "Crossvale Bounty Guild"
+        },
+        "ko": {
+          "name": "마지막 증명",
+          "desc": "파티 레벨 6을 달성하고 계곡을 장악한 그름바크의 지휘를 꺾자. 지하 알현실의 주술사를 쓰러뜨리면 최종 직업을 택할 자격을 증명할 수 있다.",
+          "objectives": {
+            "defeat_goblin_lord": "지하 알현실의 주술사 그름바크 토벌"
+          },
+          "turnIn": "크로스베일 현상금 길드"
+        }
+      },
+      "requires": {
+        "quests": [
+          "job_first_promotion"
+        ],
+        "level": 6
+      },
+      "objectives": [
+        {
+          "id": "defeat_goblin_lord",
+          "type": "clear",
+          "target": "lord",
+          "count": 1
+        }
+      ],
+      "turnIn": {
+        "type": "facility",
+        "target": "bountyGuild"
+      },
+      "rewards": {
+        "exp": 250
+      }
+    },
+    {
+      "id": "repeat_slimes",
+      "kind": "repeat",
+      "locales": {
+        "en": {
+          "name": "Bounty: Blood-Eye Slimes",
+          "desc": "Thin the Blood-Eye slimes breeding in the goblin fortress. The guild pays for five confirmed kills and posts a fresh writ the following day.",
+          "objectives": {
+            "kill_slime": "Kill Blood-Eye slimes"
+          },
+          "turnIn": "Crossvale Bounty Guild"
+        },
+        "ko": {
+          "name": "현상금: 핏눈 슬라임",
+          "desc": "고블린 요새에서 번식하는 핏눈 슬라임을 줄이자. 다섯 마리의 처치를 확인받으면 길드가 다음 날 새 의뢰를 게시한다.",
+          "objectives": {
+            "kill_slime": "핏눈 슬라임 처치"
+          },
+          "turnIn": "크로스베일 현상금 길드"
+        }
+      },
+      "objectives": [
+        {
+          "id": "kill_slime",
+          "type": "kill",
+          "target": "slime",
+          "count": 5
+        }
+      ],
+      "turnIn": {
+        "type": "facility",
+        "target": "bountyGuild"
+      },
+      "rewards": {
+        "gold": 60,
+        "exp": 25
+      },
+      "repeatEveryDays": 1
+    },
+    {
+      "id": "repeat_goblins",
+      "kind": "repeat",
+      "locales": {
+        "en": {
+          "name": "Bounty: Goblin Blades",
+          "desc": "Reduce the Goblin Blade patrols inside the fortress. The guild pays for four confirmed kills and posts a fresh writ the following day.",
+          "objectives": {
+            "kill_goblin": "Kill Goblin Blades"
+          },
+          "turnIn": "Crossvale Bounty Guild"
+        },
+        "ko": {
+          "name": "현상금: 고블린 블레이드",
+          "desc": "요새 안을 순찰하는 고블린 블레이드의 수를 줄이자. 네 마리의 처치를 확인받으면 길드가 다음 날 새 의뢰를 게시한다.",
+          "objectives": {
+            "kill_goblin": "고블린 블레이드 처치"
+          },
+          "turnIn": "크로스베일 현상금 길드"
+        }
+      },
+      "objectives": [
+        {
+          "id": "kill_goblin",
+          "type": "kill",
+          "target": "goblin",
+          "count": 4
+        }
+      ],
+      "turnIn": {
+        "type": "facility",
+        "target": "bountyGuild"
+      },
+      "rewards": {
+        "gold": 100,
+        "exp": 40
+      },
+      "repeatEveryDays": 1
+    },
+    {
+      "id": "repeat_wolfriders",
+      "kind": "repeat",
+      "locales": {
+        "en": {
+          "name": "Bounty: Wolf Riders",
+          "desc": "Hunt the goblin wolf riders ranging across the valley. The writ calls for four confirmed kills and is intended for an experienced company.",
+          "objectives": {
+            "kill_wolf": "Kill goblin wolf riders"
+          },
+          "turnIn": "Crossvale Bounty Guild"
+        },
+        "ko": {
+          "name": "현상금: 늑대기수",
+          "desc": "계곡을 돌아다니는 고블린 늑대기수를 사냥하자. 네 마리의 처치를 요구하는 숙련된 일행용 의뢰다.",
+          "objectives": {
+            "kill_wolf": "고블린 늑대기수 처치"
+          },
+          "turnIn": "크로스베일 현상금 길드"
+        }
+      },
+      "requires": {
+        "level": 3
+      },
+      "objectives": [
+        {
+          "id": "kill_wolf",
+          "type": "kill",
+          "target": "wolf",
+          "count": 4
+        }
+      ],
+      "turnIn": {
+        "type": "facility",
+        "target": "bountyGuild"
+      },
+      "rewards": {
+        "gold": 130,
+        "exp": 55
+      },
+      "repeatEveryDays": 1
+    },
+    {
+      "id": "weekly_slime_purge",
+      "kind": "repeat",
+      "locales": {
+        "en": {
+          "name": "Weekly Writ: Slime Purge",
+          "desc": "This week's guild writ calls for a deep cull of the fortress's Blood-Eye slimes. Kill ten before the board turns over next week.",
+          "objectives": {
+            "kill_slime": "Kill Blood-Eye slimes"
+          },
+          "turnIn": "Crossvale Bounty Guild"
+        },
+        "ko": {
+          "name": "주간 의뢰: 슬라임 대청소",
+          "desc": "이번 주 길드 특별 의뢰는 요새의 핏눈 슬라임을 대대적으로 줄이는 일이다. 게시판이 바뀌기 전에 열 마리를 처치하자.",
+          "objectives": {
+            "kill_slime": "핏눈 슬라임 처치"
+          },
+          "turnIn": "크로스베일 현상금 길드"
+        }
+      },
+      "objectives": [
+        {
+          "id": "kill_slime",
+          "type": "kill",
+          "target": "slime",
+          "count": 10
+        }
+      ],
+      "turnIn": {
+        "type": "facility",
+        "target": "bountyGuild"
+      },
+      "rewards": {
+        "gold": 220,
+        "exp": 90,
+        "items": [
+          {
+            "id": "potion",
+            "n": 1
+          }
+        ]
+      },
+      "repeatEveryDays": 7
+    },
+    {
+      "id": "weekly_goblin_raid",
+      "kind": "repeat",
+      "locales": {
+        "en": {
+          "name": "Weekly Writ: Break the Blades",
+          "desc": "This week's guild writ targets the fortress patrols. Kill eight Goblin Blades before the board turns over next week.",
+          "objectives": {
+            "kill_goblin": "Kill Goblin Blades"
+          },
+          "turnIn": "Crossvale Bounty Guild"
+        },
+        "ko": {
+          "name": "주간 의뢰: 칼날 꺾기",
+          "desc": "이번 주 길드 특별 의뢰는 요새의 순찰대를 무너뜨리는 일이다. 게시판이 바뀌기 전에 고블린 블레이드 여덟을 처치하자.",
+          "objectives": {
+            "kill_goblin": "고블린 블레이드 처치"
+          },
+          "turnIn": "크로스베일 현상금 길드"
+        }
+      },
+      "objectives": [
+        {
+          "id": "kill_goblin",
+          "type": "kill",
+          "target": "goblin",
+          "count": 8
+        }
+      ],
+      "turnIn": {
+        "type": "facility",
+        "target": "bountyGuild"
+      },
+      "rewards": {
+        "gold": 320,
+        "exp": 130,
+        "items": [
+          {
+            "id": "potion",
+            "n": 1
+          }
+        ]
+      },
+      "repeatEveryDays": 7
+    },
+    {
+      "id": "weekly_wolfrider_hunt",
+      "kind": "repeat",
+      "locales": {
+        "en": {
+          "name": "Weekly Writ: Empty Saddles",
+          "desc": "This week's guild writ targets the mounted scouts carrying orders between warbands. Kill six goblin wolf riders before the board turns over.",
+          "objectives": {
+            "kill_wolf": "Kill goblin wolf riders"
+          },
+          "turnIn": "Crossvale Bounty Guild"
+        },
+        "ko": {
+          "name": "주간 의뢰: 빈 안장",
+          "desc": "이번 주 길드 특별 의뢰는 전단 사이에서 명령을 나르는 기마 정찰대를 노린다. 게시판이 바뀌기 전에 고블린 늑대기수 여섯을 처치하자.",
+          "objectives": {
+            "kill_wolf": "고블린 늑대기수 처치"
+          },
+          "turnIn": "크로스베일 현상금 길드"
+        }
+      },
+      "requires": {
+        "level": 3
+      },
+      "objectives": [
+        {
+          "id": "kill_wolf",
+          "type": "kill",
+          "target": "wolf",
+          "count": 6
+        }
+      ],
+      "turnIn": {
+        "type": "facility",
+        "target": "bountyGuild"
+      },
+      "rewards": {
+        "gold": 420,
+        "exp": 170,
+        "items": [
+          {
+            "id": "mpotion",
+            "n": 1
+          }
+        ]
+      },
+      "repeatEveryDays": 7
+    }
+  ]
+}

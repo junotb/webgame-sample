@@ -70,7 +70,7 @@ export interface SpawnDef {
   /** 이 심볼이 처치된 뒤에만 등장 (예: 로드 처치 후 깨어나는 고대 정령) */
   requires?: string;
 }
-/** 일반 몹 — 마을에서 재진입 시 리스폰. 남쪽 어귀 동굴 슬라임·고블린 전사,
+/** 일반 몹 — 마을에서 재진입 시 리스폰. 남쪽 어귀 동굴 슬라임·고블린 블레이드,
  *  북쪽 심부로 갈수록 고블린 늑대기수와 동굴 망령이 배회한다 */
 export const NORMAL_SPAWNS: SpawnDef[] = [
   { id: "n1", defId: "goblin", x: 5, y: 13 },
@@ -85,7 +85,7 @@ export const NORMAL_SPAWNS: SpawnDef[] = [
   { id: "n10", defId: "skeleton", x: 3, y: 7 },
   { id: "n11", defId: "wolf", x: 21, y: 10 },
 ];
-/** 심볼 몹 — 고블린 광신도(중앙 홀 길목). 그름바크는 지하층 알현실에 있다 */
+/** 심볼 몹 — 고블린 로드(중앙 홀 길목). 그름바크는 지하층 알현실에 있다 */
 export const SYMBOL_SPAWNS: SpawnDef[] = [
   { id: "orc", defId: "orc", x: 12, y: 11, symbol: "orc" },
   { id: "sentry", defId: "goblin", x: 18, y: 3, symbol: "sentry" }, // 지하 계단을 지키는 파수병

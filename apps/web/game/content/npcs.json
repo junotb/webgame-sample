@@ -1,0 +1,555 @@
+{
+  "npcs": [
+    {
+      "id": "kael",
+      "portrait": 18,
+      "town": "crossvale",
+      "gx": 14,
+      "gy": 9,
+      "sprite": "kael",
+      "color": "#4a4458",
+      "accent": "#d8cba0",
+      "quests": [
+        "side_goblin_orders"
+      ],
+      "topics": [
+        {
+          "id": "town"
+        },
+        {
+          "id": "letter"
+        },
+        {
+          "id": "valley"
+        },
+        {
+          "id": "job"
+        },
+        {
+          "id": "lord",
+          "requires": {
+            "quests": [
+              "job_first_promotion"
+            ]
+          }
+        },
+        {
+          "id": "after",
+          "requires": {
+            "quests": [
+              "side_goblin_orders"
+            ]
+          }
+        }
+      ],
+      "locales": {
+        "en": {
+          "name": "Elder Kael",
+          "desc": "Crossvale's elected elder and once a fellow student of Master Herman.",
+          "greeting": "Herman's pupils, unless my eyes have finally betrayed me. You carry his silence about you. What would you know?",
+          "profile": {
+            "background": "Kael studied letters, wards, and statecraft beside Herman in his youth, but returned to Crossvale after his elder brother died defending the valley road. The townsfolk later elected him elder.",
+            "personality": "Patient, dryly observant, and protective without being sentimental. He listens longer than most people can tolerate and rarely reveals his first conclusion.",
+            "desire": "Keep Crossvale independent of the three castellans while discovering who is organizing the goblin warbands.",
+            "fear": "That Herman's warning has come too late and that speaking openly will turn the town into a battlefield between greater powers.",
+            "secret": "The seal on the goblin orders resembles a cipher used by one of Herman's former companions, though Kael is not yet willing to name that person.",
+            "voice": "Measured elder's speech; short judgments, old-road imagery, and familiar references to Herman. He never shouts and uses silence as pressure."
+          },
+          "topics": {
+            "town": {
+              "label": "Crossvale",
+              "text": "Crossvale is the hinge on which the Evermore road turns. Merchants see shops and beds; soldiers see the south gate. Both are right, which is why every hungry lord eventually remembers us."
+            },
+            "letter": {
+              "label": "Herman's letter",
+              "text": "Put it into the Federal Lord's own hands. Herman seals warnings, not pleasantries. First ask Ben at the southeastern stable whether the road will carry you."
+            },
+            "valley": {
+              "label": "The goblin fortress",
+              "text": "Follow the southern valley inward and you will find the old fort the goblins have made their den. Search every fork. Their soldiers hold the upper stonework; their master keeps an audience hall below the northeastern stair."
+            },
+            "job": {
+              "label": "Advanced callings",
+              "text": "At third level, the guild will judge whether your company is ready for its first calling. At sixth comes the last. Titles are cheap; survive the deeds attached to them."
+            },
+            "lord": {
+              "label": "Grumbark",
+              "text": "Grumbark is no common cave-priest. He moves the fortress and the eastern warbands as one hand. The guild puts gold on his head, but gold is not the reason he must fall."
+            },
+            "after": {
+              "label": "The seal on the orders",
+              "text": "I know enough to be afraid of this mark, and not enough to accuse its owner. It belongs to no federal archive. Yet I saw its bones once, years ago, in a cipher Herman and I were taught never to write."
+            }
+          },
+          "questDialogue": {
+            "side_goblin_orders": {
+              "offer": "Goblins raid for iron, meat, and fear. These have been taking crossroads and counting wagons. That is a man's war taught to smaller hands. Search the northwestern command room and bring me their orders with the seal unbroken.",
+              "active": "The paper matters more than the blood around it. Northwestern command room; preserve the seal. A torn answer is only another question.",
+              "complete": "Yes... the hand is disguised, but the habit beneath it is familiar. Leave this with me. Take your pay, and tell no one what I have not yet proved."
+            }
+          }
+        },
+        "ko": {
+          "name": "장로 카엘",
+          "desc": "크로스베일의 선출 장로. 젊은 시절 대스승 헤르만과 함께 수학했다.",
+          "greeting": "내 눈이 아주 멀지 않았다면 헤르만의 제자들이로군. 그 사람의 침묵을 짊어진 얼굴이야. 무엇을 알고 싶은가?",
+          "profile": {
+            "background": "카엘은 젊은 시절 헤르만과 함께 문자와 결계, 통치술을 배웠다. 형이 계곡길을 지키다 죽자 고향 크로스베일로 돌아왔고, 훗날 주민들의 선택으로 장로가 되었다.",
+            "personality": "참을성 있고 건조하며, 감상에 기대지 않으면서도 마을을 지킨다. 상대가 견디기 어려울 만큼 오래 듣고 첫 판단을 좀처럼 드러내지 않는다.",
+            "desire": "크로스베일이 세 성주의 손아귀에 들지 않게 지키면서 고블린 전단을 하나로 움직이는 배후를 밝혀내고 싶어 한다.",
+            "fear": "헤르만의 경고가 이미 늦었으며, 섣부른 폭로가 마을을 더 큰 세력들의 전쟁터로 만들까 두려워한다.",
+            "secret": "고블린 문서의 인장이 헤르만의 옛 동문 하나가 쓰던 암호와 닮았지만, 아직 그 이름을 입에 올리지 않는다.",
+            "voice": "짧고 신중한 노인의 말투. 오래된 길과 계절에 빗대며 헤르만을 격의 없이 부른다. 소리치는 대신 침묵으로 상대를 압박한다."
+          },
+          "topics": {
+            "town": {
+              "label": "크로스베일",
+              "text": "크로스베일은 에버모어로 드는 길의 경첩 같은 곳일세. 상인은 가게와 침상을 보고, 병사는 남문을 보지. 둘 다 옳아. 그래서 굶주린 군주들은 언젠가 반드시 우리를 떠올린다네."
+            },
+            "letter": {
+              "label": "헤르만의 편지",
+              "text": "연방 군주의 손에 직접 전하게. 헤르만은 안부를 물으려고 인장을 쓰는 사람이 아닐세. 먼저 남동쪽 마구간의 벤에게 길이 마차를 받아 줄 형편인지 물어보게."
+            },
+            "valley": {
+              "label": "고블린 요새",
+              "text": "남쪽 계곡 안으로 들어가면 고블린들이 둥지로 삼은 옛 요새가 나오네. 갈림길마다 살피게. 병사들은 지상을 차지했고, 놈들의 주인은 북동쪽 계단 아래 알현실을 꾸며 놓았으니."
+            },
+            "job": {
+              "label": "전직",
+              "text": "파티 레벨 3이 되면 길드가 첫 갈림길을 감당할 자격을 보겠지. 레벨 6에는 마지막 선택이 기다리고. 이름값은 싸네. 그 이름에 붙은 일을 살아서 해내는 게 비싸지."
+            },
+            "lord": {
+              "label": "그름바크",
+              "text": "그름바크는 흔한 동굴 사제가 아닐세. 요새와 동쪽 전단을 한 손처럼 움직이지. 길드는 놈의 목에 금을 걸었지만, 금 때문에 죽여야 하는 자는 아니야."
+            },
+            "after": {
+              "label": "문서의 인장",
+              "text": "두려워할 만큼은 아는데, 주인을 지목할 만큼은 모르는 문양이군. 연방 기록에는 없어. 다만 오래전, 헤르만과 내가 절대 쓰지 말라고 배운 암호에서 이 뼈대를 본 적이 있네."
+            }
+          },
+          "questDialogue": {
+            "side_goblin_orders": {
+              "offer": "고블린은 쇠붙이와 고기, 공포를 탐해 습격하지. 그런데 요즘 놈들은 길목을 차지하고 마차 수를 세고 있네. 사람의 전쟁을 작은 손에 가르친 자가 있다는 뜻이야. 북서쪽 지휘실에서 명령서를 찾아 인장을 온전히 보존해 가져오게.",
+              "active": "종이 한 장이 그 곁의 피보다 중요할 때도 있네. 북서쪽 지휘실, 그리고 온전한 인장일세. 찢긴 답은 또 다른 질문에 지나지 않아.",
+              "complete": "그래… 손길은 감췄지만 버릇까지 감추지는 못했군. 문서는 내게 맡기게. 보수는 받되, 내가 아직 증명하지 못한 이름은 누구에게도 말하지 말게."
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "lokan",
+      "portrait": 19,
+      "town": "crossvale",
+      "gx": 9,
+      "gy": 16,
+      "sprite": "lokan",
+      "color": "#5a3a2a",
+      "accent": "#c9a227",
+      "quests": [
+        "side_rescue_hostages"
+      ],
+      "topics": [
+        {
+          "id": "trade"
+        },
+        {
+          "id": "caravan"
+        },
+        {
+          "id": "caravan_after",
+          "requires": {
+            "quests": [
+              "side_rescue_hostages"
+            ]
+          }
+        },
+        {
+          "id": "treasure"
+        },
+        {
+          "id": "trap"
+        }
+      ],
+      "locales": {
+        "en": {
+          "name": "Lokan, Traveling Merchant",
+          "desc": "A road merchant stranded in Crossvale after losing his caravan in the valley.",
+          "greeting": "New faces! I sold my goods to the shop, but I still have stories in stock. Those cost only a little patience.",
+          "profile": {
+            "background": "Lokan was born to caravan porters and bought his first wagon with ten years of saved wages. He calls every worker in his train a partner, a practice other merchants mock until they need loyal hands.",
+            "personality": "Quick, theatrical, and relentlessly sociable. Beneath the salesman's patter he keeps exact account of every promise and every person placed in his care.",
+            "desire": "Bring his captured porters home and rebuild a caravan whose name still means safe passage.",
+            "fear": "That the porters died believing he valued the cargo more than them.",
+            "secret": "He has already sold most of his remaining stock below cost to fund the families of the missing workers.",
+            "voice": "Fast, warm speech built from prices, ledgers, bargains, and road sayings. Humor falls away completely when he speaks of his people."
+          },
+          "topics": {
+            "trade": {
+              "label": "Trade",
+              "text": "The item shop's potions came out of my wagons. Healing draughts can pull a fallen companion back onto their feet. That makes one bottle cheaper than any funeral."
+            },
+            "caravan": {
+              "label": "The caravan",
+              "text": "Goblins took the wagons in the valley. Wagons can be bought again. The porters cannot. They trusted my name on the road, and I mean to make that name worth something."
+            },
+            "caravan_after": {
+              "label": "The porters",
+              "text": "They are resting at the inn, arguing over who owes you the first drink. I sell news for a living; from now on, your names travel in the good kind."
+            },
+            "treasure": {
+              "label": "Hidden treasure",
+              "text": "At the fortress's northern dead end, a wall that looks solid hides a chest. Bring someone with a sharp Seek sense. Stone is a poor liar, but a patient one."
+            },
+            "trap": {
+              "label": "Traps",
+              "text": "A hidden chest without a trap is a merchant without a margin. Bring someone trained to disarm it, unless you enjoy paying in blood."
+            }
+          },
+          "questDialogue": {
+            "side_rescue_hostages": {
+              "offer": "The goblins took my wagons, but it is the porters I cannot replace. They are penned inside the timber stockade on the eastern plain. Break the cage and send them running west. Bring me no trophies—bring me their names alive.",
+              "active": "Eastern plain, timber stockade. The cage stands inside their camp. If any of my people can still run, point them west and keep the goblins looking at you.",
+              "complete": "All of them? Gods, that is a profit I had no right to expect. Take the coin. I can earn coin again; today you returned what no ledger could price."
+            }
+          }
+        },
+        "ko": {
+          "name": "떠돌이 상인 로칸",
+          "desc": "계곡에서 대상 행렬을 잃고 크로스베일에 발이 묶인 행상.",
+          "greeting": "새 얼굴들이군! 물건은 도구점에 넘겼지만 이야기는 아직 재고가 남았지. 그건 참을성만 조금 내면 살 수 있어.",
+          "profile": {
+            "background": "로칸은 대상 행렬의 짐꾼 집안에서 태어나 십 년 동안 품삯을 모아 첫 마차를 샀다. 그는 일꾼들을 동업자라 부르며, 다른 상인들은 충직한 손이 필요해질 때까지 그 방식을 비웃었다.",
+            "personality": "말이 빠르고 과장되며 누구와도 금세 친해진다. 장사꾼의 익살 아래에는 자신이 한 약속과 맡은 사람을 정확히 기억하는 성정이 있다.",
+            "desire": "붙잡힌 짐꾼들을 모두 데려오고, 자신의 이름이 다시 안전한 길을 뜻하는 대상 행렬을 꾸리고 싶어 한다.",
+            "fear": "짐꾼들이 로칸이 자신들보다 짐을 중히 여겼다고 믿은 채 죽었을까 두려워한다.",
+            "secret": "남은 물건 대부분을 원가보다 싸게 팔아 실종된 짐꾼들의 가족에게 돈을 보내고 있다.",
+            "voice": "값과 장부, 흥정과 길 위의 속담을 섞은 빠르고 따뜻한 말투. 자기 사람을 말할 때는 익살이 완전히 사라진다."
+          },
+          "topics": {
+            "trade": {
+              "label": "장사",
+              "text": "이 마을 도구점 물약은 내 마차에서 나온 거야. 치유 물약은 쓰러진 동료도 다시 일으키지. 장례 한 번 값에 비하면 한 병은 싼 물건이라고."
+            },
+            "caravan": {
+              "label": "대상 행렬",
+              "text": "계곡에서 고블린들이 마차를 가져갔어. 마차는 다시 사면 돼. 짐꾼들은 아니지. 그 사람들은 길 위에서 내 이름을 믿었고, 난 그 이름에 값을 치를 생각이야."
+            },
+            "caravan_after": {
+              "label": "짐꾼들의 안부",
+              "text": "다들 여관에서 쉬면서 누가 자네들에게 첫 잔을 살지 다투고 있어. 난 소문을 팔아 먹고살지. 이제부터 자네들 이름은 좋은 쪽으로만 길을 탈 거야."
+            },
+            "treasure": {
+              "label": "숨겨진 보물",
+              "text": "요새 최북단 막다른 길에 멀쩡한 벽처럼 보이는 곳이 상자를 숨기고 있다더군. 인지에 밝은 동료를 데려가. 돌은 서툴지만 참을성 있는 거짓말쟁이니까."
+            },
+            "trap": {
+              "label": "함정",
+              "text": "함정 없는 숨은 상자는 이윤 없는 장사꾼이나 마찬가지야. 해체에 익숙한 동료를 데려가. 피로 값을 치르는 취미가 없다면 말이지."
+            }
+          },
+          "questDialogue": {
+            "side_rescue_hostages": {
+              "offer": "고블린들이 마차를 가져갔지만, 다시 구할 수 없는 건 짐꾼들이야. 동쪽 평야의 목책 안 우리에 갇혀 있어. 우리를 부수고 서쪽으로 달아나게 해 줘. 전리품은 필요 없어. 그 사람들의 이름을 살아서 돌려줘.",
+              "active": "동쪽 평야의 목책이야. 우리는 주둔지 안에 있어. 아직 달릴 수 있는 사람이 있다면 서쪽을 가리키고, 고블린들의 눈은 자네들이 붙잡아 줘.",
+              "complete": "모두라고? 세상에, 이건 기대할 자격도 없던 이문이군. 돈은 받아 줘. 돈은 다시 벌 수 있지만, 오늘 자네들이 돌려준 건 어떤 장부에도 값을 매길 수 없어."
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "chamberlain",
+      "portrait": 21,
+      "town": "evermore",
+      "gx": 11,
+      "gy": 6,
+      "sprite": "chamberlain",
+      "color": "#3a4a6a",
+      "accent": "#d8cba0",
+      "quests": [
+        "main_ch1_wavering_crown"
+      ],
+      "topics": [
+        {
+          "id": "audience"
+        },
+        {
+          "id": "federation"
+        },
+        {
+          "id": "young_lord",
+          "requires": {
+            "quests": [
+              "main_deliver_hermans_letter"
+            ]
+          }
+        },
+        {
+          "id": "south_gate",
+          "requires": {
+            "quests": [
+              "main_deliver_hermans_letter"
+            ]
+          }
+        }
+      ],
+      "locales": {
+        "en": {
+          "name": "Chamberlain Orwin",
+          "desc": "Keeper of Evermore's household seals and guardian of the young heir.",
+          "greeting": "Master Herman's envoys. In this palace, a familiar face has become a rare courtesy. How may I direct you?",
+          "profile": {
+            "background": "Orwin entered palace service as a hostage-page from a minor house and earned the old lord's trust by surviving three changes of council without changing his oath. He helped raise the heir after the boy's mother died.",
+            "personality": "Controlled, exact, and unfailingly courteous. His calm is discipline rather than serenity, and he notices breaches of protocol because they often conceal threats.",
+            "desire": "Keep the young lord alive long enough to rule in his own name and preserve the federation without handing it to any one castellan.",
+            "fear": "That the hurried coronation has made the boy a prize each faction would rather possess than obey.",
+            "secret": "The old lord was ill before Herman's letter arrived, but Orwin concealed the severity to prevent the castellans from gathering armies near the capital.",
+            "voice": "Formal and economical, with legal and household imagery. He avoids contractions, names obligations precisely, and lets urgency appear only through shorter sentences."
+          },
+          "topics": {
+            "audience": {
+              "label": "The audience hall",
+              "text": "The audience hall stands at the north end of the avenue. Place Herman's letter in the Federal Lord's hands yourself. A seal carried by another hand is already half a rumor."
+            },
+            "federation": {
+              "label": "The federation",
+              "text": "Three castles hold the land, while Evermore holds the High Seat and the common seal. The crown is hereditary; obedience is not. Every new lord must win the castellans' oaths anew."
+            },
+            "young_lord": {
+              "label": "The young lord",
+              "text": "The castellans crowned him before his father's chamber had cooled. They called it continuity. To a grieving boy, it looked like strangers measuring his shoulders for chains."
+            },
+            "south_gate": {
+              "label": "The south gate",
+              "text": "Beyond the new south gate lies the riverside hunting ground. The royal tomb stands on the eastern rise. Search the river brush first; leave the tomb undisturbed."
+            }
+          },
+          "questDialogue": {
+            "main_ch1_wavering_crown": {
+              "offer": "The mourning bells have scarcely fallen silent, and already every castellan is measuring the empty space around the High Seat. His Grace slipped through the south gate in a hunting coat. Find him by the river before someone less loyal does, bring him home, and report to me alone.",
+              "active": "Begin with the riverside hunting ground beyond the south gate. He knows the old fire pits and will avoid the road. If you find him, do not speak first of duty. Speak of his father.",
+              "complete": "You brought back the child, not merely the crown. I shall remember the distinction. For tonight the gates are barred, the castellans are smiling, and His Grace is alive. That will have to be victory enough."
+            }
+          }
+        },
+        "ko": {
+          "name": "시종장 오르윈",
+          "desc": "에버모어의 궁정 인장과 어린 후계자를 지키는 시종장.",
+          "greeting": "대스승 헤르만의 사자들이시군요. 이 궁정에서는 아는 얼굴 하나도 드문 호의가 되었습니다. 어디로 안내해 드릴까요?",
+          "profile": {
+            "background": "오르윈은 작은 가문의 인질 시동으로 궁정에 들어와 세 번의 평의회 교체를 겪는 동안에도 맹세를 바꾸지 않아 선대 군주의 신임을 얻었다. 왕자비가 죽은 뒤에는 어린 후계자를 가까이서 길렀다.",
+            "personality": "절제되고 정확하며 어떤 상황에서도 예의를 잃지 않는다. 그의 침착함은 평온이 아니라 훈련의 결과이며, 예법의 틈에는 흔히 위협이 숨어 있다고 믿는다.",
+            "desire": "어린 군주가 남의 꼭두각시가 아닌 자신의 이름으로 통치할 때까지 살려 두고, 연방이 어느 한 성주의 손에 넘어가지 않게 지키려 한다.",
+            "fear": "서둘러 치른 즉위식이 소년을 충성의 대상이 아니라 서로 차지하려는 전리품으로 만들었다고 두려워한다.",
+            "secret": "선대 군주는 헤르만의 편지가 도착하기 전부터 병들어 있었지만, 성주들이 수도 근처에 군사를 모을까 병세를 숨겼다.",
+            "voice": "법과 궁정 살림의 비유를 쓰는 정중하고 절제된 말투. 의무를 정확히 지칭하며, 다급할수록 문장이 짧아진다."
+          },
+          "topics": {
+            "audience": {
+              "label": "알현실",
+              "text": "알현실은 북쪽 대로 끝에 있습니다. 헤르만의 편지는 직접 군주의 손에 놓으십시오. 다른 손을 한 번 거친 인장은 이미 절반쯤 소문이 된 셈이니까요."
+            },
+            "federation": {
+              "label": "연방",
+              "text": "세 성은 땅을 지키고, 에버모어는 높은 자리와 공동 인장을 지킵니다. 왕관은 세습되지만 복종은 그렇지 않습니다. 새 군주는 매번 성주들의 맹세를 다시 얻어야 하지요."
+            },
+            "young_lord": {
+              "label": "어린 군주",
+              "text": "성주들은 선대의 침상이 식기도 전에 왕자님께 관을 씌웠습니다. 그들은 연속성을 위한 일이라 했지요. 아버지를 잃은 소년의 눈에는 낯선 이들이 어깨에 채울 사슬의 치수를 재는 모습이었을 겁니다."
+            },
+            "south_gate": {
+              "label": "남문",
+              "text": "새 남문 밖에는 강변의 왕실 사냥터가 있습니다. 동쪽 언덕에는 왕실 묘소가 있고요. 강가의 덤불부터 찾으시되 묘역은 건드리지 마십시오."
+            }
+          },
+          "questDialogue": {
+            "main_ch1_wavering_crown": {
+              "offer": "조종이 채 멎기도 전에 성주들은 벌써 높은 자리 곁의 빈틈을 재고 있습니다. 전하께서 사냥복 차림으로 남문을 빠져나가셨습니다. 충성스럽지 않은 자가 먼저 찾기 전에 강가에서 모셔 오시고, 귀환 사실은 제게만 알리십시오.",
+              "active": "남문 밖 강변 사냥터부터 살피십시오. 전하께서는 옛 모닥불 자리를 아시니 길을 피하실 겁니다. 찾으시면 의무를 먼저 말하지 마십시오. 아버님 이야기를 해 주십시오.",
+              "complete": "왕관만이 아니라 아이를 데려오셨군요. 그 차이를 기억하겠습니다. 오늘 밤 성문은 닫혔고, 성주들은 웃고 있으며, 전하는 살아 계십니다. 지금은 그것으로 충분한 승리라 해야겠지요."
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "eldwin",
+      "portrait": 12,
+      "town": "evermore",
+      "gx": 18,
+      "gy": 9,
+      "sprite": "eldwin",
+      "color": "#5a4a2a",
+      "accent": "#c9a227",
+      "topics": [
+        {
+          "id": "market"
+        },
+        {
+          "id": "routes"
+        }
+      ],
+      "locales": {
+        "en": {
+          "name": "Eldwin of the Royal Market",
+          "desc": "A factor who tracks goods and rumors moving between the federation's three castles.",
+          "greeting": "Welcome to the royal market. If you came through Crossvale, tell me whether the road cost more in coin or bruises.",
+          "profile": {
+            "background": "Eldwin began as a tally clerk and built a trading house by noticing shortages before richer merchants did. He now represents several small caravans that cannot afford court patrons.",
+            "personality": "Polished, curious, and cautiously ambitious. He treats information as merchandise but dislikes monopolies in either goods or power.",
+            "desire": "Keep all three trade routes open and turn the small merchants into a political bloc the castellans must respect.",
+            "fear": "A succession struggle that closes the gates and lets the great houses seize the markets.",
+            "secret": "He quietly copies unusual shipping seals for Kael and has seen the mark from the goblin orders on crates routed beyond the valley.",
+            "voice": "Courteous commercial speech with comparisons between politics and supply. He asks questions indirectly and rarely gives information without testing its value."
+          },
+          "topics": {
+            "market": {
+              "label": "The royal market",
+              "text": "Stock up at the eastern shop. Some travelers walk to save the coach fare; the southern valley is a poor place to discover that thrift and wisdom are different virtues."
+            },
+            "routes": {
+              "label": "Trade routes",
+              "text": "Coaches bind the three castles to Evermore in a day's travel—when the lords agree roads should remain roads instead of borders. No driver takes the old valley track now."
+            }
+          },
+          "questDialogue": {}
+        },
+        "ko": {
+          "name": "왕도 시장의 엘드윈",
+          "desc": "연방의 세 성 사이를 오가는 물자와 소문을 함께 세는 중개상.",
+          "greeting": "왕도 시장에 오신 걸 환영합니다. 크로스베일을 지나오셨다면 길값을 돈으로 더 치렀는지, 멍으로 더 치렀는지 알려 주시겠습니까?",
+          "profile": {
+            "background": "엘드윈은 장부를 적는 서기로 시작해 부유한 상인들보다 먼저 품귀를 알아채며 상단을 일구었다. 지금은 궁정 후원자를 둘 형편이 안 되는 작은 대상들을 대신한다.",
+            "personality": "세련되고 호기심이 많으며 조심스럽게 야심을 품는다. 정보를 상품처럼 다루지만 물건이든 권력이든 독점을 싫어한다.",
+            "desire": "세 교역로를 모두 열어 두고 작은 상인들을 성주들이 무시할 수 없는 정치 세력으로 만들고 싶어 한다.",
+            "fear": "계승 분쟁으로 성문이 닫히고 대가문들이 시장을 빼앗을까 두려워한다.",
+            "secret": "수상한 화물 인장을 몰래 베껴 카엘에게 보내며, 고블린 작전 문서의 문양을 계곡 너머로 향한 상자에서 본 적이 있다.",
+            "voice": "정치와 물류를 견주는 공손한 장사꾼 말투. 질문을 에둘러 던지고 정보의 값을 가늠하기 전에는 좀처럼 내주지 않는다."
+          },
+          "topics": {
+            "market": {
+              "label": "왕도 시장",
+              "text": "동쪽 만물상에서 물약을 갖추십시오. 역마차 삯을 아끼려 걷는 분도 있지만, 남쪽 계곡은 절약과 현명이 다른 덕목임을 배우기엔 썩 좋지 않은 곳이지요."
+            },
+            "routes": {
+              "label": "교역로",
+              "text": "성주들이 길을 국경으로 바꾸지 않기로 합의한 동안에는, 역마차가 세 성과 에버모어를 하루거리로 잇습니다. 계곡의 옛길은 이제 어떤 마부도 받지 않지만요."
+            }
+          },
+          "questDialogue": {}
+        }
+      }
+    },
+    {
+      "id": "sister",
+      "portrait": 44,
+      "town": "evermore",
+      "gx": 9,
+      "gy": 9,
+      "sprite": "sister_lia",
+      "color": "#4a4470",
+      "accent": "#e8dcc0",
+      "quests": [
+        "side_ruined_temple"
+      ],
+      "topics": [
+        {
+          "id": "cathedral"
+        },
+        {
+          "id": "blessing"
+        },
+        {
+          "id": "old_temple"
+        },
+        {
+          "id": "old_temple_after",
+          "requires": {
+            "quests": [
+              "side_ruined_temple"
+            ]
+          }
+        }
+      ],
+      "locales": {
+        "en": {
+          "name": "Sister Lia",
+          "desc": "A cathedral archivist who ministers to travelers and keeps records the clergy would rather forget.",
+          "greeting": "May the dawn walk beside you. Sit if you are weary; truth is not the only burden made lighter when shared.",
+          "profile": {
+            "background": "Lia entered the cathedral as a foundling and was taught letters by Bishop Karmath before his coastal congregation was condemned. She now tends pilgrims and the sealed archive of her former mentor's trial.",
+            "personality": "Gentle, attentive, and quietly stubborn. She offers comfort freely but will not confuse institutional authority with moral innocence.",
+            "desire": "Learn what truly happened at the abandoned temple and give Karmath a final rest without letting the cathedral erase its own part in the tragedy.",
+            "fear": "That Karmath deserved his condemnation—or worse, that he did not and the church knowingly sacrificed him.",
+            "secret": "She removed one page from Karmath's trial record because it bore the same unknown seal reported in recent valley disturbances.",
+            "voice": "Soft, deliberate speech shaped by dawn, ash, bells, and prayer. She uses honorific language, asks rather than commands, and becomes simplest when grief breaks through."
+          },
+          "topics": {
+            "cathedral": {
+              "label": "The cathedral",
+              "text": "The western cathedral cleanses what clings to body and spirit. We keep our doors open because corruption grows quickest wherever the suffering are first asked for proof."
+            },
+            "blessing": {
+              "label": "A blessing",
+              "text": "Messengers once rested here with sealed letters against their hearts. May the dawn show you the road—and show you whose shadow falls across it."
+            },
+            "old_temple": {
+              "label": "The abandoned temple",
+              "text": "Karmath taught me my letters before they named him fallen. He sealed the coastal temple from within when his congregation turned to blood rites. Now sailors say a bishop walks behind its broken windows."
+            },
+            "old_temple_after": {
+              "label": "Karmath's final rest",
+              "text": "You gave my teacher the mercy our verdict denied him. The records prove the force that raised him came from outside the temple. Someone made a corpse repeat an old crime to hide a new one."
+            }
+          },
+          "questDialogue": {
+            "side_ruined_temple": {
+              "offer": "The man walking in that ruin was once my teacher, Bishop Karmath. He sealed the doors himself when his own clergy embraced blood rites. Please reach the broken altar, end what holds him there, and bring me whatever record the dead were made to guard.",
+              "active": "The temple stands along the coast road. Karmath's altar lies beyond the flooded western passage. If he speaks, remember that whatever answers may be using his grief as well as his body.",
+              "complete": "His handwriting... and another hand beneath it. You freed him, but the power that raised him came from beyond those walls. Thank you. I will mourn my teacher tonight and begin accusing the living tomorrow."
+            }
+          }
+        },
+        "ko": {
+          "name": "성직자 리아",
+          "desc": "순례자를 돌보며 성직자들이 잊고 싶어 하는 기록까지 지키는 대성당 문서관.",
+          "greeting": "여명이 그대들과 함께 걷기를. 지쳤다면 앉으세요. 함께 나누면 가벼워지는 짐은 진실만이 아니니까요.",
+          "profile": {
+            "background": "리아는 고아로 대성당에 들어와 해안 교구가 단죄되기 전 카르마스 주교에게 글을 배웠다. 지금은 순례자들을 돌보며 옛 스승의 재판 기록이 봉인된 문서고를 지킨다.",
+            "personality": "다정하고 세심하지만 조용히 완고하다. 위로는 아끼지 않되 제도의 권위를 도덕적 결백과 혼동하지 않는다.",
+            "desire": "버려진 사원에서 실제로 무슨 일이 있었는지 밝히고, 대성당의 책임까지 지워 버리지 않은 채 카르마스를 마지막으로 쉬게 하고 싶어 한다.",
+            "fear": "카르마스가 정말 단죄받아 마땅했을까 두려워하며, 그보다 더 끔찍하게는 무고한 줄 알면서도 교회가 그를 희생했을 가능성을 두려워한다.",
+            "secret": "카르마스의 재판 기록에서 한 장을 빼돌렸다. 최근 계곡의 사건에서 보고된 것과 같은 정체불명의 인장이 찍혀 있었기 때문이다.",
+            "voice": "여명과 재, 종과 기도의 이미지를 쓰는 부드럽고 신중한 말투. 높임말을 쓰고 명령보다 부탁을 하며, 슬픔이 드러날수록 문장이 단순해진다."
+          },
+          "topics": {
+            "cathedral": {
+              "label": "대성당",
+              "text": "서쪽 대성당은 몸과 영혼에 달라붙은 것을 씻어 냅니다. 고통받는 이에게 먼저 증명을 요구하는 곳에서 타락은 가장 빨리 자라기에, 저희는 문을 열어 두지요."
+            },
+            "blessing": {
+              "label": "축복",
+              "text": "옛 사자들도 봉인된 편지를 가슴에 품고 이곳에서 쉬었답니다. 여명이 그대들의 길을 밝히고, 그 길 위에 누구의 그림자가 드리웠는지도 보여 주기를."
+            },
+            "old_temple": {
+              "label": "버려진 사원",
+              "text": "사람들이 카르마스 주교를 타락했다고 부르기 전에, 그분은 제게 글을 가르쳐 주셨어요. 교구가 피의 의식에 빠지자 안에서 문을 봉인한 것도 그분이었지요. 그런데 이제 선원들은 깨진 창문 뒤로 주교가 걷는다고 말합니다."
+            },
+            "old_temple_after": {
+              "label": "카르마스의 안식",
+              "text": "우리의 판결이 허락하지 않았던 자비를 제 스승께 베풀어 주셨군요. 기록을 보면 그분을 일으킨 힘은 사원 밖에서 왔어요. 누군가 새로운 죄를 숨기려고 시체에게 오래된 죄를 되풀이시킨 겁니다."
+            }
+          },
+          "questDialogue": {
+            "side_ruined_temple": {
+              "offer": "그 폐허를 걷는 이는 한때 제 스승이었던 카르마스 주교예요. 교구가 피의 의식에 빠지자 그분이 직접 안에서 문을 봉인했습니다. 부탁드려요. 무너진 제단에 이르러 그분을 붙든 힘을 끊고, 죽은 이들이 지키게 된 기록을 가져와 주세요.",
+              "active": "사원은 해안길에 있어요. 카르마스의 제단은 물에 잠긴 서쪽 통로 너머입니다. 그분이 말을 하더라도, 대답하는 것이 육신뿐 아니라 슬픔까지 빌려 쓰고 있을지 모른다는 걸 기억해 주세요.",
+              "complete": "그분의 필체예요… 그리고 그 아래 다른 손이 있군요. 그분을 놓아주셨지만, 일으킨 힘은 벽 밖에서 왔어요. 고맙습니다. 오늘 밤은 스승을 애도하고, 내일부터는 산 자들을 의심하겠어요."
+            }
+          }
+        }
+      }
+    }
+  ]
+}

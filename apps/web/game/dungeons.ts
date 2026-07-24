@@ -22,6 +22,7 @@ import {
 } from "./royal-tomb";
 import { ExploreState, G } from "./state";
 import type { EventNode } from "./scenes/event";
+import { storyEvent } from "./defs";
 
 export type DungeonId = "fortress" | "fortressB1" | "temple" | "royalTomb";
 
@@ -221,17 +222,17 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
       caption: "지하 알현실",
       near: 2,
       retreat: { x: 12, y: 3, facing: 1 },
-      nodes: [
-        { name: "???", portrait: "dark", text: "향 연기 너머, 천 예복의 고블린이 지팡이를 짚고 몸을 돌린다. 「…쥐새끼들이 알현실까지 기어들어 왔군.」" },
-        {
-          text: "마을을 약탈하고 사람들을 가둔 원흉 — 이 소굴의 주인이 모습을 드러냈다. 저 주술사를 쓰러뜨리면 크로스베일의 위협도 끝난다.",
+      nodes: (() => {
+        const nodes = storyEvent("grumbark_intro") as EventNode[];
+        nodes[1] = {
+          ...nodes[1],
           choices: [
             { label: "무기를 뽑는다 (전투 개시)", goto: 2 },
             { label: "물러난다", effect: () => { G._fled = true; }, goto: "end" },
           ],
-        },
-        { name: "그름바크 (고블린 주술사)", portrait: "dark", text: "친위대여, 앞을 막아라! 크로스베일을 삼키기 전에… 먼저 너희를 불꽃과 어둠에 바치마!" },
-      ],
+        };
+        return nodes;
+      })(),
     }],
     symbols: {
       guard1: { toast: { text: "친위대 하나가 무너졌다!", color: C.elite } },
@@ -283,17 +284,17 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
       caption: "버려진 사원의 제단",
       near: 2,
       retreat: { x: 8, y: 5, facing: 1 },
-      nodes: [
-        { name: "???", portrait: "dark", text: "갈라진 제단 앞에서 썩은 향 냄새와 함께 검은 예복의 사제가 몸을 일으킨다." },
-        {
-          name: "되살아난 주교 카르마스", portrait: "dark", text: "산 자들이 진실을 탐하다니… 이 사원의 마지막 기도에 너희 이름도 새겨 주마.",
+      nodes: (() => {
+        const nodes = storyEvent("karmath_intro") as EventNode[];
+        nodes[1] = {
+          ...nodes[1],
           choices: [
             { label: "무기를 든다 (전투 개시)", goto: 2 },
             { label: "물러난다", effect: () => { G._fled = true; }, goto: "end" },
           ],
-        },
-        { text: "일행이 무기를 고쳐 잡고 제단 앞으로 나섰다. 되살아난 주교의 의식을 여기서 끊어야 한다." },
-      ],
+        };
+        return nodes;
+      })(),
     }],
     symbols: {
       warden: { toast: { text: "일행이 제단을 지키던 촉수꽃을 베어 냈다!", color: C.elite } },

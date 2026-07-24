@@ -20,7 +20,7 @@ function mkMember(id: string, over: Partial<Member> = {}): Member {
       body: { name: "", def: 0 },
     },
     back: false,
-    apUnspent: 0, spUnspent: 0, trained: {},
+    apUnspent: 0, spUnspent: 0, trained: {}, learnedSpells: [],
     ...over,
   };
 }

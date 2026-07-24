@@ -50,8 +50,8 @@ export interface SkillMeta {
   icon?: string;
   /** 아이콘·강조선에 사용하는 학파 고유색. */
   color?: number;
-  /** 주문 위력·내성 DC에 사용하는 능력치 */
-  castingAttr?: "int" | "wit";
+  /** 주문 위력·내성 DC에 사용하는 능력치 — witint는 wit/int 중 높은 쪽 */
+  castingAttr?: "int" | "wit" | "witint";
 }
 
 export const SKILLS: Record<SkillId, SkillMeta> = {
@@ -72,8 +72,8 @@ export const SKILLS: Record<SkillId, SkillMeta> = {
   spirit: { name: "영혼", icon: "◉", color: 0xb395e8, cat: "마법", tradition: "self", castingAttr: "wit" },
   mind: { name: "정신", icon: "◇", color: 0xd182cf, cat: "마법", tradition: "self", castingAttr: "wit" },
   body: { name: "육체", icon: "♥", color: 0xe47b91, cat: "마법", tradition: "self", castingAttr: "wit" },
-  light: { name: "빛", icon: "✦", color: 0xf3d66e, cat: "마법", tradition: "divine", castingAttr: "wit" },
-  dark: { name: "어둠", icon: "◐", color: 0x8c82b8, cat: "마법", tradition: "divine", castingAttr: "wit" },
+  light: { name: "빛", icon: "✦", color: 0xf3d66e, cat: "마법", tradition: "divine", castingAttr: "witint" },
+  dark: { name: "어둠", icon: "◐", color: 0x8c82b8, cat: "마법", tradition: "divine", castingAttr: "witint" },
   trapfinding: { name: "함정", cat: "보조" },
   identify: { name: "식별", cat: "보조" },
   perception: { name: "인지", cat: "보조" },

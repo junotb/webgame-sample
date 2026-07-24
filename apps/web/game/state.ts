@@ -6,7 +6,7 @@ import {
   CraftRecipe, DamageType, ENEMY_DEFS, EQUIP_SLOTS, EquipSlot, Equipped, FIELD_SKILLS,
   FieldSkillDef, FISTS, GearDef, LD, MATERIALS, MaterialId, OwnedGear,
   PARTY_SLOTS, RANK_MULT, Rank, RARITY_META, ResistTable, SkillId, Tier, WeaponReach, WeaponView,
-  SKILLS, canCraft, emptyItems, emptyMats, rollDrop, rollMaterialDrop,
+  SKILLS, canCraft, emptyItems, emptyMats, isMagicSchool, rollDrop, rollMaterialDrop,
 } from "./defs";
 import { gameplayRandom } from "./core/random";
 import { abilityMod } from "./core/dice";
@@ -41,6 +41,8 @@ export interface Member {
   spUnspent: number;
   /** 개별 훈련으로 올린 스킬 랭크 (클래스 부여분과 max 병합, 상한=전문가) */
   trained: Partial<Record<SkillId, Rank>>;
+  /** 길드에서 골드로 습득한 주문 id 목록 (starter 주문은 랭크만으로 안다) */
+  learnedSpells: string[];
 }
 
 /** 캐릭터 생성 화면 → newGame 으로 전달되는 멤버 구성 */
@@ -105,7 +107,11 @@ export interface GameState {
   /** 현재 머무는 마을 (townScene이 참조) */
   town: TownId;
   /** 마을 방문과 휴식으로 흐르는 월드 시계 (구버전 세이브는 최초 접근 시 생성) */
-  townWorld?: { day: number; minuteOfDay: number; visits: Partial<Record<TownId, number>> };
+  townWorld?: {
+    day: number; minuteOfDay: number; visits: Partial<Record<TownId, number>>;
+    /** 현상금 길드의 이번 주(7일 단위) 주간 현상금 추첨 결과 */
+    weeklyBounty?: { week: number; id: string };
+  };
   /** 던전별 탐험 상태 — explore: 고블린 요새 지상 / basement: 요새 지하 / temple: 버려진 사원 / tomb: 왕실 묘소 */
   explore: ExploreState;
   basement: ExploreState;
@@ -168,7 +174,7 @@ export function newGame(configs: CreationConfig[]): void {
         },
         /* 기본 진형: 앞 두 명 전열, 뒤 두 명 후열 */
         back: i >= 2,
-        apUnspent: 0, spUnspent: 0, trained: {},
+        apUnspent: 0, spUnspent: 0, trained: {}, learnedSpells: [],
       };
     }),
     items: { ...emptyItems(), potion: 3, mpotion: 2 },
@@ -500,9 +506,11 @@ export function memberStats(m: Member): Stats {
   };
 }
 
-/** 학파 메타데이터에 따른 마법 기반치 — 원소는 지능, 자아·신성은 지혜 */
+/** 학파 메타데이터에 따른 마법 기반치 — 원소는 지능, 자아는 지혜, 신성은 둘 중 높은 쪽 */
 export function magicBase(s: Stats, skill: SkillId): number {
-  return SKILLS[skill].castingAttr === "wit" ? s.magWit : s.magInt;
+  const attr = SKILLS[skill].castingAttr;
+  if (attr === "witint") return Math.max(s.magWit, s.magInt);
+  return attr === "wit" ? s.magWit : s.magInt;
 }
 
 /** 진형 변경 가능 여부 — 전열→후열은 전열에 최소 한 명이 남아야 한다 */
@@ -606,22 +614,37 @@ export function gainExpParty(n: number): string[] {
   return ups;
 }
 
+/** 주문 습득 여부 — 마법은 starter이거나 길드에서 구매한 것만 안다. 비마법 기술은 랭크만 따진다 */
+export function knowsSpell(
+  m: Member,
+  spell: Pick<AbilityDef | FieldSkillDef, "id" | "skill" | "starter">,
+): boolean {
+  if (!isMagicSchool(spell.skill)) return true;
+  return !!spell.starter || m.learnedSpells.includes(spell.id);
+}
+
+/** 주문 습득 (길드 구매) — 중복 습득은 무시 */
+export function learnSpell(m: Member, abilityId: string): void {
+  if (!m.learnedSpells.includes(abilityId)) m.learnedSpells.push(abilityId);
+}
+
 export type BattleAbility = AbilityDef & { rank: Rank };
 export function memberAbilities(m: Member): BattleAbility[] {
   const r = memberRanks(m);
   return ABILITIES
-    .filter((a) => (r[a.skill] ?? 0) >= a.min)
+    .filter((a) => (r[a.skill] ?? 0) >= a.min && knowsSpell(m, a))
     .map((a) => ({ ...a, rank: (r[a.skill] ?? 0) as Rank }));
 }
 
 export function rankMult(rank: Rank): number { return RANK_MULT[rank]; }
 
-/** 필드 스킬: 시전 가능한 멤버(랭크 충족)를 함께 반환 */
+/** 필드 스킬: 랭크와 주문 습득 조건을 모두 충족한 시전자를 함께 반환 */
 export interface FieldSkillEntry { def: FieldSkillDef; caster: Member; }
 export function partyFieldSkills(): FieldSkillEntry[] {
   const out: FieldSkillEntry[] = [];
   for (const f of FIELD_SKILLS) {
-    const casters = G.party.filter((m) => (memberRanks(m)[f.skill] ?? 0) >= f.min);
+    const casters = G.party.filter((m) =>
+      (memberRanks(m)[f.skill] ?? 0) >= f.min && knowsSpell(m, f));
     if (!casters.length) continue;
     // MP가 가장 넉넉한 멤버가 시전
     casters.sort((a, b) => b.mp - a.mp);

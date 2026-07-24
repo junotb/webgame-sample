@@ -535,9 +535,10 @@ export class BattleEngine {
 
   /** 제어기 내성 DC = 8 + 시전 능력치 수정치 + 숙련(랭크) (5e 주문 내성 DC와 동일) */
   private saveDC(s: Stats, a: BattleAbility): number {
-    const key = a.kind === "mag" || a.kind === "heal"
-      ? (SKILLS[a.skill].castingAttr === "wit" ? s.mods.wit : s.mods.int)
-      : s.mods.might;
+    const attr = SKILLS[a.skill].castingAttr;
+    const magKey = attr === "witint" ? Math.max(s.mods.wit, s.mods.int)
+      : attr === "wit" ? s.mods.wit : s.mods.int;
+    const key = a.kind === "mag" || a.kind === "heal" ? magKey : s.mods.might;
     return 8 + key + a.rank;
   }
 

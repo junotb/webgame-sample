@@ -9,8 +9,9 @@ apps/web/
 ├── app/                    Next.js App Router와 폰트
 ├── components/             React 캔버스 마운트 셸
 ├── game/
-│   ├── defs/               정적 정의와 타입
-│   ├── core/               전투·주사위·상태·난수 등 순수 규칙
+│   ├── defs/               정적 정의와 타입 (퀘스트·NPC 데이터는 content/에서 로드)
+│   ├── content/            콘텐츠 JSON(퀘스트·NPC·마을 대화)과 스키마 검증
+│   ├── core/               전투·주사위·상태·난수·이벤트 버스 등 순수 규칙
 │   ├── scenes/             PixiJS 화면과 입력
 │   ├── town/               마을 데이터·컴파일·시설 규칙
 │   ├── ui/                 재사용 오버레이 UI
@@ -95,6 +96,42 @@ index.ts ─→ 모든 씬을 조립하고 nav를 배선
 - 씬 전환은 `nav`를 통해 요청하고 실제 배선은 `game/index.ts`에서 한다.
 - 데이터 검증이 가능한 경우 렌더링 전에 순수 함수에서 실패시킨다.
 - 게임 판정용 난수와 장식용 난수를 섞지 않는다.
+
+## 이벤트 버스 (`core/events.ts`)
+
+씬·규칙은 사실만 발행하고(`scene:enter`, `battle:start/end`, `quest:rewarded`),
+BGM 선택 같은 횡단 관심사는 구독으로 처리한다. BGM 배선은 `audio.ts`의
+`installAudioBridge()`가 boot에서 설치한다. 씬에서 오디오 API를 직접 부르지 않는다.
+
+## 콘텐츠 JSON (`game/content/`)
+
+퀘스트(`quests.json`)·NPC(`npcs.json`)·마을 시설 대화(`town-dialogue.json`)는
+코드가 아닌 데이터로 둔다. `content/validate.ts`가 모듈 로드 시 스키마를 검증해
+잘못된 편집을 부팅·테스트에서 즉시 잡는다. 시설의 구조(좌표·수련·전직)는
+TS(`town/crossvale.ts` 등)에 남고, `town/dialogue.ts`의 `attachDialogue()`가 둘을 합친다.
+
+## 세이브 마이그레이션 (`persistence.ts`)
+
+세이브는 버전 봉투(`SaveEnvelope`)로 저장한다. 상태 형태를 바꿀 때는
+`SAVE_VERSION`을 올리고 `MIGRATIONS`에 `이전버전 → 다음버전` 단계 함수를 하나 추가한다.
+`MIN_SAVE_VERSION`(현재 6) 미만은 명확한 메시지로 거부한다. 슬롯 저장은
+직렬화본을 왕복 검증한 뒤에만 덮어쓰고 직전 세이브를 `:prev` 백업 키에 남긴다.
+손상 시 로드는 백업으로 한 번 더 시도한다.
+
+## 크래시 가드·입력·플랫폼
+
+- 씬 구축(`switchScene`)·씬 틱(`SceneScope.ticker`)·입력 디스패치에서 터진 예외는
+  `core.ts`의 `reportCrash()`가 잡아 "세이브는 안전하다" 복구 화면을 띄운다.
+- 트윈 틱은 델타를 100ms로 클램프해 탭 복귀 시 연출이 건너뛰지 않게 한다.
+- 탭이 가려지면 ticker와 BGM을 멈추고 복귀 시 잇는다. 렌더 해상도는 DPR(상한 2)을 따른다.
+- 터치 기기(pointer: coarse)에서는 `ui/touch-controls.ts`가 가상 컨트롤러를 설치하며,
+  논리 액션(`dispatchAction`)과 홀드 키 기록만으로 씬과 대화한다.
+
+## 에셋 재생성 (`scripts/build-assets.mjs`)
+
+`npm run assets:build`는 04-asset-manifest.md의 "확정 매핑" 표와
+`scripts/audio-manifest.json`을 읽어 원본(assets-source)에서 런타임(public)을
+결정적으로 재생성한다. `npm run assets:check`는 복사 없이 md5 일치만 검증한다(CI용).
 
 ## nav 라우터
 

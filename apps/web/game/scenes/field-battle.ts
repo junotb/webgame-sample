@@ -10,7 +10,7 @@ import {
 import {
   BASIC_ATTACK, BattleEngine, BattleEvent, BattleResult, TurnState,
 } from "../core/battle-engine";
-import { CONSUMABLES, CONSUMABLE_IDS, DAMAGE_META, ENEMY_DEFS, SKILLS } from "../defs";
+import { CONSUMABLES, CONSUMABLE_IDS, DAMAGE_META, ENEMY_DEFS, SKILLS, abilityIcon } from "../defs";
 import { STATUS_COLOR, STATUS_NAME } from "../core/statuses";
 import { spawnImpactBurst } from "../battle-fx";
 import { visualRandom } from "../core/random";
@@ -21,6 +21,7 @@ import {
 import { G } from "../state";
 import { buildPartyHUD } from "../hud";
 import { LOG_HEAL, LOG_HURT, createBattleLog } from "../ui/battle-log";
+import { events } from "../core/events";
 
 export interface FieldBattleHandle {
   dispose(): void;
@@ -48,6 +49,7 @@ export function fieldBattleOverlay(opts: {
   sceneRoot.addChild(root);
   setModeBadge("전투! — " + opts.caption, C.blood);
   ui.inBattle = true;
+  events.emit("battle:start", {});
 
   /* 어두운 장막 — 필드 배경 위에 전장을 깐다 */
   const veil = new PIXI.Graphics();
@@ -177,6 +179,7 @@ export function fieldBattleOverlay(opts: {
     finished = true;
     closeCmds();
     ui.inBattle = false;
+    events.emit("battle:end", { outcome: result });
     setModeBadge(opts.prevBadge, C.green);
     wait(650, () => {
       scope.dispose();
@@ -258,7 +261,8 @@ export function fieldBattleOverlay(opts: {
     tt.x = p.x + 14; tt.y = p.y + 10; cmdRoot.addChild(tt);
     abilities.forEach((a, i) => {
       const school = SKILLS[a.skill];
-      const b = button(`${school.icon ? `${school.icon} ` : ""}${a.name} (MP ${a.mp})`, 240, 38,
+      const icon = abilityIcon(a);
+      const b = button(`${icon ? `${icon} ` : ""}${a.name} (MP ${a.mp})`, 240, 38,
         () => useAbility(m, a), {
           size: 13,
           border: school.color,

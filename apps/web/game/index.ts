@@ -4,8 +4,10 @@
  *  반환된 cleanup을 unmount 시 호출하면 PIXI/리스너가 정리된다.
  * ===================================================================== */
 import {
-  attachInput, destroyPixi, initPixi, nav, switchScene,
+  C, H, W, attachInput, destroyPixi, initPixi, nav, overlayRoot, switchScene, txt,
 } from "./core";
+import { installAudioBridge, installAudioUnlock } from "./audio";
+import { installTouchControls } from "./ui/touch-controls";
 import { loadPortraits } from "./portraits";
 import { loadMonsterIcons } from "./monsters";
 import { loadNpcSprites } from "./npc-sprites";
@@ -29,10 +31,26 @@ export async function boot(
   fonts: { displayFont: string; bodyFont: string },
 ): Promise<() => void> {
   await initPixi(el, fonts);
-  await Promise.all([
-    loadPortraits(), loadTiles(), loadMonsterIcons(), loadNpcSprites(), loadBattleFx(), loadItemIcons(),
-  ]);
+
+  /* 에셋 프리로드 — 진행 표시. 맵·시트가 늘어 로드가 길어져도 빈 화면이 없다. */
+  const loaders: Array<[string, () => Promise<unknown>]> = [
+    ["초상화", loadPortraits], ["타일", loadTiles], ["몬스터", loadMonsterIcons],
+    ["NPC", loadNpcSprites], ["전투 효과", loadBattleFx], ["아이템", loadItemIcons],
+  ];
+  const loadingT = txt("불러오는 중 … 0%", 20, C.dim, { align: "center" });
+  loadingT.anchor.set(0.5); loadingT.x = W / 2; loadingT.y = H / 2;
+  overlayRoot.addChild(loadingT);
+  let done = 0;
+  await Promise.all(loaders.map(([name, load]) => load().then(() => {
+    done++;
+    if (!loadingT.destroyed) loadingT.text = `불러오는 중 — ${name} 완료 (${Math.round((done / loaders.length) * 100)}%)`;
+  })));
+  loadingT.destroy();
+
   attachInput();
+  const disposeAudio = installAudioUnlock();
+  const disposeAudioBridge = installAudioBridge();
+  const disposeTouch = installTouchControls();
 
   /* nav 배선 — 씬 간 순환 import 방지 라우터 */
   nav.title = () => switchScene(titleScene);
@@ -42,11 +60,11 @@ export async function boot(
     prologueEvent();
   };
   nav.town = (spawn?: TownSpawn) => switchScene(() => townScene(spawn));
-  nav.letter = () => switchScene(letterEvent);
+  nav.letter = () => { letterEvent(); }; // 오버레이 — 현재 씬(마을) 위에 표시
   nav.explore = (id: DungeonId, at?: { x: number; y: number; facing: 0 | 1 | 2 | 3 }) =>
     switchScene(() => dungeonScene(id, at));
   nav.field = (id: FieldId) => switchScene(() => fieldScene(id));
-  nav.ending = () => switchScene(endingEvent);
+  nav.ending = () => { endingEvent(); }; // 오버레이 — 던전 씬 위에 표시
 
   switchScene(titleScene);
 
@@ -63,5 +81,5 @@ export async function boot(
     };
   }
 
-  return () => destroyPixi();
+  return () => { disposeTouch(); disposeAudioBridge(); disposeAudio(); destroyPixi(); };
 }

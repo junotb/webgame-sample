@@ -6,13 +6,12 @@ import * as PIXI from "pixi.js";
 import {
   CONSUMABLES, CRAFT_RECIPES, MATERIALS, MATERIAL_IDS, MaterialId, canCraft,
 } from "../defs";
-import { C, H, W, backdrop, button, overlayRoot, panel, toast, txt } from "../core";
+import { C, H, W, button, openOverlay, panel, toast, txt } from "../core";
 import { G, craftItem, sellMaterial } from "../state";
 import { itemIcon } from "../item-icons";
 
 export function openCraftMenu(onChange: () => void, onClose?: () => void): void {
-  const root = new PIXI.Container(); root.zIndex = 66; overlayRoot.addChild(root);
-  root.addChild(backdrop());
+  const ov = openOverlay({ onClose }); const root = ov.root;
   const PW = 880, PH = 170 + CRAFT_RECIPES.length * 54;
   const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; root.addChild(p);
   const bx = p.x, by = p.y;
@@ -66,6 +65,6 @@ export function openCraftMenu(onChange: () => void, onClose?: () => void): void 
   }
 
   render();
-  const closeBtn = button("닫기", 100, 40, () => { root.destroy({ children: true }); onClose?.(); }, { size: 15 });
+  const closeBtn = button("닫기", 100, 40, () => ov.close(), { size: 15 });
   closeBtn.x = bx + PW - 128; closeBtn.y = by + PH - 56; root.addChild(closeBtn);
 }

@@ -9,8 +9,9 @@ import {
 import { carriageUnlocked, questNotify, questStatus, updateText } from "../core/quests";
 import { ParticleKind, particleField, swaySprite } from "../ambient";
 import { gameplayRandom } from "../core/random";
-import { RARITY_META, gearDisplayName } from "../defs";
+import { RARITY_META, gearDisplayName, storyEvent } from "../defs";
 import { FieldBattleHandle, fieldBattleOverlay } from "./field-battle";
+import { BattleResult } from "../core/battle-engine";
 import { LEVEL_AP, LEVEL_SP, gainExpParty, rollDropToBag, rollMaterialToState } from "../state";
 import {
   DUNGEON_ENTRANCE_KIND, ENTRANCE_WALL_SKIN, EntranceVisual,
@@ -25,6 +26,8 @@ import { buildPartyHUD } from "../hud";
 import { ENEMY_DEFS } from "../defs";
 import { drawMonster, MonsterView, monsterPx } from "../monsters";
 import { EventNode, eventOverlay } from "./event";
+import { EventBattleHandle, eventBattle } from "./event-battle";
+import { events } from "../core/events";
 
 interface FieldNode {
   entity: FPEntity;
@@ -53,20 +56,22 @@ function fieldBuilding(style: Extract<NonNullable<FieldDeco["visual"]>, { kind: 
     return { node, worldH: 0.94, baseH: 135 };
   }
 
-  if (style === "cage_full" || style === "cage_empty") {
-    g.rect(-58, -82, 116, 82).fill({ color: 0x2a2118, alpha: 0.3 });
-    if (style === "cage_full") {
-      for (const x of [-27, 2, 28]) {
-        g.circle(x, -42 - (x % 3), 9).fill(0xc7a078);
-        g.roundRect(x - 9, -33, 18, 27, 6).fill(x === 2 ? 0x52616a : 0x765745);
-      }
-    } else {
-      g.poly([-34, -6, -12, -20, 12, -8, 36, -18]).stroke({ width: 5, color: 0x9c885b });
-    }
-    for (const x of [-58, -29, 0, 29, 58]) g.rect(x - 3, -92, 6, 92).fill(0x60452b);
-    g.rect(-63, -96, 126, 9).rect(-63, -8, 126, 9).fill(0x805d38);
+  if (style === "cage_full") {
+    /* 포로는 그리지 않는다 — 갇힌 이들의 사연은 조사 지문이 전한다 */
     node.addChild(g);
-    return { node, worldH: 0.86, baseH: 98 };
+    for (const cx of [-38, 38]) {
+      const cage = tileSprite("cage_obj", 2);
+      cage.anchor.set(0.5, 1); cage.x = cx;
+      node.addChild(cage);
+    }
+    return { node, worldH: 0.98, baseH: 146 };
+  }
+
+  if (style === "cage_empty") {
+    const cage = tileSprite("cage_blood_obj", 2);
+    cage.anchor.set(0.5, 1);
+    node.addChild(g, cage);
+    return { node, worldH: 0.98, baseH: 150 };
   }
 
   if (style === "goblin_totem") {
@@ -242,11 +247,15 @@ function fieldBackground(field: FieldData): { node: PIXI.Container; tick?: (delt
 export function fieldScene(id: FieldId): SceneHandle {
   const F: FieldData = FIELDS[id];
   const scope = new SceneScope();
+  events.emit("scene:enter", { kind: "field", id });
   setModeBadge(F.badge, C.green);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
   const map = F.map;
   let px = F.start.x, py = F.start.y;
   let facing: Facing = F.start.facing;
+  /* 필드 진입·전투 직후에는 일정 걸음 동안 랜덤 인카운터를 걸지 않는다 */
+  const ENCOUNTER_GRACE_STEPS = 6;
+  let encounterGrace = ENCOUNTER_GRACE_STEPS;
   let activeEvent: SceneHandle | null = null;
 
   const background = fieldBackground(F);
@@ -307,6 +316,7 @@ export function fieldScene(id: FieldId): SceneHandle {
 
   /* ---- 필드 배치 전투 (정예·퀘스트 몬스터) — 처치하면 respawnDays 뒤 재등장 ---- */
   let activeBattle: FieldBattleHandle | null = null;
+  let activeEventBattle: EventBattleHandle | null = null;
   const worldDay = () => G.townWorld?.day ?? 1;
   const fightKey = (d: FieldDeco) => `${F.id}:${d.id}`;
   const fightDown = (d: FieldDeco): boolean => {
@@ -387,6 +397,7 @@ export function fieldScene(id: FieldId): SceneHandle {
       return;
     }
     /* 랜덤 인카운터 — 잡몹은 지도에 보이지 않고 걷다가 마주친다 (출구 칸은 안전) */
+    if (encounterGrace > 0) { encounterGrace--; return; }
     if (F.encounters && !exitAt(px, py) && gameplayRandom() < F.encounters.chance) {
       const groups = F.encounters.groups;
       const group = groups[Math.min(groups.length - 1, Math.floor(gameplayRandom() * groups.length))];
@@ -410,7 +421,7 @@ export function fieldScene(id: FieldId): SceneHandle {
     nav.town(exit.target.spawn);
   }
   function interact(): void {
-    if (activeEvent || activeBattle) return;
+    if (activeEvent || activeBattle || activeEventBattle) return;
     const front = { x: px + DIR[facing].dx, y: py + DIR[facing].dy };
     const exit = exitAt(px, py) ?? exitAt(front.x, front.y);
     if (exit) { leave(exit); return; }
@@ -449,80 +460,87 @@ export function fieldScene(id: FieldId): SceneHandle {
     logT.text = d.text;
   }
 
-  /* ---- 조우 전투 — 승리 보상(골드·경험치·드랍·퀘스트 카운트)과 리스폰 기록 ---- */
+  /* ---- 전투 결산 — 승리 보상(골드·경험치·드랍·퀘스트 카운트)과 리스폰 기록 ---- */
+  function settleBattle(result: BattleResult, enemies: string[], deco: FieldDeco | null): void {
+    encounterGrace = ENCOUNTER_GRACE_STEPS;
+    if (result === "victory") {
+      let gold = 0, exp = 0;
+      for (const id of enemies) { gold += ENEMY_DEFS[id].gold; exp += ENEMY_DEFS[id].exp; }
+      G.gold += gold;
+      const ups = gainExpParty(exp);
+      toast(`승리! 경험치 +${exp}, ${gold} G`, C.border);
+      const mats: string[] = [];
+      for (const id of enemies) {
+        const mat = rollMaterialToState(id);
+        if (mat) mats.push(mat);
+      }
+      if (mats.length) toast(`재료 획득: ${mats.join(" · ")}`, C.border);
+      for (const id of enemies) {
+        const drop = rollDropToBag(ENEMY_DEFS[id].tier);
+        if (drop) {
+          const rm = RARITY_META[drop.rarity];
+          toast(`${gearDisplayName(drop)} 획득! [${rm.name}]${drop.identified ? "" : " — 미확인 (식별 필요)"} · 가방에 보관`, rm.color);
+        }
+        questNotify({ t: "kill", defId: id }).forEach((up) => toast(updateText(up), C.border));
+      }
+      if (ups.length) toast(`레벨 업! ${ups.join(" · ")} — 모험 수첩에서 성장 포인트를 배분하라 (능력치 ${LEVEL_AP}·스킬 ${LEVEL_SP})`, C.border);
+      if (deco?.fight) {
+        G.fieldFights[fightKey(deco)] = worldDay();
+        nodesById.delete(deco.id);
+        logT.text = `${deco.name}을(를) 물리쳤다. 며칠이 지나면 다시 나타날 것이다.`;
+      } else {
+        logT.text = "일행은 적을 물리치고 길을 재촉했다.";
+      }
+      refresh();
+    } else if (result === "defeat") {
+      G.party.forEach((m) => { if (m.hp <= 0) m.hp = 1; });
+      toast("일행이 전멸했다… 눈을 뜬 곳은 크로스베일의 여관이었다.", C.blood);
+      G.town = "crossvale";
+      nav.town();
+    } else {
+      logT.text = "일행은 무사히 떨어져 나왔다. 갈 길을 서둘러야 한다.";
+      refresh();
+    }
+  }
+
   function startBattle(enemies: string[], caption: string, deco: FieldDeco | null): void {
     if (activeBattle) return;
     activeBattle = fieldBattleOverlay({
       enemies, caption, prevBadge: F.badge,
       onEnd: (result) => {
         activeBattle = null;
+        settleBattle(result, enemies, deco);
+      },
+    });
+  }
+
+  /* ---- 산적 매복 — 이벤트 전투: 포위 대화 → 강제 전투 → 승리 대화 ---- */
+  function startBanditAmbush(): void {
+    const nodes: EventNode[] = storyEvent("bandit_ambush");
+    const enemies = ["banditBoss", "bandit", "bandit", "bandit"];
+    activeEventBattle = eventBattle({
+      intro: nodes.slice(0, 3),
+      outro: nodes.slice(3),
+      enemies,
+      caption: "산적의 포위",
+      prevBadge: F.badge,
+      introOpts: { caption: "산적의 포위", dim: true },
+      onEnd: (result) => {
+        activeEventBattle = null;
+        settleBattle(result, enemies, null);
         if (result === "victory") {
-          let gold = 0, exp = 0;
-          for (const id of enemies) { gold += ENEMY_DEFS[id].gold; exp += ENEMY_DEFS[id].exp; }
-          G.gold += gold;
-          const ups = gainExpParty(exp);
-          toast(`승리! 경험치 +${exp}, ${gold} G`, C.border);
-          const mats: string[] = [];
-          for (const id of enemies) {
-            const mat = rollMaterialToState(id);
-            if (mat) mats.push(mat);
-          }
-          if (mats.length) toast(`재료 획득: ${mats.join(" · ")}`, C.border);
-          for (const id of enemies) {
-            const drop = rollDropToBag(ENEMY_DEFS[id].tier);
-            if (drop) {
-              const rm = RARITY_META[drop.rarity];
-              toast(`${gearDisplayName(drop)} 획득! [${rm.name}]${drop.identified ? "" : " — 미확인 (식별 필요)"} · 가방에 보관`, rm.color);
-            }
-            questNotify({ t: "kill", defId: id }).forEach((up) => toast(updateText(up), C.border));
-          }
-          if (ups.length) toast(`레벨 업! ${ups.join(" · ")} — 모험 수첩에서 성장 포인트를 배분하라 (능력치 ${LEVEL_AP}·스킬 ${LEVEL_SP})`, C.border);
-          if (deco?.fight) {
-            G.fieldFights[fightKey(deco)] = worldDay();
-            nodesById.delete(deco.id);
-            logT.text = `${deco.name}을(를) 물리쳤다. 며칠이 지나면 다시 나타날 것이다.`;
-          } else {
-            logT.text = "일행은 적을 물리치고 길을 재촉했다.";
-          }
-          refresh();
-        } else if (result === "defeat") {
-          G.party.forEach((m) => { if (m.hp <= 0) m.hp = 1; });
-          toast("일행이 전멸했다… 눈을 뜬 곳은 크로스베일의 여관이었다.", C.blood);
-          G.town = "crossvale";
-          nav.town();
-        } else {
-          logT.text = "일행은 무사히 떨어져 나왔다. 갈 길을 서둘러야 한다.";
+          G.flags.banditsDefeated = true;
+          const updates = questNotify({ t: "clear", symbol: "valley_bandits" });
+          logT.text = updates[0] ? updateText(updates[0]) : "일행이 산적 무리를 소탕했다. 현상금 길드에 보고해야 한다.";
           refresh();
         }
       },
     });
   }
 
-  function startBanditAmbush(): void {
-    const nodes: EventNode[] = [
-      { text: "좁은 계곡의 앞뒤에서 바위가 굴러 떨어진다. 숨어 있던 산적들이 퇴로를 막고 모습을 드러냈다." },
-      { name: "산적 두목", portrait: "dark", text: "짐과 돈을 내려놔라. 그러면 목숨만은 살려 주지." },
-      { text: "일행이 대답 대신 무기를 뽑아 들었다. 마차로를 막아 온 무리를 쓰러뜨려야 길이 다시 열린다." },
-      { text: "일행은 포위를 뚫고 산적 무리를 제압했다. 통행 재개를 위해 크로스베일 현상금 길드에 결과를 보고해야 한다." },
-    ];
-    activeEvent = eventOverlay(nodes, () => {
-      activeEvent = null;
-      G.flags.banditsDefeated = true;
-      const updates = questNotify({ t: "clear", symbol: "valley_bandits" });
-      logT.text = updates[0] ? updateText(updates[0]) : "일행이 산적 무리를 소탕했다. 현상금 길드에 보고해야 한다.";
-      refresh();
-    }, { caption: "산적의 포위" });
-  }
-
   /* ---- 1장: 강변 덤불 뒤에서 성을 빠져나간 어린 군주를 찾아낸다 ---- */
   function startPrinceEncounter(): void {
-    const nodes: EventNode[] = [
-      { text: "모닥불 뒤 덤불이 흔들리더니, 흙투성이 사냥복 차림의 소년이 나뭇가지를 창처럼 겨눈 채 뛰쳐나왔다. 자수 놓인 외투가 소년의 어깨에서 흘러내린다." },
-      { name: "어린 군주", portrait: "hero", text: "다, 다가오지 마라! …궁정에서 보낸 자들인가? 돌아가서 전해라. 옥좌는 아버지의 것이지 내 것이 아니라고!" },
-      { text: "일행은 무기를 거두고 모닥불 곁에 앉았다. 헤르만의 편지를 전한 사자들이라는 말에, 소년의 굳은 어깨가 조금씩 풀렸다." },
-      { name: "어린 군주", portrait: "hero", text: "…아버지의 마지막 손님들이었군. 귀족들은 하루 종일 서약이니 인장이니 떠들면서, 정작 아버지 이야기는 아무도 하지 않아. 왕관은… 아직 너무 무거워." },
-      { text: "밤이슬이 내리기 시작했다. 일행은 어린 군주를 호위해 남문으로 향했다. 성으로 돌아가면 시종장 오르윈에게 알려야 한다." },
-    ];
+    const nodes: EventNode[] = storyEvent("prince_encounter");
     activeEvent = eventOverlay(nodes, () => {
       activeEvent = null;
       G.flags.princeFound = true;
@@ -552,13 +570,13 @@ export function fieldScene(id: FieldId): SceneHandle {
   };
   return {
     onKey(k) {
-      if (activeBattle) { // 전투 오버레이는 버튼으로만 조작 — 예외: L은 전투 기록 토글
-        if (k === "l" || k === "L" || k === "ㅣ") activeBattle.toggleLog();
+      if (activeBattle || activeEventBattle) { // 전투 오버레이는 버튼으로만 조작 — 예외: L은 전투 기록 토글
+        if (k === "l" || k === "L" || k === "ㅣ") (activeBattle ?? activeEventBattle)?.toggleLog();
         return;
       }
       if (activeEvent) { activeEvent.onKey?.(k); return; }
       KEYMAP[k.length === 1 ? k.toLowerCase() : k]?.();
     },
-    dispose() { activeBattle?.dispose(); activeEvent?.dispose?.(); scope.dispose(); },
+    dispose() { activeBattle?.dispose(); activeEventBattle?.dispose(); activeEvent?.dispose?.(); scope.dispose(); },
   };
 }

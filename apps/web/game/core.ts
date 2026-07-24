@@ -2,6 +2,7 @@
  * core.ts — PIXI 셋업, 씬 매니저, 트윈, 공용 UI 헬퍼, nav 라우터
  * ===================================================================== */
 import * as PIXI from "pixi.js";
+import { resumeAudio, suspendAudio } from "./audio";
 import { TweenQueue } from "./core/tween-queue";
 import type { FieldId } from "./fieldmaps";
 import type { DungeonId } from "./dungeons";
@@ -21,17 +22,27 @@ export const C = {
 } as const;
 export const hexs = (n: number) => "#" + n.toString(16).padStart(6, "0");
 
+/* ---- 오버레이 레이어 — zIndex는 반드시 여기서 가져다 쓴다 (쌓임 순서의 단일 출처) ----
+ * menu 대역(60~)은 openOverlay 스택이 깊이만큼 +1씩 올려 자동 배정한다. */
+export const Z = {
+  hud: 40, badge: 50, menu: 60, event: 75,
+  flash: 98, toast: 99, touch: 150, crash: 200,
+} as const;
+
 /* ---- 폰트 (boot에서 next/font 패밀리 주입) ---- */
 export const FONTS = { display: "serif", body: "sans-serif" };
 
 /* ---- PIXI 앱 (boot에서 생성) ---- */
 export let app: PIXI.Application = null as unknown as PIXI.Application;
+let onVisibility: (() => void) | null = null;
 export let sceneRoot: PIXI.Container = null as unknown as PIXI.Container;
 export let overlayRoot: PIXI.Container = null as unknown as PIXI.Container;
 
 /* ---- 씬 핸들 ---- */
 export interface SceneHandle {
   onKey?: (k: string) => void;
+  /** 논리 액션 입력 — 키보드 외 입력원(게임패드·터치)을 더할 때의 공용 통로 */
+  onAction?: (a: InputAction) => void;
   dispose?: () => void;
 }
 let currentScene: SceneHandle | null = null;
@@ -40,8 +51,54 @@ export function switchScene(builder: () => SceneHandle): void {
   if (currentScene?.dispose) currentScene.dispose();
   /* 이전 씬이 예약한 wait/tween 콜백을 제거해 전환 후 실행되지 않게 한다. */
   tweenQueue.cancelSceneTweens();
+  /* 씬에 딸린 메뉴 오버레이가 다음 씬으로 넘어가지 않게 정리한다 (onClose는 부르지 않는다). */
+  closeAllOverlays();
   sceneRoot.removeChildren().forEach((c) => c.destroy({ children: true }));
-  currentScene = builder();
+  try { currentScene = builder(); }
+  catch (err) { currentScene = null; reportCrash(err); }
+}
+
+/* ---- 크래시 가드 ----
+ * 씬 구축·틱·입력 처리에서 터진 예외를 잡아 복구 화면을 띄운다.
+ * 세이브는 명시적 저장 시에만 쓰므로 진행 중 크래시가 슬롯을 건드리지 않는다. */
+let crashScreen: PIXI.Container | null = null;
+export function reportCrash(err: unknown): void {
+  console.error("[게임 크래시]", err);
+  if (crashScreen) return; /* 복구 화면 위에서 또 터져도 중첩하지 않는다 */
+  try {
+    if (currentScene?.dispose) { try { currentScene.dispose(); } catch { /* 이미 죽은 씬 */ } }
+    currentScene = null;
+    tweenQueue.cancelSceneTweens();
+    sceneRoot.removeChildren().forEach((c) => c.destroy({ children: true }));
+    closeAllOverlays();
+    ui.inBattle = false;
+    setModeBadge(null);
+
+    const c = new PIXI.Container();
+    c.zIndex = Z.crash;
+    const g = new PIXI.Graphics();
+    g.rect(0, 0, W, H).fill({ color: 0x05040a, alpha: 0.92 });
+    const p = panel(560, 240);
+    p.x = (W - 560) / 2; p.y = (H - 240) / 2;
+    const title = txt("문제가 발생했다", 26, C.blood, { serif: true, weight: "900" });
+    title.anchor.set(0.5); title.x = W / 2; title.y = p.y + 52;
+    const msg = err instanceof Error ? err.message : String(err);
+    const body = txt(`예기치 못한 오류로 화면을 복구했다.\n저장된 세이브는 안전하다.\n\n${msg}`.slice(0, 300),
+      15, C.dim, { align: "center", wrap: 500 });
+    body.anchor.set(0.5, 0); body.x = W / 2; body.y = p.y + 78;
+    const btn = button("타이틀로 돌아가기", 220, 46, () => {
+      crashScreen?.destroy({ children: true });
+      crashScreen = null;
+      nav.title();
+    });
+    btn.x = (W - 220) / 2; btn.y = p.y + 240 - 66;
+    c.addChild(g, p, title, body, btn);
+    overlayRoot.addChild(c);
+    crashScreen = c;
+  } catch (fatal) {
+    /* 복구 화면조차 못 그리면 콘솔에만 남긴다 — 세이브는 여전히 안전하다. */
+    console.error("[게임 크래시] 복구 화면 표시 실패", fatal);
+  }
 }
 
 /** 장면이 등록한 ticker·리스너 같은 자원을 한 번에 정리한다. */
@@ -55,8 +112,13 @@ export class SceneScope {
   }
 
   ticker(fn: (ticker: PIXI.Ticker) => void): void {
-    app.ticker.add(fn);
-    this.add(() => app.ticker.remove(fn));
+    /* 씬 틱에서 터진 예외는 크래시 가드로 넘겨 매 프레임 반복되지 않게 한다. */
+    const guarded = (t: PIXI.Ticker) => {
+      try { fn(t); }
+      catch (err) { app.ticker.remove(guarded); reportCrash(err); }
+    };
+    app.ticker.add(guarded);
+    this.add(() => app.ticker.remove(guarded));
   }
 
   dispose(): void {
@@ -81,7 +143,39 @@ export interface GameNavigator {
 }
 export const nav = {} as GameNavigator;
 
-/* ---- 키 입력 ---- */
+/* ---- 키 입력 · 액션 매핑 ----
+ * 씬은 물리 키 대신 논리 액션으로 입력을 받을 수 있다.
+ * 새 입력원(게임패드·터치)은 dispatchAction만 호출하면 전 씬에 전달된다. */
+export type InputAction = "up" | "down" | "left" | "right" | "confirm" | "cancel" | "menu";
+
+const KEY_BINDINGS: Record<string, InputAction> = {
+  ArrowUp: "up", w: "up", W: "up",
+  ArrowDown: "down", s: "down", S: "down",
+  ArrowLeft: "left", a: "left", A: "left",
+  ArrowRight: "right", d: "right", D: "right",
+  " ": "confirm", Enter: "confirm", z: "confirm", Z: "confirm",
+  Escape: "cancel", x: "cancel", X: "cancel",
+  m: "menu", M: "menu",
+};
+
+export function actionOf(key: string): InputAction | null {
+  return KEY_BINDINGS[key] ?? null;
+}
+
+/** 액션에 묶인 키 중 하나라도 눌려 있는지 — 이동 홀드 판정용 */
+export function actionDown(action: InputAction): boolean {
+  for (const key in KEY_BINDINGS) if (KEY_BINDINGS[key] === action && keys[key]) return true;
+  return false;
+}
+
+/** 게임패드·터치 등 외부 입력원의 진입점 */
+export function dispatchAction(a: InputAction): void {
+  try {
+    if (a === "cancel" && closeTopOverlay()) return; /* 오버레이가 소비 */
+    currentScene?.onAction?.(a);
+  } catch (err) { reportCrash(err); }
+}
+
 export const keys: Record<string, boolean> = {};
 let onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 let onKeyUp: ((e: KeyboardEvent) => void) | null = null;
@@ -89,7 +183,15 @@ let onKeyUp: ((e: KeyboardEvent) => void) | null = null;
 export function attachInput(): void {
   onKeyDown = (e) => {
     keys[e.key] = true;
-    currentScene?.onKey?.(e.key);
+    try {
+      const a = actionOf(e.key);
+      /* cancel은 열린 오버레이가 먼저 소비한다 — 씬에는 전달하지 않는다. */
+      if (a === "cancel" && closeTopOverlay()) { /* consumed */ }
+      else {
+        currentScene?.onKey?.(e.key);
+        if (a) currentScene?.onAction?.(a);
+      }
+    } catch (err) { reportCrash(err); }
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
   };
   onKeyUp = (e) => { keys[e.key] = false; };
@@ -132,7 +234,8 @@ export function waitP(ms: number): Promise<void> {
   return new Promise((res) => wait(ms, res));
 }
 function tickTweens(): void {
-  tweenQueue.tick(app.ticker.deltaMS);
+  /* 탭 복귀·프레임 스파이크의 거대 델타로 트윈·대기가 한 번에 건너뛰지 않게 상한을 둔다. */
+  tweenQueue.tick(Math.min(app.ticker.deltaMS, 100));
 }
 
 /* ---- UI 헬퍼 ---- */
@@ -235,7 +338,7 @@ export function toast(msg: string, color: number = C.text): void {
   const p = panel(t.width + 40, 44, { fill: 0x000000, alpha: 0.8, border: C.border });
   t.x = 20; t.y = (44 - t.height) / 2;
   c.addChild(p, t);
-  c.x = (W - p.width) / 2; c.y = 90; c.alpha = 0; c.zIndex = 99;
+  c.x = (W - p.width) / 2; c.y = 90; c.alpha = 0; c.zIndex = Z.toast;
   overlayRoot.addChild(c);
   tween(c, { alpha: 1, y: 100 }, 250, { global: true });
   tween({ v: 0 }, { v: 1 }, 1600, {
@@ -247,7 +350,7 @@ export function toast(msg: string, color: number = C.text): void {
 export function fullFlash(color = 0xffffff, dur = 350, cb?: () => void): void {
   const g = new PIXI.Graphics();
   g.rect(0, 0, W, H).fill(color);
-  g.alpha = 0; g.zIndex = 98; overlayRoot.addChild(g);
+  g.alpha = 0; g.zIndex = Z.flash; overlayRoot.addChild(g);
   tween(g, { alpha: 1 }, dur / 2, {
     global: true,
     onDone: () => {
@@ -267,20 +370,92 @@ export function setModeBadge(label: string | null, color: number = C.text): void
   g.roundRect(0, 0, t.width + 26, 28, 14).fill({ color: 0x000000, alpha: 0.55 });
   g.roundRect(0, 0, t.width + 26, 28, 14).stroke({ width: 1, color, alpha: 0.7 });
   t.x = 13; t.y = 5;
-  c.addChild(g, t); c.x = 16; c.y = 14; c.zIndex = 50;
+  c.addChild(g, t); c.x = 16; c.y = 14; c.zIndex = Z.badge;
   overlayRoot.addChild(c); modeBadge = c;
 }
 
-/* ---- 메뉴 잠금 (오버레이 중복 방지) · 전투 중 여부 (진형 변경 등 자유 행동 잠금) ---- */
-export const ui = { menuOpen: false, inBattle: false };
+/* =====================================================================
+ * 오버레이 스택 매니저
+ *  - 메뉴류 오버레이는 전부 openOverlay로 연다: zIndex 자동 배정(Z.menu+깊이),
+ *    스크림(backdrop) 자동 부착, Esc(cancel)로 최상단부터 닫힘.
+ *  - ui.menuOpen은 스택에서 파생된다 — 직접 대입하지 않는다.
+ * ===================================================================== */
+export interface OverlayHandle {
+  root: PIXI.Container;
+  /** 오버레이를 닫는다. silent면 onClose 콜백을 부르지 않는다. */
+  close: (opts?: { silent?: boolean }) => void;
+}
+
+interface OverlayEntry {
+  root: PIXI.Container;
+  scrim: PIXI.Graphics;
+  onClose?: () => void;
+  escClose: boolean;
+}
+const overlayStack: OverlayEntry[] = [];
+
+export function openOverlay(opts: { onClose?: () => void; escClose?: boolean } = {}): OverlayHandle {
+  const root = new PIXI.Container();
+  root.zIndex = Z.menu + overlayStack.length;
+  const scrim = backdrop();
+  root.addChild(scrim);
+  /* 딤이 겹쳐 과하게 어두워지지 않게, 덮이는 오버레이의 스크림은 잠시 숨긴다. */
+  const below = overlayStack[overlayStack.length - 1];
+  if (below) below.scrim.visible = false;
+  overlayRoot.addChild(root);
+  const entry: OverlayEntry = { root, scrim, onClose: opts.onClose, escClose: opts.escClose ?? true };
+  overlayStack.push(entry);
+  return { root, close: (o) => closeOverlayEntry(entry, o?.silent ?? false) };
+}
+
+function closeOverlayEntry(entry: OverlayEntry, silent: boolean): void {
+  const i = overlayStack.indexOf(entry);
+  if (i < 0) return; /* 이미 닫혔다 (중복 close 무해) */
+  overlayStack.splice(i, 1);
+  entry.root.destroy({ children: true });
+  const top = overlayStack[overlayStack.length - 1];
+  if (top) top.scrim.visible = true;
+  if (!silent) entry.onClose?.();
+}
+
+/** cancel 입력의 오버레이 소비 — 최상단을 닫았으면(또는 잠겨 있으면) true. */
+export function closeTopOverlay(): boolean {
+  const top = overlayStack[overlayStack.length - 1];
+  if (!top) return false;
+  if (top.escClose) closeOverlayEntry(top, false);
+  return true;
+}
+
+/** 크래시 복구·씬 전환용 일괄 정리. onClose 콜백은 부르지 않는다. */
+export function closeAllOverlays(): void {
+  while (overlayStack.length) overlayStack.pop()!.root.destroy({ children: true });
+}
+
+/* ---- 메뉴 잠금 (스택 파생) · 전투 중 여부 (진형 변경 등 자유 행동 잠금) ---- */
+export const ui = {
+  inBattle: false,
+  get menuOpen(): boolean { return overlayStack.length > 0; },
+};
 
 /* ---- 라이프사이클 ---- */
 export async function initPixi(el: HTMLElement, fonts: { displayFont: string; bodyFont: string }): Promise<void> {
   FONTS.display = fonts.displayFont;
   FONTS.body = fonts.bodyFont;
   app = new PIXI.Application();
-  await app.init({ width: W, height: H, background: hexs(C.bg), antialias: true });
+  /* resolution: 고DPI 화면에서도 선명하게 렌더한다(상한 2 — 과도한 픽셀 비용 방지).
+   * 표시 크기는 globals.css의 .game-root canvas 규칙이 반응형으로 맞추므로
+   * autoDensity(인라인 스타일 주입)는 쓰지 않는다. */
+  await app.init({
+    width: W, height: H, background: hexs(C.bg), antialias: true,
+    resolution: Math.min(window.devicePixelRatio || 1, 2),
+  });
   el.appendChild(app.canvas);
+  /* 탭이 가려지면 루프·오디오를 멈춰 배터리를 아끼고, 복귀 시 이어 간다. */
+  onVisibility = () => {
+    if (document.hidden) { app.ticker.stop(); suspendAudio(); }
+    else { app.ticker.start(); resumeAudio(); }
+  };
+  document.addEventListener("visibilitychange", onVisibility);
   app.stage.sortableChildren = true;
   sceneRoot = new PIXI.Container(); sceneRoot.zIndex = 0;
   overlayRoot = new PIXI.Container(); overlayRoot.zIndex = 10;
@@ -289,11 +464,13 @@ export async function initPixi(el: HTMLElement, fonts: { displayFont: string; bo
   app.ticker.add(tickTweens);
 }
 export function destroyPixi(): void {
+  if (onVisibility) { document.removeEventListener("visibilitychange", onVisibility); onVisibility = null; }
   if (currentScene?.dispose) currentScene.dispose();
   currentScene = null;
+  crashScreen = null;
   tweenQueue.clear();
   modeBadge = null;
-  ui.menuOpen = false;
+  closeAllOverlays();
   ui.inBattle = false;
   detachInput();
   if (app) { app.destroy(true, { children: true }); app = null as unknown as PIXI.Application; }

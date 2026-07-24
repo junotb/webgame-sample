@@ -5,63 +5,31 @@
 import { SceneHandle, nav } from "../core";
 import { G } from "../state";
 import { questNotify, reportQuest } from "../core/quests";
+import { storyEvent } from "../defs";
 import { tileTex } from "../tiles";
-import { EventNode, eventOverlay, eventScene } from "./event";
+import { EventNode, eventOverlay } from "./event";
 
 /* ---- 서장: 헤르만의 편지 (크로스베일 도착 후 대화 오버레이) ---- */
 export function prologueEvent(): SceneHandle {
-  const nodes: EventNode[] = [
-    {
-      text: "오랜 훈련을 마친 일행이 마침내 세상에 나섰다.",
-    },
-    {
-      text: "첫 임무는 대스승 헤르만의 봉인된 편지를 에버모어 성의 연방 군주에게 직접 전달하는 일이다.",
-    },
-    {
-      text: "하지만 지금은 크로스베일 밖으로 나가는 길부터 막혀 있다. 남동쪽 마구간에서 에버모어행 이동편을 알아봐야 한다.",
-    },
-  ];
+  const nodes: EventNode[] = storyEvent("prologue");
   return eventOverlay(nodes);
 }
 
-/* ---- 편지 전달: 에버모어 성 알현실 ---- */
+/* ---- 편지 전달: 에버모어 성 알현실 (현재 씬 위 일러스트 오버레이) ---- */
 export function letterEvent(): SceneHandle {
-  const nodes: EventNode[] = [
-    {
-      name: "연방 군주", portrait: "elder",
-      text: "먼 길 왔구나, 헤르만의 제자들이여. 그 노인의 봉인이 틀림없구나 — 어디 보자.",
-    },
-    {
-      name: "연방 군주", portrait: "elder",
-      text: "…헤르만의 뜻은 분명히 받았다. 막힌 계곡길까지 직접 뚫고 왔다지. 편지와 함께 그 공도 기억하겠다.",
-    },
-    {
-      text: "헤르만의 편지가 연방 군주에게 무사히 전달되었다. 첫 임무는 끝났다. 다음 소식이 올 때까지, 일행의 소임은 크로스베일 사람들을 돕는 일이다.",
-    },
-  ];
-  return eventScene(nodes, () => {
+  const nodes: EventNode[] = storyEvent("letter");
+  return eventOverlay(nodes, () => {
     G.flags.letter = true;
     questNotify({ t: "talk", npc: "federal_lord" });
     reportQuest("main_deliver_hermans_letter");
     nav.town("throne");
   },
     /* 알현실 일러스트 — 왕궁 홀 원화(royal_hall layer_03)의 깃발 걸린 고딕 회랑 */
-    { caption: "알현 — 에버모어 성", bgColor: 0x12102a, illustration: tileTex("royal_hall_wall") });
+    { caption: "알현 — 에버모어 성", illustration: tileTex("royal_hall_wall") });
 }
 
-/* ---- 그름바크 토벌: 현상금 완수 — 배후의 그림자를 남긴다 ---- */
+/* ---- 그름바크 토벌: 현상금 완수 — 배후의 그림자를 남긴다 (던전 씬 위 오버레이) ---- */
 export function endingEvent(): SceneHandle {
-  const nodes: EventNode[] = [
-    {
-      name: "그름바크 (고블린 주술사)", portrait: "dark",
-      text: "쿨럭… 작은 불꽃들이, 제법이구나. 하나 기억해 두어라 — 크로스베일을 원한 건, 내가 아니다…. 인장의 주인은, 계곡 너머에서 지켜보고 있다…",
-    },
-    {
-      text: "쓰러진 주술사가 마지막으로 가리킨 것은 작전 문서의 그 인장 — 고블린들을 움직인 배후가 계곡 너머에 따로 있다는 뜻이다.",
-    },
-    {
-      text: "지휘관을 잃은 요새와 평야의 고블린들은 오래 버티지 못한다. 남은 일은 크로스베일의 현상금 길드에 토벌 결과를 보고하는 것이다.",
-    },
-  ];
-  return eventScene(nodes, () => nav.town(), { caption: "지하 알현실 — 지휘관의 최후", bgColor: 0x0e0c1c });
+  const nodes: EventNode[] = storyEvent("grumbark_ending");
+  return eventOverlay(nodes, () => nav.town(), { caption: "지하 알현실 — 지휘관의 최후", dim: true });
 }

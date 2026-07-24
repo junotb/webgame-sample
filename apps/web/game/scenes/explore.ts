@@ -6,7 +6,7 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  CONSUMABLES, CONSUMABLE_IDS, ENEMY_DEFS, RANK_NAME, RARITY_META, gearDisplayName,
+  CONSUMABLES, CONSUMABLE_IDS, ENEMY_DEFS, RANK_NAME, RARITY_META, abilityIcon, gearDisplayName,
 } from "../defs";
 import {
   C, H, SceneHandle, SceneScope, W, button, fullFlash, nav, panel, sceneRoot,
@@ -38,6 +38,7 @@ import { LOG_HEAL, createBattleLog } from "../ui/battle-log";
 import { eventOverlay } from "./event";
 import { createCombatPresenter } from "./explore/combat-presenter";
 import { ParticleKind, particleField } from "../ambient";
+import { events } from "../core/events";
 
 const ROTATE_COSTS_TURN = false; // 회전도 턴을 소모시키려면 true
 const AGGRO_R = 6;               // 어그로 반경 (체비쇼프 + LOS)
@@ -49,6 +50,7 @@ const VEIL_TURNS = 30;           // 어둠의 장막 지속 턴
 export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing: 0 | 1 | 2 | 3 }): SceneHandle {
   const D = DUNGEONS[id];
   const scope = new SceneScope();
+  events.emit("scene:enter", { kind: "dungeon", id });
   setModeBadge(D.badge, C.green);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
   const map = D.map;
@@ -685,7 +687,8 @@ export function dungeonScene(id: DungeonId, at?: { x: number; y: number; facing:
       const row = i % rows;
       const x = p.x + 14 + col * 445;
       const y = p.y + 40 + row * 48;
-      const b = button(`${a.name} [${RANK_NAME[a.rank]}]`, 180, 38, () => {
+      const icon = abilityIcon(a);
+      const b = button(`${icon ? `${icon} ` : ""}${a.name} [${RANK_NAME[a.rank]}]`, 180, 38, () => {
         if (m.mp < a.mp) { toast("MP 부족!", C.dim); return; }
         if (a.cover) {
           closeSub();

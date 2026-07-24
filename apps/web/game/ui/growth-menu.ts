@@ -1,13 +1,12 @@
 import * as PIXI from "pixi.js";
 import { ATTRS, ATTR_IDS, CLASSES, MAGIC_TRADITIONS, RANK_NAME, SKILLS, SkillId, skillLabel } from "../defs";
-import { C, H, W, backdrop, button, overlayRoot, panel, txt } from "../core";
+import { C, H, W, button, openOverlay, panel, txt } from "../core";
 import {
   Member, memberRanks, spendAttrPoint, spendSkillPoint, trainableNext,
 } from "../state";
 
 export function openGrowthMenu(m: Member, onClose?: () => void): void {
-  const root = new PIXI.Container(); root.zIndex = 72; overlayRoot.addChild(root);
-  root.addChild(backdrop());
+  const ov = openOverlay({ onClose }); const root = ov.root;
   const PW = 960, PH = 680;
   const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; root.addChild(p);
   const bx = p.x, by = p.y;
@@ -67,6 +66,6 @@ export function openGrowthMenu(m: Member, onClose?: () => void): void {
   }
 
   render();
-  const closeBtn = button("닫기", 100, 36, () => { root.destroy({ children: true }); onClose?.(); }, { size: 15 });
+  const closeBtn = button("닫기", 100, 36, () => ov.close(), { size: 15 });
   closeBtn.x = bx + PW - 128; closeBtn.y = by + 18; root.addChild(closeBtn);
 }

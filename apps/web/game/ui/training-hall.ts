@@ -1,74 +1,76 @@
 import * as PIXI from "pixi.js";
-import { CLASSES, ClassId, RANK_NAME, SHOP_ARMORS, SHOP_WEAPONS, SKILLS } from "../defs";
-import { C, H, W, backdrop, button, overlayRoot, panel, toast, txt } from "../core";
+import { CLASSES, ClassId, MagicSchoolId, RANK_NAME, SKILLS, isMagicSchool } from "../defs";
+import { C, H, W, button, openOverlay, panel, toast, txt } from "../core";
 import { G, Member, canClassChange, classOptions, doClassChange, memberRanks } from "../state";
 import type { TownFacilityDef } from "../town/types";
 import { SKILL_PRICE } from "../towns";
 import { pickMember } from "./member-picker";
-import { openShopMenu } from "./shop-menu";
+import { openSpellShop } from "./spell-shop";
 import { keeperSays } from "../town/content";
+
+export type HallTab = "train" | "class";
 
 export interface TrainingHallOptions {
   onChange: () => void;
   onClose: () => void;
+  /** 처음 보여줄 탭 */
+  initialTab?: HallTab;
+  /** 무기·방어구점: 장비 구매 버튼 — 상점 오버레이로 전환 */
+  onShop?: () => void;
 }
 
-/** 무기·방어구점과 마법 길드의 구매·수련·전직 흐름. */
-export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions): void {
-  const root = new PIXI.Container(); root.zIndex = 60; overlayRoot.addChild(root);
-  root.addChild(backdrop());
-  const p = panel(860, 560); p.x = (W - 860) / 2; p.y = (H - 560) / 2; root.addChild(p);
-  const content = new PIXI.Container(); root.addChild(content);
-  const closeBtn = button("나가기", 110, 40, close, { size: 15 });
-  closeBtn.x = p.x + 860 - 136; closeBtn.y = p.y + 560 - 56; root.addChild(closeBtn);
+/* 우측 세로 내비게이션 + 좌측 콘텐츠 한 화면 — 페이지를 쌓지 않는다. */
+const PW = 860, PH = 560;
+const NAV_W = 180;
+const NAV_X = PW - NAV_W - 28;
+const CONTENT_W = NAV_X - 44;
 
-  const shopGoods = f.id === "weapon" ? SHOP_WEAPONS : f.id === "armor" ? SHOP_ARMORS : null;
+/** 무기·방어구점과 마법 길드의 수련·전직 흐름. */
+export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions): void {
+  const ov = openOverlay({ onClose: opts.onClose }); const root = ov.root;
+  const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; root.addChild(p);
+  const content = new PIXI.Container(); root.addChild(content);
+
   const magic = f.id === "spiritGuild" || f.id === "elementsGuild";
   const trainLabel = magic ? "마법 수련" : "기술 수련";
   const pathNames = (f.classes ?? []).map((c) => CLASSES[c].name);
+
+  /* ---- 우측 내비게이션 ---- */
+  let tab: HallTab = opts.initialTab ?? (f.trains?.length ? "train" : "class");
+  const navBtns: Partial<Record<HallTab, ReturnType<typeof button>>> = {};
+  let navY = p.y + 88;
+  const navBtn = (label: string, onTap: () => void) => {
+    const b = button(label, NAV_W, 46, onTap, { size: 15 });
+    b.x = p.x + NAV_X; b.y = navY; navY += 56; root.addChild(b);
+    return b;
+  };
+  if (opts.onShop) navBtn("장비 구매", () => { ov.close({ silent: true }); opts.onShop!(); });
+  /* 마법 길드: 학파 주문을 골드로 습득하는 상점으로 전환 (같은 깊이) */
+  const spellSchools = (f.trains ?? []).filter(isMagicSchool) as MagicSchoolId[];
+  if (spellSchools.length) navBtn("주문 습득", () => {
+    ov.close({ silent: true });
+    openSpellShop(f, spellSchools, { onChange: opts.onChange, onClose: opts.onClose });
+  });
+  if (f.trains?.length) navBtns.train = navBtn(trainLabel, () => setTab("train"));
+  if (f.classes?.length) navBtns.class = navBtn("전직 상담", () => setTab("class"));
+  const closeBtn = button("나가기", NAV_W, 44, () => ov.close(), { size: 15 });
+  closeBtn.x = p.x + NAV_X; closeBtn.y = p.y + PH - 60; root.addChild(closeBtn);
+
+  function setTab(next: HallTab): void {
+    tab = next;
+    (Object.keys(navBtns) as HallTab[]).forEach((k) => { navBtns[k]!.alpha = k === tab ? 1 : 0.55; });
+    if (tab === "train") trainPage(); else classPage();
+  }
 
   function clear(): void { content.removeChildren().forEach((child) => child.destroy({ children: true })); }
   function header(text: string): void {
     const heading = txt(text, 24, C.border, { serif: true });
     heading.x = p.x + 28; heading.y = p.y + 18; content.addChild(heading);
   }
-  function destroy(): void { root.destroy({ children: true }); }
-  function close(): void { destroy(); opts.onClose(); }
-
-  function main(): void {
-    clear(); header(f.name);
-    const greeting = txt(keeperSays(f.keeper, "뭘 배우고 싶은지 말해 봐요. 맞는 길을 같이 찾아보죠."), 13, C.dim, { wrap: 760 });
-    greeting.x = p.x + 28; greeting.y = p.y + 54; content.addChild(greeting);
-    let i = 0;
-    const option = (label: string, desc: string, onTap: () => void) => {
-      const b = button(label, 340, 52, onTap, { size: 16 });
-      b.x = p.x + 28; b.y = p.y + 88 + i * 66; content.addChild(b);
-      const d = txt(desc, 13, C.dim, { wrap: 420 });
-      d.x = p.x + 390; d.y = p.y + 88 + i * 66 + 16; content.addChild(d);
-      i++;
-    };
-    if (shopGoods) {
-      option("장비 구매", keeperSays(f.keeper, f.id === "weapon" ? "무기와 방패는 이쪽이에요." : "갑옷과 장신구는 이쪽에서 봐요."), () => {
-        destroy();
-        openShopMenu({
-          title: f.id === "weapon" ? "무기점 — 담금질한 강철" : "방어구점 — 견고한 수호",
-          goods: shopGoods,
-          kind: f.id === "weapon" ? "weapon" : "armor",
-          keeper: f.keeper,
-          onChange: opts.onChange,
-          onClose: () => openTrainingHall(f, opts),
-        });
-      });
-    }
-    if (f.trains?.length)
-      option(trainLabel, keeperSays(f.keeper, `${f.trains.map((k) => SKILLS[k].name).join(" · ")} 중 필요한 걸 가르쳐 드리죠.`), trainPage);
-    if (f.classes?.length)
-      option("전직 상담", keeperSays(f.keeper, `${pathNames.join(" · ")}의 길을 함께 살펴보죠.`), classPage);
-  }
 
   function trainPage(): void {
     clear(); header(`${f.name} — ${trainLabel}`);
-    const sub = txt(keeperSays(f.keeper, `처음 배우는 기술은 ${SKILL_PRICE} G예요. 기초부터 제대로 봐 드리죠.`), 13, C.dim);
+    const sub = txt(keeperSays(f.keeper, `처음 배우는 기술은 ${SKILL_PRICE} G예요. 기초부터 제대로 봐 드리죠.`), 13, C.dim, { wrap: CONTENT_W });
     sub.x = p.x + 28; sub.y = p.y + 56; content.addChild(sub);
     (f.trains ?? []).forEach((skill, i) => {
       const y = p.y + 92 + i * 52;
@@ -92,8 +94,6 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
       const d = txt(`${SKILLS[skill].cat} 계열`, 13, C.dim);
       d.x = p.x + 330; d.y = y + 12; content.addChild(d);
     });
-    const back = button("← 돌아가기", 130, 40, main, { size: 14 });
-    back.x = p.x + 28; back.y = p.y + 560 - 56; content.addChild(back);
   }
 
   function hallOptions(member: Member): ClassId[] {
@@ -102,7 +102,7 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
 
   function classPage(): void {
     clear(); header(`${f.name} — 전직 상담`);
-    const sub = txt(keeperSays(f.keeper, `여기선 ${pathNames.join(" · ")}의 길을 안내해요. 선택은 되돌릴 수 없으니 신중히 골라요.`), 13, C.dim, { wrap: 780 });
+    const sub = txt(keeperSays(f.keeper, `여기선 ${pathNames.join(" · ")}의 길을 안내해요. 선택은 되돌릴 수 없으니 신중히 골라요.`), 13, C.dim, { wrap: CONTENT_W });
     sub.x = p.x + 28; sub.y = p.y + 56; content.addChild(sub);
     G.party.forEach((member, i) => {
       const change = canClassChange(member);
@@ -116,15 +116,13 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
               : (member.level < 6 ? "(Lv6 필요)" : "(최종 승급 심사 필요)");
       const b = button(`${member.name} — ${CLASSES[member.classId].name} Lv.${member.level}  ${status}`, 560, 48, () => memberPage(member), { size: 15 });
       if (!change || !choices.length) b.setDisabled(true);
-      b.x = p.x + 28; b.y = p.y + 92 + i * 58; content.addChild(b);
+      b.x = p.x + 28; b.y = p.y + 100 + i * 58; content.addChild(b);
     });
-    const back = button("← 돌아가기", 130, 40, main, { size: 14 });
-    back.x = p.x + 28; back.y = p.y + 560 - 56; content.addChild(back);
   }
 
   function memberPage(member: Member): void {
     clear(); header(`${member.name}의 갈림길`);
-    const intro = txt(keeperSays(f.keeper, `${member.name}의 ${CLASSES[member.classId].name} 소양이라면 이런 길이 어울리겠네요.`), 15, C.text);
+    const intro = txt(keeperSays(f.keeper, `${member.name}의 ${CLASSES[member.classId].name} 소양이라면 이런 길이 어울리겠네요.`), 15, C.text, { wrap: CONTENT_W });
     intro.x = p.x + 28; intro.y = p.y + 62; content.addChild(intro);
     hallOptions(member).forEach((classId, i) => {
       const cls = CLASSES[classId];
@@ -135,24 +133,24 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
         if (cls.ld) alignmentPage(member, classId);
         else { doClassChange(member, classId); done(member, classId); }
       }, { size: 15 });
-      b.x = p.x + 28; b.y = p.y + 104 + i * 58; content.addChild(b);
-      const d = txt(cls.desc, 13, C.dim, { wrap: 780 });
-      d.x = p.x + 620; d.y = p.y + 104 + i * 58 + 14; content.addChild(d);
+      b.x = p.x + 28; b.y = p.y + 116 + i * 78; content.addChild(b);
+      const d = txt(cls.desc, 13, C.dim, { wrap: 560 });
+      d.x = p.x + 28; d.y = p.y + 116 + i * 78 + 50; content.addChild(d);
     });
     const back = button("← 돌아가기", 130, 40, classPage, { size: 14 });
-    back.x = p.x + 28; back.y = p.y + 500; content.addChild(back);
+    back.x = p.x + 28; back.y = p.y + PH - 60; content.addChild(back);
   }
 
   function alignmentPage(member: Member, classId: ClassId): void {
     clear(); header("빛과 어둠의 기로");
-    const description = txt(`${CLASSES[classId].name}의 길은 신앙의 선택을 요구하네.\n선택한 계열이 달인/전문가의 경지로 각성한다.`, 16, C.text, { lh: 26 });
+    const description = txt(`${CLASSES[classId].name}의 길은 신앙의 선택을 요구하네.\n선택한 계열이 달인/전문가의 경지로 각성한다.`, 16, C.text, { lh: 26, wrap: CONTENT_W });
     description.x = p.x + 28; description.y = p.y + 64; content.addChild(description);
     const light = button("빛의 길 — 성광과 축복", 340, 52, () => { doClassChange(member, classId, "light"); done(member, classId); }, { size: 16 });
     light.x = p.x + 28; light.y = p.y + 150; content.addChild(light);
     const dark = button("어둠의 길 — 암흑과 흡수", 340, 52, () => { doClassChange(member, classId, "dark"); done(member, classId); }, { size: 16 });
     dark.x = p.x + 28; dark.y = p.y + 214; content.addChild(dark);
     const back = button("← 돌아가기", 130, 40, () => memberPage(member), { size: 14 });
-    back.x = p.x + 28; back.y = p.y + 500; content.addChild(back);
+    back.x = p.x + 28; back.y = p.y + PH - 60; content.addChild(back);
   }
 
   function done(member: Member, classId: ClassId): void {
@@ -160,5 +158,5 @@ export function openTrainingHall(f: TownFacilityDef, opts: TrainingHallOptions):
     opts.onChange(); classPage();
   }
 
-  main();
+  setTab(tab);
 }

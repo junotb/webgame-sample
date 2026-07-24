@@ -9,11 +9,16 @@ import {
 } from "../core";
 import { visualRandom } from "../core/random";
 import { tileTex } from "../tiles";
+import { events } from "../core/events";
+import { getSettings, updateSettings } from "../settings";
+import { hasAnySave } from "../persistence";
+import { openSlotMenu } from "../ui/save-menu";
 
 const BG_SCALE = W / 576; // 576×324 원본 → 1280×720
 
 export function titleScene(): SceneHandle {
   setModeBadge(null);
+  events.emit("scene:enter", { kind: "title" });
   const root = new PIXI.Container(); sceneRoot.addChild(root);
   const scope = new SceneScope();
 
@@ -95,6 +100,23 @@ export function titleScene(): SceneHandle {
   const startBtn = button("모험을 시작한다", 300, 60, start, { size: 20, border: C.border });
   startBtn.x = (W - 300) / 2; startBtn.y = 430; startBtn.alpha = 0; root.addChild(startBtn);
 
+  /* 이어서 하기 — 세이브 슬롯이 하나라도 있으면 노출 */
+  const canContinue = hasAnySave();
+  const contBtn = button("이어서 한다", 300, 48, () => {
+    if (started) return;
+    openSlotMenu("load", { onLoaded: () => { started = true; fullFlash(0x000000, 600, () => nav.town("fountain")); } });
+  }, { size: 17 });
+  contBtn.x = (W - 300) / 2; contBtn.y = 502; contBtn.alpha = 0; root.addChild(contBtn);
+  if (!canContinue) contBtn.setDisabled(true);
+
+  /* BGM 토글 — 우하단 */
+  const bgmLabel = () => `♪ BGM ${getSettings().bgmOn ? "켬" : "끔"}`;
+  const bgmBtn = button(bgmLabel(), 130, 36, () => {
+    updateSettings({ bgmOn: !getSettings().bgmOn });
+    bgmBtn.labelText.text = bgmLabel();
+  }, { size: 14 });
+  bgmBtn.x = W - 154; bgmBtn.y = H - 56; root.addChild(bgmBtn);
+
   /* 조작법 — 구름 위에서도 읽히도록 어두운 띠를 깔고 얹는다 */
   const controls = new PIXI.Container();
   const ctrlBack = new PIXI.Graphics();
@@ -111,6 +133,7 @@ export function titleScene(): SceneHandle {
   tween(line, { alpha: 1 }, 1100);
   tween(ver, { alpha: 1 }, 1300);
   tween(startBtn, { alpha: 1 }, 1500);
+  tween(contBtn, { alpha: canContinue ? 1 : 0.42 }, 1600);
   tween(controls, { alpha: 0.9 }, 1700);
 
   let t = 0;
@@ -131,7 +154,7 @@ export function titleScene(): SceneHandle {
   }
 
   return {
-    onKey: (k) => { if (k === "Enter" || k === " ") start(); },
+    onAction: (a) => { if (a === "confirm") start(); },
     dispose: () => scope.dispose(),
   };
 }

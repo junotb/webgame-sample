@@ -3,32 +3,44 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  C, H, SceneHandle, W, button, linear, overlayRoot, panel, sceneRoot, setModeBadge, tween, txt,
+  C, H, SceneHandle, W, Z, button, linear, overlayRoot, panel, sceneRoot, setModeBadge, tween, txt,
 } from "../core";
+import { events } from "../core/events";
+import { portraitTexture } from "../portraits";
 
 export interface EventChoice {
   label: string;
   effect?: () => void;
   /** number=노드 인덱스, 'end'=종료, 'none'=effect가 직접 씬 전환 */
   goto?: number | "end" | "none";
+  /** false를 반환하면 이 선택지를 숨긴다 — 플래그·아이템 조건 분기용 */
+  when?: () => boolean;
 }
 export interface EventNode {
   name?: string;
-  portrait?: "hero" | "elder" | "dark";
+  /** 초상화 인덱스 (portraits.ts PORTRAITS 1-based) */
+  portrait?: number;
+  /** 정체 은닉 연출 — 초상화를 어두운 실루엣으로 표시 (「???」 화자용) */
+  silhouette?: boolean;
   text: string;
   choices?: EventChoice[];
   run?: () => void;
+  /** false를 반환하면 이 노드를 건너뛴다 — 조건부 대사 */
+  when?: () => boolean;
 }
 export interface EventOpts {
   caption?: string;
   bgColor?: number;
   /** 사전 로드된 이벤트 일러스트. 지정하면 오버레이가 일러스트 팝업으로 표시된다. */
   illustration?: PIXI.Texture;
+  /** 오버레이 전용 — 일러스트 없이도 배경을 어둡게 깔고 캡션·초상화를 표시한다 (연출 대화용) */
+  dim?: boolean;
 }
 
 /** 화면을 전환하는 스토리 이벤트. */
 export function eventScene(nodes: EventNode[], onEnd?: () => void, opts: EventOpts = {}): SceneHandle {
   setModeBadge("이벤트 모드", C.arcane);
+  events.emit("scene:enter", { kind: "event" });
   return createEvent(nodes, onEnd, opts, false);
 }
 
@@ -45,11 +57,13 @@ function createEvent(
 ): SceneHandle {
   const root = new PIXI.Container();
   if (overlay) {
-    root.zIndex = 75;
+    root.zIndex = Z.event;
     overlayRoot.addChild(root);
   } else sceneRoot.addChild(root);
 
   const hasIllustration = !!opts.illustration;
+  /** 연출형 오버레이 — 어두운 장막 위에 캡션·초상화까지 갖춘다 (전체 씬과 동급 표현) */
+  const cinematic = !overlay || hasIllustration || !!opts.dim;
 
   /** 일러스트 패널 — 오버레이·전체 씬 공용 (대화창 위 중앙) */
   const addIllustration = (topY: number) => {
@@ -65,11 +79,11 @@ function createEvent(
 
   let advance: () => void = () => {};
   if (overlay) {
-    if (hasIllustration) {
+    if (hasIllustration || opts.dim) {
       const dim = new PIXI.Graphics();
       dim.rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.68 });
       root.addChild(dim);
-      addIllustration(54);
+      if (hasIllustration) addIllustration(54);
     }
 
     // 빈 영역의 클릭도 이벤트 입력으로 소비해 탐험 조작이 뒤로 전달되지 않게 한다.
@@ -89,7 +103,7 @@ function createEvent(
     if (hasIllustration) addIllustration(112);
   }
 
-  if (opts.caption && (!overlay || hasIllustration)) {
+  if (opts.caption && cinematic) {
     const cap = txt(opts.caption, 30, C.border, { serif: true, align: "center" });
     cap.anchor.set(0.5, 0); cap.x = W / 2;
     cap.y = overlay && hasIllustration ? 66 : hasIllustration ? 60 : 110;
@@ -109,27 +123,18 @@ function createEvent(
   let typeTimer: ReturnType<typeof setInterval> | null = null;
   let choiceBtns: PIXI.Container[] = [];
 
-  function drawPortrait(kind?: string): void {
+  function drawPortrait(index?: number, silhouette?: boolean): void {
     portrait.removeChildren().forEach((c) => c.destroy());
-    if (!kind) return;
-    const g = new PIXI.Graphics();
-    if (kind === "hero") {
-      g.circle(0, -96, 34).fill(0x2c2440);
-      g.roundRect(-46, -70, 92, 120, 20).fill(0x3a2f52);
-      g.rect(-4, -40, 8, 70).fill({ color: C.border, alpha: 0.9 });
-      g.circle(0, -96, 34).stroke({ width: 2, color: C.border, alpha: 0.6 });
-    } else if (kind === "elder") {
-      g.circle(0, -96, 36).fill(0x40365a);
-      g.roundRect(-52, -68, 104, 124, 22).fill(0x2e2648);
-      g.roundRect(-20, -84, 40, 50, 16).fill({ color: 0xcfc8b0, alpha: 0.85 });
-      g.circle(0, -96, 36).stroke({ width: 2, color: C.arcane, alpha: 0.7 });
-    } else if (kind === "dark") {
-      g.circle(0, -96, 38).fill(0x101018);
-      g.roundRect(-54, -66, 108, 126, 20).fill(0x181428);
-      g.circle(-12, -100, 5).circle(12, -100, 5).fill({ color: C.epic, alpha: 0.9 });
-      g.circle(0, -96, 38).stroke({ width: 2, color: C.epic, alpha: 0.6 });
-    }
-    portrait.addChild(g);
+    if (!index) return;
+    const tex = portraitTexture(index);
+    if (!tex) return;
+    const sp = new PIXI.Sprite(tex);
+    sp.width = 176; sp.height = 176;
+    sp.anchor.set(0.5, 1); sp.y = 54;
+    if (silhouette) sp.tint = 0x241e38;
+    const fr = new PIXI.Graphics();
+    fr.rect(-91, 54 - 179, 182, 182).stroke({ width: 3, color: C.border, alpha: 0.85 });
+    portrait.addChild(sp, fr);
     portrait.alpha = 0; tween(portrait, { alpha: 1 }, 250);
   }
   function clearChoices(): void {
@@ -138,13 +143,14 @@ function createEvent(
   }
   function show(i: number): void {
     clearChoices();
+    while (i < nodes.length && nodes[i].when && !nodes[i].when!()) i++;
     if (i >= nodes.length) { finish(); return; }
     idx = i;
     const n = nodes[i];
     n.run?.();
     nameT.text = n.name ?? ""; nameTag.visible = !!n.name;
     bodyT.text = "";
-    drawPortrait(overlay && !hasIllustration ? undefined : n.portrait);
+    drawPortrait(cinematic ? n.portrait : undefined, n.silhouette);
     if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
     busy = true;
     let ci = 0;
@@ -159,9 +165,11 @@ function createEvent(
     }, 16);
     nextHint.visible = false;
   }
+  const activeChoices = (n: EventNode) => n.choices?.filter((c) => !c.when || c.when()) ?? [];
   function layoutChoices(n: EventNode): void {
-    if (n.choices?.length) {
-      n.choices.forEach((ch, k) => {
+    const shown = activeChoices(n);
+    if (shown.length) {
+      shown.forEach((ch, k) => {
         const b = button(ch.label, 520, 44, () => {
           ch.effect?.();
           if (ch.goto === "none") return;
@@ -170,7 +178,7 @@ function createEvent(
           else show(idx + 1);
         }, { size: 15 });
         b.x = W - 160 - 540;
-        b.y = H - 300 - (n.choices!.length - 1 - k) * 54;
+        b.y = H - 300 - (shown.length - 1 - k) * 54;
         root.addChild(b); choiceBtns.push(b);
       });
     } else {
@@ -181,7 +189,7 @@ function createEvent(
   advance = (): void => {
     if (busy) return;
     const n = nodes[idx];
-    if (n.choices?.length) return;
+    if (activeChoices(n).length) return;
     show(idx + 1);
   };
   bp.eventMode = "static"; bp.on("pointertap", advance);

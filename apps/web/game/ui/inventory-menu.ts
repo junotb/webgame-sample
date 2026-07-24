@@ -3,7 +3,7 @@ import {
   ATTRS, ATTR_IDS, DAMAGE_META, DamageType, MATERIALS, MATERIAL_IDS, OwnedGear,
   RANK_NAME, RARITY_META, SLOT_META, gearDisplayName,
 } from "../defs";
-import { C, H, W, backdrop, button, overlayRoot, panel, toast, txt } from "../core";
+import { C, H, W, button, openOverlay, panel, toast, txt } from "../core";
 import {
   G, equipFromBag, identifyGear, partyIdentifyRank, sellGear, sellPrice,
 } from "../state";
@@ -40,8 +40,7 @@ function ownedDesc(o: OwnedGear): string {
 }
 
 export function openBagMenu(onClose?: () => void): void {
-  const root = new PIXI.Container(); root.zIndex = 66; overlayRoot.addChild(root);
-  root.addChild(backdrop());
+  const ov = openOverlay({ onClose }); const root = ov.root;
   const PW = 940, PH = 620;
   const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; root.addChild(p);
   const bx = p.x, by = p.y;
@@ -118,6 +117,6 @@ export function openBagMenu(onClose?: () => void): void {
   }
 
   render();
-  const closeBtn = button("닫기", 100, 36, () => { root.destroy({ children: true }); onClose?.(); }, { size: 15 });
+  const closeBtn = button("닫기", 100, 36, () => ov.close(), { size: 15 });
   closeBtn.x = bx + PW - 128; closeBtn.y = by + PH - 52; root.addChild(closeBtn);
 }

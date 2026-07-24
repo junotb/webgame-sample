@@ -8,7 +8,7 @@ import {
 } from "./defs";
 import { portraitTexture } from "./portraits";
 import {
-  C, H, W, backdrop, button, overlayRoot, panel, toast, txt, ui,
+  C, H, W, Z, button, openOverlay, panel, toast, txt, ui,
 } from "./core";
 import {
   G, Member, PROF_BASE, canSwapRow, equippedWeapon, expNeed, fieldUsable, memberRanks,
@@ -18,6 +18,9 @@ import { openGrowthMenu } from "./ui/growth-menu";
 import { openBagMenu } from "./ui/inventory-menu";
 import { itemIcon } from "./item-icons";
 export { pickMember } from "./ui/member-picker";
+import { openSlotMenu } from "./ui/save-menu";
+import { openTaskJournal } from "./ui/task-journal";
+import { getSettings, updateSettings } from "./settings";
 
 /** 장비 요약 — 슬롯별 아이템(공격/방어/능력치 태그). 빈 슬롯은 "—" */
 function equipTag(m: Member, slot: EquipSlot): string {
@@ -43,7 +46,7 @@ export interface HudHandle { redraw: () => void; }
 export type FieldHandlers = Partial<Record<"recall" | "bless" | "darkveil" | "seek", () => void>>;
 
 export function buildPartyHUD(container: PIXI.Container, opts: { fieldHandlers?: FieldHandlers } = {}): HudHandle {
-  const hud = new PIXI.Container(); hud.zIndex = 40;
+  const hud = new PIXI.Container(); hud.zIndex = Z.hud;
   const PW = 340, PH = 26 + G.party.length * 30 + 30;
   const p = panel(PW, PH, { alpha: 0.9 });
   p.x = W - PW - 16; p.y = 12;
@@ -99,9 +102,11 @@ export function buildPartyHUD(container: PIXI.Container, opts: { fieldHandlers?:
 
   const menuBtn = button("메뉴", 76, 34, () => openStatusMenu(redraw), { size: 15 });
   menuBtn.x = W - 92; menuBtn.y = p.y + PH + 8; hud.addChild(menuBtn);
+  const taskBtn = button("임무", 76, 34, () => { if (!ui.menuOpen) openTaskJournal(redraw); }, { size: 15 });
+  taskBtn.x = W - 178; taskBtn.y = p.y + PH + 8; hud.addChild(taskBtn);
   if (opts.fieldHandlers) {
     const fsBtn = button("필드 스킬", 110, 34, () => openFieldSkillMenu(opts.fieldHandlers!, redraw), { size: 15 });
-    fsBtn.x = W - 212; fsBtn.y = p.y + PH + 8; hud.addChild(fsBtn);
+    fsBtn.x = W - 298; fsBtn.y = p.y + PH + 8; hud.addChild(fsBtn);
   }
   container.addChild(hud);
   return { redraw };
@@ -109,9 +114,8 @@ export function buildPartyHUD(container: PIXI.Container, opts: { fieldHandlers?:
 
 /* ---------- 모험 수첩 (파티 상태) ---------- */
 export function openStatusMenu(onClose?: () => void): void {
-  if (ui.menuOpen) return; ui.menuOpen = true;
-  const root = new PIXI.Container(); root.zIndex = 60; overlayRoot.addChild(root);
-  root.addChild(backdrop());
+  if (ui.menuOpen) return;
+  const ov = openOverlay({ onClose }); const root = ov.root;
   const p = panel(880, 620); p.x = (W - 880) / 2; p.y = (H - 620) / 2; root.addChild(p);
   const bx = p.x, by = p.y;
   const title = txt("모험 수첩", 26, C.border, { serif: true }); title.x = bx + 28; title.y = by + 16; root.addChild(title);
@@ -236,16 +240,29 @@ export function openStatusMenu(onClose?: () => void): void {
   }
   refreshTabs(); renderDetail();
 
+  /* 저장 — 전투 중에는 막는다. 재개는 마을에서 시작된다. */
+  const saveBtn = button("기록", 100, 36, () => {
+    if (ui.inBattle) return toast("전투 중에는 기록할 수 없다.", C.dim);
+    openSlotMenu("save");
+  }, { size: 15 });
+  saveBtn.x = bx + 570; saveBtn.y = by + 620 - 52; root.addChild(saveBtn);
+
+  const bgmBtn = button(`♪ ${getSettings().bgmOn ? "켬" : "끔"}`, 70, 36, () => {
+    const on = !getSettings().bgmOn;
+    updateSettings({ bgmOn: on });
+    bgmBtn.labelText.text = `♪ ${on ? "켬" : "끔"}`;
+  }, { size: 15 });
+  bgmBtn.x = bx + 678; bgmBtn.y = by + 620 - 52; root.addChild(bgmBtn);
+
   const closeBtn = button("닫기", 100, 36, close, { size: 15 });
   closeBtn.x = bx + 880 - 128; closeBtn.y = by + 620 - 52; root.addChild(closeBtn);
-  function close(): void { ui.menuOpen = false; root.destroy({ children: true }); onClose?.(); }
+  function close(): void { ov.close(); }
 }
 
 /* ---------- 소모품 사용 (전투 밖 — 모험 수첩에서) ---------- */
 function openFieldItemMenu(m: Member, onUsed: () => void): void {
   const usable = CONSUMABLE_IDS.filter((id) => G.items[id] > 0 && fieldUsable(id));
-  const root = new PIXI.Container(); root.zIndex = 70; overlayRoot.addChild(root);
-  root.addChild(backdrop());
+  const ov = openOverlay(); const root = ov.root;
   const rows = Math.max(1, usable.length);
   const ph = 110 + rows * 52;
   const p = panel(620, ph); p.x = (W - 620) / 2; p.y = (H - ph) / 2; root.addChild(p);
@@ -271,15 +288,14 @@ function openFieldItemMenu(m: Member, onUsed: () => void): void {
   });
   const closeBtn = button("닫기", 90, 36, close, { size: 14 });
   closeBtn.x = p.x + 620 - 114; closeBtn.y = p.y + ph - 50; root.addChild(closeBtn);
-  function close(): void { root.destroy({ children: true }); }
+  function close(): void { ov.close(); }
 }
 
 /* ---------- 필드 스킬 메뉴 ---------- */
 export function openFieldSkillMenu(handlers: FieldHandlers, onClose?: () => void): void {
-  if (ui.menuOpen) return; ui.menuOpen = true;
+  if (ui.menuOpen) return;
   const list = partyFieldSkills();
-  const root = new PIXI.Container(); root.zIndex = 60; overlayRoot.addChild(root);
-  root.addChild(backdrop());
+  const ov = openOverlay({ onClose }); const root = ov.root;
   const ph = 120 + Math.max(1, list.length) * 58;
   const p = panel(640, ph); p.x = (W - 640) / 2; p.y = (H - ph) / 2; root.addChild(p);
   const title = txt("필드 스킬", 24, C.border, { serif: true }); title.x = p.x + 24; title.y = p.y + 16; root.addChild(title);
@@ -301,5 +317,5 @@ export function openFieldSkillMenu(handlers: FieldHandlers, onClose?: () => void
   });
   const closeBtn = button("닫기", 90, 34, close, { size: 14 });
   closeBtn.x = p.x + 640 - 114; closeBtn.y = p.y + ph - 48; root.addChild(closeBtn);
-  function close(): void { ui.menuOpen = false; root.destroy({ children: true }); onClose?.(); }
+  function close(): void { ov.close(); }
 }

@@ -9,15 +9,16 @@
  * ===================================================================== */
 import * as PIXI from "pixi.js";
 import {
-  GearDef, NPCS, NpcDef, QUESTS, SHOP_ITEMS,
+  GearDef, NPCS, NpcDef, QUESTS, SHOP_ARMORS, SHOP_ITEMS, SHOP_WEAPONS,
 } from "../defs";
 import {
-  C, H, SceneHandle, SceneScope, W, backdrop, button, fullFlash, nav, overlayRoot, panel,
+  C, H, SceneHandle, SceneScope, W, button, fullFlash, nav, openOverlay, panel,
   sceneRoot, setModeBadge, toast, tween, txt, ui,
 } from "../core";
 import { G, partyLevel } from "../state";
 import {
-  acceptQuest, carriageUnlocked, questList, questNotify, questStatus, repeatCooldownDays, reportQuest,
+  acceptQuest, carriageUnlocked, isWeeklyBounty, questList, questNotify, questStatus,
+  repeatCooldownDays, reportQuest, updateText,
 } from "../core/quests";
 import type { RelativeMove } from "../grid";
 import { compileTown } from "../town/compile";
@@ -29,14 +30,17 @@ import { advanceTownTime, enterTown, townTime } from "../town/world-state";
 import type { TownFacilityDef, TownGateDef, TownSpawn } from "../town/types";
 import { CARRIAGE_FARE, TOWNS, otherTown } from "../towns";
 import { portraitTexture } from "../portraits";
+import { events } from "../core/events";
 import { buildPartyHUD } from "../hud";
 import { openShopMenu, type ShopKind } from "../ui/shop-menu";
-import { openTrainingHall } from "../ui/training-hall";
-import { openFacilityWelcome } from "../ui/facility-welcome";
+import { openTrainingHall, type HallTab } from "../ui/training-hall";
+import { openSpellShop } from "../ui/spell-shop";
+import { recordGossip } from "../ui/task-journal";
 
 export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   const scope = new SceneScope();
   const T = TOWNS[G.town];
+  events.emit("scene:enter", { kind: "town", id: G.town });
   enterTown(G, G.town);
   setModeBadge(T.badge, C.border);
   const root = new PIXI.Container(); sceneRoot.addChild(root);
@@ -77,8 +81,8 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   /* =====================================================================
    * 이동
    * ===================================================================== */
-  let overlayOpen = false;
-  const busy = (): boolean => overlayOpen || ui.menuOpen;
+  /* 모든 오버레이가 openOverlay 스택을 쓰므로 열림 여부는 ui.menuOpen 하나로 판정된다. */
+  const busy = (): boolean => ui.menuOpen;
 
   function tryMove(rel: RelativeMove): void {
     if (busy()) return;
@@ -150,21 +154,18 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     throne: openThrone,
     spiritGuild: openHall,
     elementsGuild: openHall,
-    weapon: openHall,
-    armor: openHall,
+    /* 무기·방어구점은 상점이 본업 — 문을 열면 바로 매대가 보이고,
+     * 수련·전직은 하단 버튼으로 같은 깊이에서 전환한다. */
+    weapon: openGearShop,
+    armor: openGearShop,
   };
   function openFacility(f: TownFacilityDef): void {
     if (busy()) return;
-    overlayOpen = true;
-    openFacilityWelcome(f, {
-      onEnter: () => openTownFacility(f, facilityHandlers),
-      onClose: () => { overlayOpen = false; },
-    });
+    openTownFacility(f, facilityHandlers);
   }
 
   /* ---------- 마굿간: 역마차 빠른이동 ---------- */
   function openStable(f: TownFacilityDef): void {
-    overlayOpen = true;
     if (G.town === "crossvale" && !G.flags.stableBriefed) {
       G.flags.stableBriefed = true;
       questNotify({ t: "talk", npc: "crossvale_stable" });
@@ -173,8 +174,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     }
     const dest = otherTown(G.town);
     const destName = TOWNS[dest].name;
-    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    rootS.addChild(backdrop());
+    const ov = openOverlay(); const rootS = ov.root;
     const p = panel(620, 300); p.x = (W - 620) / 2; p.y = (H - 300) / 2; rootS.addChild(p);
     const tt = txt("마굿간 — 역마차", 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
@@ -185,7 +185,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         : "서쪽 좁은 계곡에서 산적들이 마차를 덮치고 있어요. 현상금 길드의 의뢰를 받고 그 무리를 소탕한 뒤 보고해 주세요. 그전에는 운행할 수 없습니다."),
       15, C.text, { wrap: 568, lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
-    function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }
+    function close(): void { ov.close(); }
     const go = button(`${destName}(으)로 출발 — ${CARRIAGE_FARE} G`, 340, 50, () => {
       if (G.gold < CARRIAGE_FARE) return toast(keeperSays(f.keeper, "삯이 모자라네요. 외상은 안 됩니다."), C.dim);
       G.gold -= CARRIAGE_FARE;
@@ -195,7 +195,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
       fullFlash(0x000000, 800, () => nav.town("carriage"));
     }, { size: 16, border: C.border });
     if (!unlocked) go.setDisabled(true);
-    go.x = p.x + 26; go.y = Math.max(p.y + 150, ds.y + ds.height + 16); rootS.addChild(go);
+    go.x = p.x + 620 - 366; go.y = Math.max(p.y + 150, ds.y + ds.height + 16); rootS.addChild(go);
     const closeBtn = button("나가기", 110, 40, close, { size: 15 });
     closeBtn.x = p.x + 620 - 136; closeBtn.y = p.y + 300 - 56; rootS.addChild(closeBtn);
   }
@@ -203,9 +203,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
   /* ---------- 알현실: 연방 군주에게 편지 전달 ---------- */
   function openThrone(f: TownFacilityDef): void {
     if (!G.flags.letter) { fullFlash(0x000000, 600, () => nav.letter()); return; }
-    overlayOpen = true;
-    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    rootS.addChild(backdrop());
+    const ov = openOverlay(); const rootS = ov.root;
     const p = panel(620, 240); p.x = (W - 620) / 2; p.y = (H - 240) / 2; rootS.addChild(p);
     const tt = txt("알현실 — 연방 군주", 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
@@ -213,25 +211,20 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
       keeperSays(f.keeper, "군주께서 뜻을 잘 받으셨습니다. 크로스베일의 일은 여러분께 맡기겠다고 하시는군요."),
       15, C.text, { wrap: 568, lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
-    const closeBtn = button("물러난다", 130, 44, () => {
-      overlayOpen = false; rootS.destroy({ children: true });
-    }, { size: 15 });
+    const closeBtn = button("물러난다", 130, 44, () => ov.close(), { size: 15 });
     closeBtn.x = p.x + 620 - 156; closeBtn.y = p.y + 240 - 60; rootS.addChild(closeBtn);
   }
 
   /* ---------- 상점 (도구점 직행 / 무기·방어구점 하위 메뉴) ---------- */
   function openShop(f: TownFacilityDef, goods: GearDef[], kind: ShopKind, onClose?: () => void): void {
-    overlayOpen = true;
     openShopMenu({
       title: f.title ?? f.name, goods, kind, keeper: f.keeper, onChange: hud.redraw,
-      onClose: () => { overlayOpen = false; onClose?.(); },
+      onClose: () => { onClose?.(); },
     });
   }
   /* ---------- 여관: 숙박·소문·시설 의뢰 ---------- */
   function inn(f: TownFacilityDef): void {
-    overlayOpen = true;
-    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    rootS.addChild(backdrop());
+    const ov = openOverlay(); const rootS = ov.root;
     const PW = 720, PH = 430;
     const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; rootS.addChild(p);
     const title = txt(f.name, 24, C.border, { serif: true }); title.x = p.x + 28; title.y = p.y + 20; rootS.addChild(title);
@@ -244,7 +237,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const clearOpts = () => opts.removeChildren().forEach((child) => child.destroy({ children: true }));
     const option = (label: string, i: number, fn: () => void, gold = false) => {
       const b = button(label, 360, 38, fn, { size: 14, border: gold ? C.border : 0x555068 });
-      b.x = p.x + 28; b.y = p.y + 160 + i * 44; opts.addChild(b);
+      b.x = p.x + PW - 388; b.y = p.y + 160 + i * 44; opts.addChild(b);
     };
 
     function menu(): void {
@@ -292,20 +285,18 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         fullFlash(0x000000, 900, () => toast("일행이 푹 쉬었다. 전원 HP/MP 회복!", C.text));
       }, true);
       for (const topic of (f.topics ?? []).filter((entry) => townContentUnlocked(entry.requires, contentContext()))) {
-        option(topic.label, i++, () => say(topic.text));
+        option(topic.label, i++, () => { say(topic.text); recordGossip(f.keeper.name, topic.label, topic.text); });
       }
       option("나가기", i, close);
     }
 
-    function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }
+    function close(): void { ov.close(); }
     menu();
   }
 
   /* ---------- 신전: 상태이상 정화 ---------- */
   function openTemple(f: TownFacilityDef): void {
-    overlayOpen = true;
-    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    rootS.addChild(backdrop());
+    const ov = openOverlay(); const rootS = ov.root;
     const p = panel(640, 320); p.x = (W - 640) / 2; p.y = (H - 320) / 2; rootS.addChild(p);
     const tt = txt(f.title ?? f.name, 24, C.border, { serif: true });
     tt.x = p.x + 26; tt.y = p.y + 18; rootS.addChild(tt);
@@ -313,23 +304,26 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
       keeperSays(f.keeper, "어디 불편한 곳이 있나요? 독이나 저주가 남아 있다면 제가 살펴볼게요."),
       15, C.text, { wrap: 588, lh: 24 });
     ds.x = p.x + 26; ds.y = p.y + 64; rootS.addChild(ds);
-    const cure = button("정화 의식 — 상태이상 회복 (무료)", 340, 48, () => {
+    const cure = button("정화 의식 — 상태이상 회복 (무료)", 340, 48, cureRitual, { size: 15, border: C.border });
+    function cureRitual(): void {
       /* 지속형 상태이상은 아직 없다(전투 상태는 전투 종료 시 소멸).
        * 독·저주 등 필드 지속 상태 추가 시 이곳에서 정화한다. */
       toast(keeperSays(f.keeper, "다행이네요. 지금은 정화할 상태이상이 없어요."), C.dim);
-    }, { size: 15, border: C.border });
-    cure.x = p.x + 26; cure.y = p.y + 140; rootS.addChild(cure);
-    const closeBtn = button("나가기", 110, 40, () => {
-      overlayOpen = false; rootS.destroy({ children: true });
+    }
+    cure.x = p.x + 640 - 366; cure.y = p.y + 140; rootS.addChild(cure);
+    /* 신성 계통(빛·어둠) 주문은 신전에서만 습득한다 */
+    const spells = button("신성 주문 습득 — 빛 · 어둠", 340, 48, () => {
+      ov.close({ silent: true });
+      openSpellShop(f, ["light", "dark"], { onChange: hud.redraw, onClose: () => {} });
     }, { size: 15 });
+    spells.x = p.x + 640 - 366; spells.y = p.y + 196; rootS.addChild(spells);
+    const closeBtn = button("나가기", 110, 40, () => ov.close(), { size: 15 });
     closeBtn.x = p.x + 640 - 136; closeBtn.y = p.y + 320 - 56; rootS.addChild(closeBtn);
   }
 
   /* ---------- 현상금 길드: 의뢰 게시판 ---------- */
   function openBountyGuild(f: TownFacilityDef): void {
-    overlayOpen = true;
-    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    rootS.addChild(backdrop());
+    const ov = openOverlay(); const rootS = ov.root;
     const p = panel(860, 650); p.x = (W - 860) / 2; p.y = (H - 650) / 2; rootS.addChild(p);
     const content = new PIXI.Container(); rootS.addChild(content);
     const closeBtn = button("나가기", 110, 40, close, { size: 15 });
@@ -341,11 +335,13 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
       tt.x = p.x + 28; tt.y = p.y + 18; content.addChild(tt);
       const keeperLine = txt(keeperSays(f.keeper, "조건을 읽고 골라요. 끝낸 일은 내가 확인해 드리죠."), 12, C.dim);
       keeperLine.x = p.x + 360; keeperLine.y = p.y + 26; content.addChild(keeperLine);
-      const list = questList();
+      /* 완수한 단발 의뢰는 게시판에서 내린다 — 기록은 임무 수첩에서 본다 */
+      const list = questList().filter((e) => !(e.status === "rewarded" && e.def.kind !== "repeat"));
       list.forEach((e, i) => {
         const y = p.y + 62 + i * 48;
         const q = e.def;
-        const marker = q.kind === "main" ? "★" : q.kind === "side" ? "◆" : q.kind === "job" ? "▲" : "↻";
+        const marker = isWeeklyBounty(q.id) ? "◎"
+          : q.kind === "main" ? "★" : q.kind === "side" ? "◆" : q.kind === "job" ? "▲" : "↻";
         const locked = e.status === "locked";
         const nameLine = locked
           ? `${marker} ???`
@@ -379,7 +375,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
           .flatMap((town) => town.facilities)
           .find((facility) => facility.quests?.includes(q.id))?.name;
         const giverName = q.giver ? (NPCS.find((n) => n.id === q.giver)?.name ?? q.giver) : facilityName;
-        if (e.status === "available" && q.kind !== "main") {
+        if (e.status === "available") {
           if (giverName) {
             const gt = txt(`수주처: ${giverName}`, 13, C.dim);
             gt.x = p.x + 860 - 230; gt.y = y + 10; content.addChild(gt);
@@ -414,27 +410,49 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
           }
         }
       });
-      const note = txt("★ 메인   ◆ 서브   ▲ 직업(승급)   ↻ 현상금(반복) — 반복 의뢰는 보고한 다음 날 갱신", 13, C.dim);
+      const note = txt("★ 메인   ◆ 서브   ▲ 직업(승급)   ↻ 현상금(매일)   ◎ 주간 현상금(매주 무작위 게시) — 완수 기록은 임무 수첩에서", 13, C.dim);
       note.x = p.x + 28; note.y = p.y + 650 - 52; content.addChild(note);
     }
     board();
-    function close(): void { overlayOpen = false; rootS.destroy({ children: true }); }
+    function close(): void { ov.close(); }
   }
 
   /* ---------- 수련관 (무기점·방어구점·영혼 길드·원소 길드) ----------
    *  장비 구매(상점 보유 시) / 기술 수련(trains) / 전직 상담(classes) */
-  function openHall(f: TownFacilityDef): void {
-    overlayOpen = true;
+  function openHall(f: TownFacilityDef, tab?: HallTab): void {
+    const hasShop = f.id === "weapon" || f.id === "armor";
     openTrainingHall(f, {
+      initialTab: tab,
       onChange: hud.redraw,
-      onClose: () => { overlayOpen = false; },
+      onClose: () => {},
+      /* 무기·방어구점: 장비 구매는 상점 오버레이로 전환 (같은 깊이) */
+      onShop: hasShop ? () => openGearShop(f) : undefined,
+    });
+  }
+
+  /* ---------- 무기·방어구점: 매대 직행 + 수련·전직 전환 버튼 ---------- */
+  function openGearShop(f: TownFacilityDef): void {
+    const goods = f.id === "weapon" ? SHOP_WEAPONS : SHOP_ARMORS;
+    openShopMenu({
+      title: f.title ?? f.name,
+      goods,
+      kind: f.id === "weapon" ? "weapon" : "armor",
+      keeper: f.keeper,
+      onChange: hud.redraw,
+      onClose: () => {},
+      extras: [
+        ...(f.trains?.length ? [{ label: "기술 수련", onTap: () => openHall(f, "train") }] : []),
+        ...(f.classes?.length ? [{ label: "전직 상담", onTap: () => openHall(f, "class") }] : []),
+      ],
     });
   }
   /* ---------- NPC 대화 (주제 선택식) ---------- */
   function openNpc(npc: NpcDef): void {
-    overlayOpen = true;
-    const rootS = new PIXI.Container(); rootS.zIndex = 60; overlayRoot.addChild(rootS);
-    rootS.addChild(backdrop());
+    /* talk objectives (such as returning the young lord to Orwin) resolve
+     * before the menu is built, so the same conversation can expose [보고]. */
+    questNotify({ t: "talk", npc: npc.id })
+      .forEach((update) => toast(updateText(update), C.border));
+    const ov = openOverlay(); const rootS = ov.root;
     const PW = 820, PH = 480;
     const p = panel(PW, PH); p.x = (W - PW) / 2; p.y = (H - PH) / 2; rootS.addChild(p);
 
@@ -464,7 +482,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     const clearOpts = () => opts.removeChildren().forEach((c) => c.destroy({ children: true }));
     const mkOpt = (label: string, i: number, fn: () => void, gold = false) => {
       const b = button(label, 320, 38, fn, { size: 14, border: gold ? C.border : 0x555068 });
-      b.x = p.x + 280; b.y = p.y + 220 + i * 44; opts.addChild(b);
+      b.x = p.x + PW - 348; b.y = p.y + 220 + i * 44; opts.addChild(b);
     };
 
     function menuRoot(): void {
@@ -472,11 +490,12 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
       let i = 0;
       for (const qid of npc.quests ?? []) {
         const q = QUESTS.find((x) => x.id === qid)!;
+        const dialogue = npc.questDialogue[qid];
         const st = questStatus(qid);
         if (st === "available") {
           mkOpt(`[의뢰] ${q.name}`, i++, () => {
             if (!acceptQuest(qid)) return;
-            say(`${q.desc}\n\n— 의뢰 [${q.name}] 수주! (${q.objectives.map((o) => `${o.desc} 0/${o.count}`).join(" · ")})`);
+            say(dialogue?.offer ?? `${q.desc}\n\n— 의뢰 [${q.name}] 수주!`);
             toast(`의뢰 수주: ${q.name}`, C.border);
             refreshNpcMarks(); menuRoot();
           }, true);
@@ -487,7 +506,7 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
             const parts = [
               r.gold ? `${r.gold} G` : "", r.exp ? `경험치 ${r.exp}` : "", ...r.items,
             ].filter(Boolean).join(" · ");
-            say(`수고했네, [${q.name}] 완수를 확인했어.\n\n보상: ${parts}`);
+            say(`${dialogue?.complete ?? `[${q.name}] 완수를 확인했습니다.`}\n\n보상: ${parts}`);
             toast(`의뢰 완수! 보상: ${parts}`, C.border);
             if (r.ups.length) toast(`레벨 업! ${r.ups.join(" · ")} (HP/MP 전부 회복)`, C.border);
             hud.redraw(); refreshNpcMarks(); menuRoot();
@@ -495,7 +514,10 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
         } else if (st === "active") {
           const pr = G.quests[qid];
           mkOpt(`[진행 중] ${q.name}`, i++, () => {
-            say(`서두르지 않아도 되네. (${q.objectives.map((o) => `${o.desc} ${Math.min(pr.counts[o.id] ?? 0, o.count)}/${o.count}`).join(" · ")})`);
+            const progress = q.objectives
+              .map((o) => `${o.desc} ${Math.min(pr.counts[o.id] ?? 0, o.count)}/${o.count}`)
+              .join(" · ");
+            say(`${dialogue?.active ?? q.desc}\n\n${progress}`);
           });
         }
       }
@@ -506,14 +528,11 @@ export function townScene(spawn: TownSpawn = "gate"): SceneHandle {
     function menuTopics(): void {
       clearOpts();
       const unlocked = npc.topics.filter((topic) => townContentUnlocked(topic.requires, contentContext()));
-      unlocked.forEach((t, i) => mkOpt(t.label, i, () => say(t.text)));
+      unlocked.forEach((t, i) => mkOpt(t.label, i, () => { say(t.text); recordGossip(npc.name, t.label, t.text); }));
       mkOpt("← 돌아가기", unlocked.length, menuRoot);
     }
 
-    function close(): void {
-      overlayOpen = false;
-      rootS.destroy({ children: true });
-    }
+    function close(): void { ov.close(); }
     menuRoot();
   }
 

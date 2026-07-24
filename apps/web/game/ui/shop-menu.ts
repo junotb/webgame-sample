@@ -1,9 +1,8 @@
-import * as PIXI from "pixi.js";
 import {
   ATTRS, AttrId, ConsumableId, DAMAGE_META, DamageType, EquipSlot, GearDef, SLOT_META,
 } from "../defs";
 import { openCraftMenu } from "./craft-menu";
-import { C, H, W, backdrop, button, overlayRoot, panel, toast, txt } from "../core";
+import { C, H, W, button, openOverlay, panel, toast, txt } from "../core";
 import { G, Member, equipGear } from "../state";
 import { pickMember } from "./member-picker";
 import { keeperSays } from "../town/content";
@@ -59,10 +58,11 @@ export function openShopMenu(opts: {
   onChange: () => void;
   onClose: () => void;
   keeper: TownKeeperDef;
+  /** 같은 건물의 다른 용무(수련·전직 등) — 이 오버레이를 닫고 전환한다 */
+  extras?: { label: string; onTap: () => void }[];
 }): void {
   const { title, goods, kind, onChange, onClose, keeper } = opts;
-  const root = new PIXI.Container(); root.zIndex = 60; overlayRoot.addChild(root);
-  root.addChild(backdrop());
+  const ov = openOverlay({ onClose }); const root = ov.root;
   const twoCol = goods.length > 6;
   const cols = twoCol ? 2 : 1;
   const rows = Math.ceil(goods.length / cols);
@@ -118,9 +118,10 @@ export function openShopMenu(opts: {
     const craft = button("조합대", 110, 40, () => openCraftMenu(refreshGold), { size: 15 });
     craft.x = p.x + 26; craft.y = p.y + panelHeight - 56; root.addChild(craft);
   }
-  const close = button("나가기", 110, 40, () => {
-    root.destroy({ children: true });
-    onClose();
-  }, { size: 15 });
+  (opts.extras ?? []).forEach((extra, i) => {
+    const b = button(extra.label, 150, 40, () => { ov.close({ silent: true }); extra.onTap(); }, { size: 15 });
+    b.x = p.x + 26 + i * 160; b.y = p.y + panelHeight - 56; root.addChild(b);
+  });
+  const close = button("나가기", 110, 40, () => ov.close(), { size: 15 });
   close.x = p.x + panelWidth - 136; close.y = p.y + panelHeight - 56; root.addChild(close);
 }

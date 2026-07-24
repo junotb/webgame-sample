@@ -16,7 +16,7 @@ export const SHEET_SRC = {
   armorIron: "/assets/items/icons/armor_iron.png",
   armorSteel: "/assets/items/icons/armor_steel.png",
   armorSpecial: "/assets/items/icons/armor_special.png",
-  armorExtras: "/assets/items/icons/armor_extras.png",
+  armorUnique: "/assets/items/icons/armor_unique.png",
   accessories: "/assets/items/icons/accessories.png",
 } as const;
 type SheetName = keyof typeof SHEET_SRC;
@@ -68,10 +68,10 @@ export const GEAR_ICON_FRAMES: Record<string, FrameDef> = {
   "라운드 실드":   { s: "armorLeather", x: 0,  y: 128 },
   "카이트 실드":   { s: "armorIron",    x: 32, y: 128 },
   "강철 투구":     { s: "armorSteel",   x: 96, y: 96 },
-  "현자의 서클릿": { s: "armorExtras",  x: 0,  y: 0 },
+  "현자의 서클릿": { s: "accessories",  x: 0,   y: 64 },
   "질주의 장화":   { s: "armorLeather", x: 32, y: 32 },
-  "원소 저항 망토": { s: "armorExtras", x: 96, y: 0 },
-  /* 장신구 — accessories 시트: 0행 목걸이, 1행 반지 */
+  "원소 저항 망토": { s: "armorLeather", x: 128, y: 96 },
+  /* 장신구 — accessories 시트: 0행 목걸이, 1행 반지, 2행 머리, 3행 손목 */
   "수호의 부적":   { s: "accessories", x: 128, y: 0 },
   "힘의 반지":     { s: "accessories", x: 288, y: 32 },
   "행운의 반지":   { s: "accessories", x: 96,  y: 32 },

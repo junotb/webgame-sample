@@ -22,5 +22,12 @@
                  "equipment_ring_08",
                  "equipment_ring_09",
                  "equipment_ring_10"
-             ]
+             ],
+    "head":  [
+                  "equipment_crown",
+                  "equipment_mask_01"
+              ],
+    "wrist":  [
+                   "equipment_bracers_01"
+               ]
 }

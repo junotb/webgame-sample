@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "assets:build": "node scripts/build-assets.mjs",
+    "assets:check": "node scripts/build-assets.mjs --check",
     "test": "vitest"
   },
   "dependencies": {

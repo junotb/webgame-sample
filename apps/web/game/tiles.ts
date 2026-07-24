@@ -57,6 +57,9 @@ const SHEET_SRC = {
   evermoreSky2: "/assets/world/backgrounds/evermore_sky_02.png",
   royalHallWall: "/assets/world/backgrounds/royal_hall_wall.png",
   royalFountain: "/assets/world/props/structures/royal_fountain.png",
+  statueProp: "/assets/world/props/structures/fountain_statue.png",
+  dungeonProps: "/assets/world/tilesets/dungeon/props.png",
+  statueAdultProp: "/assets/world/props/structures/fountain_statue_adult.png",
   titleSky1: "/assets/world/backgrounds/title_sky_01.png",
   titleSky2: "/assets/world/backgrounds/title_sky_02.png",
   titleSky3: "/assets/world/backgrounds/title_sky_03.png",
@@ -143,6 +146,12 @@ const FRAMES = {
   /* ---- 마을 구조물 프롭 (빌보드) ---- */
   fountain_obj: { s: "fountainProp", x: 0, y: 0, w: 92, h: 68 }, // 둥근 돌 분수 (원본 전체 — 눕힌 느낌은 그릴 때 세로로 눌러서 낸다)
   well_obj: { s: "wellProp", x: 2, y: 8, w: 50, h: 48 },         // 지붕 달린 돌우물 (투명 여백 제외)
+  /* 매달린 감옥 우리 (dungeon.png 4종 중 — 깨끗한 것과 핏자국 변형, 투명 여백 제외 실경계) */
+  cage_obj: { s: "dungeonProps", x: 488, y: 498, w: 34, h: 73 },       // 깨끗한 우리 — 창살 사이가 뚫려 뒤 레이어가 비친다
+  cage_blood_obj: { s: "dungeonProps", x: 389, y: 498, w: 37, h: 75 }, // 핏자국 우리 — 끌려간 흔적
+  /* 석상 시트는 96×144 셀 — 열이 조각상 종류, 행이 수반 색·물 프레임. 정지 1프레임만 쓴다 */
+  statue_lord_obj: { s: "statueProp", x: 9, y: 445, w: 78, h: 117 },      // 갑주 기사상 (무채색 수반, row3 col0)
+  statue_guard_obj: { s: "statueAdultProp", x: 297, y: 26, w: 78, h: 104 }, // 날개 달린 수호상 (row0 col3)
   /* ---- 고블린 계곡길 — 야영지·해안 전용 비주얼 ---- */
   goblin_sky_base: { s: "goblinSky1", x: 0, y: 0, w: 576, h: 324 },
   goblin_sky_cloud_back: { s: "goblinSky2", x: 0, y: 0, w: 576, h: 324 },

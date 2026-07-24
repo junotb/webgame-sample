@@ -27,6 +27,9 @@
 | world/props/buildings/stone_gate_animation.png | world/props/buildings/doors/gate_03_animation.png |
 | world/props/village/fence_gate_animation.png | world/props/buildings/doors/gate_fence_animation.png |
 | world/props/outdoor/campfire_01_animation.png | world/props/outdoor/campfire_01_animation.png |
+| world/props/structures/fountain_statue.png | world/props/structures/fountain_statue_animation.png |
+| world/tilesets/dungeon/props.png | world/tilesets/dungeon/dungeon.png |
+| world/props/structures/fountain_statue_adult.png | world/props/structures/fountain_statue_adult_animation.png |
 | world/props/outposts/huntercamp_small.png | world/tilesets/buildings/special/huntercamp_small.png |
 | world/tilesets/biomes/sand_ground.png | world/tilesets/biomes/snow_desert/a2_snow_desert.png |
 | world/tilesets/cave/ground.png | world/tilesets/cave/a2_cave.png |
@@ -58,7 +61,7 @@
 | items/icons/armor_iron.png | items/icons/armor_sets/iron.png |
 | items/icons/armor_steel.png | items/icons/armor_sets/steel.png |
 | items/icons/armor_special.png | items/icons/armor_sets/special.png |
-| items/icons/armor_extras.png | items/icons/armor_sets/extras.png |
+| items/icons/armor_unique.png | items/icons/armor_sets/unique.png |
 | items/icons/accessories.png | items/icons/accessory_sets/accessories.png |
 
 ## 추정 매핑 (가공·합성 재료)
@@ -95,6 +98,7 @@
 | --- | --- |
 | monsters/icons/*.png (54개) | 완성본을 직접 추가. `game/defs/enemies.ts`의 MONSTER_ICONS 및 `game/defs/monster-habitats.ts`의 카테고리·서식지와 연동 |
 | monsters/bosses/goblin_*_animation.png (15개) | 고블린 킹·로드·블레이드·자이언트 보스 후보의 런타임 애니메이션 시트. 개별 원본 프레임은 `assets-source/monsters/sprites/goblin_bosses/`에 보존 |
+| monsters/large/goblinblade.png, goblinlord.png | `goblin_bosses/goblin_blade/idle/idle_0000.png`·`goblin_lord/idle/idle_0000.png`의 투명 여백을 트리밍한 고해상도 정지컷 (43×80·72×111). 카탈로그 nameEn(Goblinblade·Goblinlord)이 원본 폴더명을 따른다. `game/monsters.ts`의 HIRES_MONSTERS와 연동 |
 | portraits/halfling_male_*.png, halfling_female_*.png, goblin_*.png (96개) | `game/portraits.ts`의 개수·인덱스 규칙과 연동 |
 
 ## 출처 미확인

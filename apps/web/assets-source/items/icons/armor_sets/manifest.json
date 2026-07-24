@@ -7,7 +7,8 @@
                                   "equipment_armor_04",
                                   "equipment_armor_05",
                                   "equipment_armor_08",
-                                  "equipment_armor_11"
+                                  "equipment_armor_11",
+                                  "equipment_tunic_01"
                               ],
                     "boots":  [
                                   "equipment_boots_02",
@@ -17,7 +18,8 @@
                                   "equipment_boots_06",
                                   "equipment_boots_07",
                                   "equipment_boots_08",
-                                  "equipment_boots_09"
+                                  "equipment_boots_09",
+                                  "equipment_boot"
                               ],
                     "gauntlets":  [
                                       "equipment_gauntlets_01",
@@ -27,13 +29,18 @@
                                       "equipment_gauntlets_05",
                                       "equipment_gauntlets_06",
                                       "equipment_gauntlets_07",
-                                      "equipment_gauntlets_10"
+                                      "equipment_gauntlets_10",
+                                      "equipment_gloves",
+                                      "equipment_gloves_01"
                                   ],
                     "helmet":  [
                                    "equipment_helmet_01",
                                    "equipment_helmet_02",
                                    "equipment_helmet_03",
-                                   "equipment_helmet_05"
+                                   "equipment_helmet_05",
+                                   "equipment_hood_01",
+                                   "equipment_hood_02",
+                                   "equipment_hood_03"
                                ],
                     "shield":  [
                                    "equipment_shield_01",
@@ -42,7 +49,8 @@
                                    "equipment_shield_06",
                                    "equipment_shield_07",
                                    "equipment_shield_09",
-                                   "equipment_shield_10"
+                                   "equipment_shield_10",
+                                   "equipment_wooden_shield"
                                ]
                 },
     "iron":  {
@@ -151,31 +159,18 @@
                                    "equipment_shield_19"
                                ]
                 },
-    "extras":  {
+    "unique":  {
                    "head":  [
-                                "equipment_crown",
                                 "equipment_hat_01",
                                 "equipment_helmet",
-                                "equipment_hood_01",
-                                "equipment_hood_02",
-                                "equipment_hood_03",
-                                "equipment_mask_01",
                                 "equipment_skull_helmet_01",
                                 "equipment_wizard_hat"
                             ],
-                   "body_hands":  [
-                                      "equipment_tunic_01",
-                                      "equipment_bracers_01",
-                                      "equipment_gloves",
-                                      "equipment_gloves_01"
-                                  ],
                    "feet":  [
-                                "equipment_boot",
                                 "equipment_red_boots"
                             ],
                    "shield":  [
-                                  "equipment_red_shield",
-                                  "equipment_wooden_shield"
+                                  "equipment_red_shield"
                               ]
                }
 }

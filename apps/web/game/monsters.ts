@@ -11,7 +11,7 @@ const hiResAlias = (img: string) => `monster-hires-${img}`;
 
 /** 고해상도 원본이 준비된 몬스터 목록 — assets/monsters/large/<lowercase nameEn>.png (64×64 이상).
  *  파일을 추가하면 여기에 nameEn을 등록한다. 미등록 대형·거대 몬스터는 런타임 scale2x로 대체한다. */
-export const HIRES_MONSTERS: string[] = ["Voodooshaman"];
+export const HIRES_MONSTERS: string[] = ["Voodooshaman", "Goblinblade", "Goblinlord"];
 
 /** boot에서 1회 호출 — 카탈로그(MONSTER_ICONS) 전체 프리로드 (~48장, 소형) */
 export async function loadMonsterIcons(): Promise<void> {

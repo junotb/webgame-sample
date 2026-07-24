@@ -1,0 +1,16 @@
+{
+  "comment": "public/audio/bgm 런타임 트랙 ← assets-source/audio/bgm-library 원본 매핑. game/audio.ts의 BGM_FILES와 파일명이 일치해야 한다.",
+  "bgm": {
+    "title-enigma-of-eldoria": "Enigma of Eldoria.mp3",
+    "town-mystic-meadows": "The Mystic Meadows.mp3",
+    "town-discovery": "Discovery.mp3",
+    "field-unknown-paths": "Exploring the Unknown Paths.mp3",
+    "field-forest-fantasy": "Enchanted Forest Fantasy.mp3",
+    "field-mystic-mists": "Mystic Mists.mp3",
+    "dungeon-dark-rites": "The Labyrinth of Dark Rites.mp3",
+    "dungeon-shadows-unknown": "Shadows of the Unknown.mp3",
+    "dungeon-witching-hour": "The Witching Hour s Secret.mp3",
+    "battle-magefire-clash": "The Magefire Clash.mp3",
+    "event-chronicles": "Chronicles of Conjuring.mp3"
+  }
+}

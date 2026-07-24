@@ -27,47 +27,47 @@ describe("버전 세이브", () => {
     expect(() => parseSave(JSON.stringify({ version: SAVE_VERSION + 1, state: G }))).toThrow("버전");
   });
 
-  it("v2 세이브(사원 상태 없음)를 v3로 마이그레이션한다", () => {
-    const legacy = JSON.parse(serializeGame());
-    legacy.version = 2;
-    delete legacy.state.temple;
-    legacy.state.explore.lordIntroSeen = true;
-    delete legacy.state.explore.introSeen;
-    legacy.state.explore.chestOpened = { c1: true, hidden: false };
-    const parsed = parseSave(JSON.stringify(legacy));
-    expect(parsed.temple).toBeDefined();
-    expect(parsed.temple.enemies.length).toBeGreaterThan(0);
-    expect(parsed.explore.introSeen.lord).toBe(true);
-    expect(parsed.explore.chestOpened.c1).toBe(true);
+  it("마이그레이션 경로가 없는 구버전(v6 미만)을 명확한 메시지로 거부한다", () => {
+    for (const version of [1, 2, 5]) {
+      const legacy = JSON.parse(serializeGame());
+      legacy.version = version;
+      expect(() => parseSave(JSON.stringify(legacy))).toThrow("호환되지 않는 세이브 버전");
+    }
   });
 
-  it("v5 세이브(potion/mpotion만 있음)를 v6 소모품·재료 레코드로 마이그레이션한다", () => {
-    const legacy = JSON.parse(serializeGame());
-    legacy.version = 5;
-    legacy.state.items = { potion: 4, mpotion: 1 };
-    delete legacy.state.mats;
-    const parsed = parseSave(JSON.stringify(legacy));
-    expect(parsed.items.potion).toBe(4);
-    expect(parsed.items.mpotion).toBe(1);
-    expect(parsed.items.elixir).toBe(0);
-    expect(parsed.items.antidote).toBe(0);
-    expect(parsed.mats.flask).toBe(0);
-    expect(parsed.mats.herb).toBe(0);
+  it("현재 버전 세이브는 마이그레이션 없이 그대로 통과한다", () => {
+    const raw = JSON.parse(serializeGame());
+    expect(raw.version).toBe(SAVE_VERSION);
+    expect(() => parseSave(JSON.stringify(raw))).not.toThrow();
   });
 
-  it("v1 통합 원소·영혼 숙련을 v2의 9개 학파로 마이그레이션한다", () => {
+  it("v6에서 완료 대기였던 왕자 수색은 오르윈 보고 단계로 마이그레이션한다", () => {
     const legacy = JSON.parse(serializeGame());
-    legacy.version = 1;
-    legacy.state.party[0].bonusSkills = ["elemental", "spirit"];
-    legacy.state.party[0].trained = { elemental: 2, spirit: 1 };
-    const parsed = parseSave(JSON.stringify(legacy));
-    expect(parsed.party[0].bonusSkills).toEqual(expect.arrayContaining([
-      "fire", "water", "earth", "wind", "spirit", "mind", "body",
-    ]));
-    expect(parsed.party[0].trained.fire).toBe(2);
-    expect(parsed.party[0].trained.water).toBe(2);
-    expect(parsed.party[0].trained.spirit).toBe(1);
-    expect(parsed.party[0].trained.mind).toBe(1);
-    expect(parsed.party[0].trained.body).toBe(1);
+    legacy.version = 6;
+    legacy.state.flags.princeFound = true;
+    legacy.state.quests.main_ch1_wavering_crown = {
+      status: "done", counts: { find_prince: 1 }, times: 0,
+    };
+    const migrated = parseSave(JSON.stringify(legacy));
+    expect(migrated.quests.main_ch1_wavering_crown).toMatchObject({
+      status: "active",
+      counts: { find_prince: 1, report_to_orwin: 0 },
+    });
+  });
+
+  it("v7 캐릭터가 당시 사용할 수 있던 비기본 주문을 습득 상태로 보존한다", () => {
+    const legacy = JSON.parse(serializeGame());
+    legacy.version = 7;
+    legacy.state.party[0].trained.fire = 2;
+    legacy.state.party[0].trained.wind = 2;
+    delete legacy.state.party[0].learnedSpells;
+
+    const migrated = parseSave(JSON.stringify(legacy));
+    const learned = migrated.party[0].learnedSpells;
+    expect(learned).toContain("ember");
+    expect(learned).toContain("fireball");
+    expect(learned).toContain("recall");
+    expect(learned).not.toContain("firebolt");
+    expect(learned).not.toContain("inferno");
   });
 });

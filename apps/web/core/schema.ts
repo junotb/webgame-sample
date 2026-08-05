@@ -1,0 +1,162 @@
+/**
+ * Phase 0 스키마 v1 — 3시트 상태 + 콘텐츠 규격
+ * 원칙: 순수 리듀서 코어 (프레임워크·저장소 무의존)
+ * 이 파일이 AI 에이전트 콘텐츠 작성의 작업 규격이다 (가이드라인 D4)
+ */
+
+// ─────────────────────────────────────────────
+// 식별자
+// ─────────────────────────────────────────────
+export type DistrictId = 'd2' | 'd5' | 'd7'; // 제2·5·7구역 (가칭)
+export type NpcId = 'protagonist';           // Ep1 주인공 ("돌아온 자")
+export type StatId = 'repair' | 'insight' | 'procedure' | 'nerve'; // 정비/진단/절차/담력
+export type SkillId = 'inscription' | 'flowsense'; // 각인학/감류학 (슬라이스 범위)
+export type MenaceId = 'fatigue' | 'scrutiny' | 'unrest'; // 피로/주목/동요
+
+// ─────────────────────────────────────────────
+// 3시트 상태 (세이브 = 이 객체 그대로)
+// ─────────────────────────────────────────────
+export interface AccountSheet {
+  ownedEpisodes: string[];   // 슬라이스: ['ep1']
+  // 여력(액션)은 Phase 1에서 추가 — 가이드라인 확정사항
+}
+
+export interface CharacterSheet {
+  stats: Record<StatId, number>;    // 0~100
+  skills: Record<SkillId, number>;  // 0~7
+  memory: number;                   // 기억 0~7, 비가역 (감소 이펙트 금지 — 빌드 검증 대상)
+  rank: number;                     // 직위 (슬라이스: 0 고정)
+}
+
+export interface WorldSheet {
+  day: number;
+  phase: DayPhase;
+  districts: Record<DistrictId, { decay: number }>; // 노후도 0~10
+  menace: Record<MenaceId, number>;                 // 0~8
+  npcs: Record<NpcId, { trust: number }>;           // 신뢰 0~7
+  flags: Record<string, number>;                    // 서사 플래그 (patched_d5 등)
+  shiftLeft: number;                                // 근무 시간 잔여 (슬라이스의 트리아지 장치)
+  pendingOrders: WorkOrder[];                       // 오늘 생성된 지시서
+  seed: number;                                     // PRNG 상태 (재현성)
+}
+
+export interface GameState {
+  account: AccountSheet;
+  self: CharacterSheet;
+  world: WorldSheet;
+}
+
+export type DayPhase = 'morning' | 'field' | 'event' | 'closing';
+
+// ─────────────────────────────────────────────
+// 판정
+// ─────────────────────────────────────────────
+export type Check =
+  | { kind: 'broad'; stat: StatId; difficulty: number }   // p = 0.6·stat/diff
+  | { kind: 'narrow'; skill: SkillId; difficulty: number } // p = 0.5+(skill−diff)·0.1
+  | { kind: 'auto' };                                      // 판정 없음
+
+// ─────────────────────────────────────────────
+// 효과 — QBN 스타일 경로 기반 (기억 감소는 빌드 검증에서 거부)
+// ─────────────────────────────────────────────
+export type EffectPath =
+  | `self.stats.${StatId}`
+  | `self.skills.${SkillId}`
+  | 'self.memory'
+  | `world.districts.${DistrictId}.decay`
+  | `world.menace.${MenaceId}`
+  | `world.npcs.${NpcId}.trust`
+  | `world.flags.${string}`;
+
+export interface Effect {
+  path: EffectPath;
+  op: 'add' | 'set';
+  value: number;
+}
+
+// ─────────────────────────────────────────────
+// 조건 + 완곡어 텍스트 변형
+// ─────────────────────────────────────────────
+export interface Condition {
+  path: EffectPath | 'world.day';
+  gte?: number;
+  lte?: number;
+}
+
+/** 첫 매치 우선. 조건 없는 변형이 기본값(맨 뒤에 배치). */
+export interface TextVariant {
+  if?: Condition[];   // 예: [{ path: 'self.memory', gte: 1 }]
+  text: string;
+}
+
+// ─────────────────────────────────────────────
+// 지시서 (자동 생성 콘텐츠)
+// ─────────────────────────────────────────────
+export interface WorkOrderTemplate {
+  id: string;                       // 'WO-T1' ...
+  minDecay: number;                 // 이 노후도 이상 구역에서 생성됨
+  title: string;                    // 공식 완곡어 제목
+  body: TextVariant[];              // 완곡어 시스템 적용 지점
+  options: WorkOption[];
+}
+
+export interface WorkOption {
+  label: string;
+  check: Check;
+  timeCost: number;                 // 근무 시간 소모 (슬라이스: 1)
+  onSuccess: { effects: Effect[]; text: string };
+  onFailure?: { effects: Effect[]; text: string };
+}
+
+/** 생성기 출력: 템플릿 + 구역 바인딩 */
+export interface WorkOrder {
+  templateId: string;
+  district: DistrictId;
+  /** 난이도 보정: 구역 노후도가 템플릿 기본 난이도에 가산됨 (방치의 대가) */
+  difficultyBonus: number;
+  resolved: boolean;
+}
+
+// ─────────────────────────────────────────────
+// 스토리렛 (손제작 서사)
+// ─────────────────────────────────────────────
+export interface Storylet {
+  id: string;                       // 'EV-001' ...
+  requirements: Condition[];
+  body: TextVariant[];
+  choices: StoryletChoice[];
+}
+
+export interface StoryletChoice {
+  label: string;
+  check: Check;
+  onSuccess: { effects: Effect[]; text: string };
+  onFailure?: { effects: Effect[]; text: string };
+}
+
+// ─────────────────────────────────────────────
+// 콘텐츠 번들 (D4: 코드가 콘텐츠를 직접 import하지 않는다)
+// ─────────────────────────────────────────────
+export interface ContentBundle {
+  bundleId: string;                 // 'ep1-slice'
+  version: string;
+  orderTemplates: WorkOrderTemplate[];
+  storylets: Storylet[];
+}
+
+// ─────────────────────────────────────────────
+// 리듀서 계약 (구현은 core/ 에서)
+// ─────────────────────────────────────────────
+export type Action =
+  | { type: 'START_DAY' }
+  | { type: 'RESOLVE_ORDER'; orderIndex: number; optionIndex: number }
+  | { type: 'SKIP_TO_EVENT' }
+  | { type: 'CHOOSE_STORYLET'; storyletId: string; choiceIndex: number }
+  | { type: 'CLOSE_DAY' };
+
+export interface StepResult {
+  state: GameState;
+  log: string[];                    // 이번 스텝의 서술 텍스트 (UI가 그대로 출력)
+}
+
+export type Reducer = (state: GameState, action: Action, content: ContentBundle) => StepResult;

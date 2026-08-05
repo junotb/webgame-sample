@@ -13,6 +13,18 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // core/ 내부에서 외부 세계(React/Next/앱 레이어) import 차단
+  {
+    files: ["core/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: ["react", "react-*", "next", "next/*", "@/app/*", "@/lib/*"],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

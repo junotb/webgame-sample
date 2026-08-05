@@ -8,6 +8,7 @@
 > 이 문서는 Claude Project 가이드라인의 사본이다. **설계 결정의 원본은 Claude Project에 있으며,
 > 설계 변경은 그쪽에서 결정 후 이 문서에 반영한다** (단방향 동기화).
 > 코드 세부 규칙은 이 문서에만 쌓여도 된다.
+> ※ 구 프로젝트 "부서진 왕국의 연대기"(그리드 크롤러, 6스탯, Roblox)는 전부 폐기됨 — 절대 끌어오지 않는다.
 
 ---
 
@@ -16,12 +17,21 @@
 ### 디렉토리와 의존 방향
 
 ```
-web/core/     게임 로직. 순수 TS만 — React/Next/브라우저 API/lib/app import 금지 (ESLint로 강제)
-web/app/      Next.js 라우팅 + UI + 세이브(IndexedDB). core를 소비만 한다
-web/lib/      backend.ts (백엔드 인터페이스) — Phase 2에서 생성
-web/content/  JSON 콘텐츠 번들 + 로더. 코드에서 직접 import 금지 — 매니페스트 경유 비동기 로드만
-docs/         phase 스펙 문서
+리포루트/
+├── CLAUDE.md        이 문서
+├── docs/            phase 스펙, icon-vocabulary, CREDITS — 설계·규격 문서는 전부 루트 docs
+└── web/             Next.js 앱
+    ├── core/        게임 로직. 순수 TS만 — React/Next/브라우저 API/lib/app import 금지 (ESLint로 강제)
+    ├── app/         Next.js 라우팅 + UI. core를 소비만 한다
+    ├── lib/         backend.ts (백엔드 인터페이스), 콘텐츠 로더, IndexedDB
+    ├── content/     JSON 콘텐츠 번들. 코드에서 직접 import 금지 — 매니페스트 경유 비동기 로드만
+    ├── assets/icons/  game-icons SVG (SVGR 경유, currentColor 색 치환)
+    └── public/maps/   도시 지도 이미지 등 색 치환 불필요한 정적 파일
 ```
+
+- **풀스택 계획**: 서버 워크스페이스는 Phase 2 진입 시점에 추가한다 — 지금 모노레포
+  워크스페이스 설정을 하지 않는다. 그때 `web/core/` → `packages/core/` 승격 후
+  서버가 core를 패키지로 소비한다 (core 무의존 원칙이 이 승격 비용을 0에 가깝게 유지한다)
 
 - **core/는 테스트 없이 수정하지 않는다.** 구현 전 테스트 먼저 (경계값 포함)
 - **작업은 작은 단위로.** 한 세션 = 한 모듈 + 테스트. 여러 시스템을 한 번에 구현하지 않는다
@@ -108,7 +118,9 @@ docs/         phase 스펙 문서
 
 ## 3. 콘텐츠 작성 규격 (에이전트 필독)
 
-- 스키마(`core/schema.ts`)가 작업 규격이다. 빌드 검증을 통과해야 콘텐츠다
+- 스키마(`web/core/schema.ts`)가 작업 규격이다. 빌드 검증을 통과해야 콘텐츠다
+- **아이콘은 `docs/icon-vocabulary.md`의 의미 ID로만 참조한다.** 파일명 직접 언급 금지.
+  새 아이콘이 필요하면 등록부에 의미 ID를 먼저 등록 (파일 선정은 나중이어도 됨)
 - 치환자(`{district}`)는 **지시서 템플릿에만** 허용 (TemplateEffectPath). 스토리렛엔 금지
 - `self.memory` 감소 effect 금지 (검증기가 거부)
 - **톤 규칙 — 이 게임의 상품**:

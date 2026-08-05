@@ -1,7 +1,7 @@
-import contentData from '../content/content.ep1-slice.json';
-import type { ContentBundle } from '../core/schema';
+import { loadContent } from '../content/loader';
 import { GameClient } from './game-client';
 
 export default function Home() {
-  return <GameClient content={contentData as ContentBundle} />;
+  const [content] = loadContent();
+  return <GameClient content={content} />;
 }

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run validate:content && next build",
+    "validate:content": "vitest run content/loader.test.ts",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",

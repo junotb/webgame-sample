@@ -1,0 +1,5 @@
+{
+  "bundles": [
+    { "id": "ep1-slice", "path": "content.ep1-slice.json" }
+  ]
+}

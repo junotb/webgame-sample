@@ -1,0 +1,146 @@
+/**
+ * 하루 상태 기계 — morning → field → event → closing (스펙 2장)
+ * 순수 리듀서: PRNG는 world.seed로 재현, 매 판정 후 seed 전진.
+ * 트리아지 장치: shiftLeft(근무 시간 2)로 3건 중 2건만 처리 가능.
+ */
+import { mulberry32, rollCheck } from './checks';
+import { applyEffects } from './effects';
+import { generateOrders } from './generate';
+import { resolveOption } from './resolve';
+import type { Condition, DistrictId, GameState, Reducer, StepResult, TextVariant } from './schema';
+
+export const SHIFT_PER_DAY = 2;
+export const BASE_ALTITUDE = 8000;
+export const ALTITUDE_PER_DECAY = 120;
+const MAX_DECAY = 10;
+
+/** 고도 = 8000 − 120 × Σ노후도 (m) — 하루 요약에 숫자로만 표기 */
+export function altitude(districts: Record<DistrictId, { decay: number }>): number {
+  const total = Object.values(districts).reduce((sum, d) => sum + d.decay, 0);
+  return BASE_ALTITUDE - ALTITUDE_PER_DECAY * total;
+}
+
+/** 조건·변형 평가용 상태 경로 읽기. 없는 flag 등 미정의 숫자는 0. */
+export function getValueAtPath(state: GameState, path: string): number {
+  let node: unknown = state;
+  for (const seg of path.split('.')) {
+    if (typeof node !== 'object' || node === null) return 0;
+    node = (node as Record<string, unknown>)[seg];
+  }
+  return typeof node === 'number' ? node : 0;
+}
+
+export function evalConditions(state: GameState, conditions: Condition[]): boolean {
+  return conditions.every((c) => {
+    const v = getValueAtPath(state, c.path);
+    return (c.gte === undefined || v >= c.gte) && (c.lte === undefined || v <= c.lte);
+  });
+}
+
+/** 완곡어 변형 선택 — 첫 매치 우선, 조건 없는 변형이 기본값 (스키마 TextVariant 계약) */
+export function selectVariant(state: GameState, variants: TextVariant[]): string {
+  const match = variants.find((v) => !v.if || evalConditions(state, v.if));
+  return match?.text ?? '';
+}
+
+function advanceSeed(rng: () => number): number {
+  return Math.floor(rng() * 4294967296);
+}
+
+function assertPhase(state: GameState, expected: GameState['world']['phase'], actionType: string): void {
+  if (state.world.phase !== expected) {
+    throw new Error(`${actionType}은 ${expected} 단계에서만 가능 (현재: ${state.world.phase})`);
+  }
+}
+
+export const reduce: Reducer = (state, action, content): StepResult => {
+  switch (action.type) {
+    case 'START_DAY': {
+      assertPhase(state, 'morning', 'START_DAY');
+      const rng = mulberry32(state.world.seed);
+      const orders = generateOrders(state.world.districts, content.orderTemplates, rng);
+      const next = structuredClone(state);
+      next.world.pendingOrders = orders;
+      next.world.phase = 'field';
+      next.world.seed = advanceSeed(rng);
+      return {
+        state: next,
+        log: [`지시서 ${orders.length}건 발부.`, ...orders.map((o) => `— ${o.title} (${o.district})`)],
+      };
+    }
+
+    case 'RESOLVE_ORDER': {
+      assertPhase(state, 'field', 'RESOLVE_ORDER');
+      const order = state.world.pendingOrders[action.orderIndex];
+      if (!order) throw new Error(`지시서 없음: index ${action.orderIndex}`);
+      if (order.resolved) throw new Error(`이미 처리한 지시서: ${order.templateId} (${order.district})`);
+      const option = order.options[action.optionIndex];
+      if (!option) throw new Error(`옵션 없음: index ${action.optionIndex}`);
+      if (state.world.shiftLeft < option.timeCost) {
+        throw new Error(`근무 시간 부족: 잔여 ${state.world.shiftLeft}, 필요 ${option.timeCost}`);
+      }
+      const rng = mulberry32(state.world.seed);
+      const result = resolveOption(state, option, rng);
+      const next = result.state === state ? structuredClone(state) : result.state;
+      next.world.pendingOrders[action.orderIndex].resolved = true;
+      next.world.shiftLeft -= option.timeCost;
+      if (next.world.shiftLeft <= 0) next.world.phase = 'event';
+      next.world.seed = advanceSeed(rng);
+      const log = [result.success ? '처리 완료.' : '처리 실패.'];
+      if (result.text) log.push(result.text);
+      return { state: next, log };
+    }
+
+    case 'SKIP_TO_EVENT': {
+      assertPhase(state, 'field', 'SKIP_TO_EVENT');
+      const next = structuredClone(state);
+      next.world.shiftLeft = 0;
+      next.world.phase = 'event';
+      return { state: next, log: ['남은 근무 시간을 접고 사무소로 돌아간다.'] };
+    }
+
+    case 'CHOOSE_STORYLET': {
+      assertPhase(state, 'event', 'CHOOSE_STORYLET');
+      const storylet = content.storylets.find((s) => s.id === action.storyletId);
+      if (!storylet) throw new Error(`스토리렛 없음: ${action.storyletId}`);
+      if (!evalConditions(state, storylet.requirements)) {
+        throw new Error(`스토리렛 조건 미충족: ${storylet.id}`);
+      }
+      const choice = storylet.choices[action.choiceIndex];
+      if (!choice) throw new Error(`선택지 없음: index ${action.choiceIndex}`);
+      const rng = mulberry32(state.world.seed);
+      const { success } = rollCheck(choice.check, state.self.stats, state.self.skills, rng);
+      const branch = success ? choice.onSuccess : choice.onFailure;
+      const next = branch ? applyEffects(state, branch.effects) : structuredClone(state);
+      next.world.phase = 'closing';
+      next.world.seed = advanceSeed(rng);
+      return { state: next, log: branch?.text ? [branch.text] : [] };
+    }
+
+    case 'CLOSE_DAY': {
+      assertPhase(state, 'closing', 'CLOSE_DAY');
+      const next = structuredClone(state);
+      // 방치 페널티: 미처리 지시서의 구역 +1
+      for (const order of next.world.pendingOrders) {
+        if (!order.resolved) {
+          const d = next.world.districts[order.district];
+          d.decay = Math.min(MAX_DECAY, d.decay + 1);
+        }
+      }
+      // 자연 틱: 전 구역 +1
+      for (const d of Object.values(next.world.districts)) {
+        d.decay = Math.min(MAX_DECAY, d.decay + 1);
+      }
+      const alt = altitude(next.world.districts);
+      const closedDay = next.world.day;
+      next.world.day += 1;
+      next.world.phase = 'morning';
+      next.world.shiftLeft = SHIFT_PER_DAY;
+      next.world.pendingOrders = [];
+      return {
+        state: next,
+        log: [`Day ${closedDay} 종료. 도시 고도 ${alt}m.`],
+      };
+    }
+  }
+};

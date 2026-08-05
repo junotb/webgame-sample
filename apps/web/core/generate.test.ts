@@ -130,9 +130,19 @@ describe('generateOrders — 노후도 테이블 × 템플릿', () => {
     const orders = generateOrders(districts, TEMPLATES, () => 0.99);
     expect(orders[0].templateId).toBe('T1'); // d2: T2/T3 부적격
   });
-  it('rng로 적격 후보 중 선택 (d7 decay 5 → 세 후보 전부)', () => {
-    expect(generateOrders(districts, TEMPLATES, () => 0)[2].templateId).toBe('T1');
+  it('적격 후보 중 최고 minDecay가 항상 선택된다 (완곡어 시연 보장 — 등장 랜덤성 제거)', () => {
+    // d7 decay 5 → T1/T2/T3 전부 적격이지만 rng와 무관하게 T3
+    expect(generateOrders(districts, TEMPLATES, () => 0)[2].templateId).toBe('T3');
     expect(generateOrders(districts, TEMPLATES, () => 0.99)[2].templateId).toBe('T3');
+    // d5 decay 4 → T1/T2 적격, T2 확정
+    expect(generateOrders(districts, TEMPLATES, () => 0)[1].templateId).toBe('T2');
+    expect(generateOrders(districts, TEMPLATES, () => 0.99)[1].templateId).toBe('T2');
+  });
+  it('최고 minDecay 동률은 rng로 갈린다', () => {
+    const T3B: WorkOrderTemplate = { ...T3, id: 'T3B' };
+    const pool = [...TEMPLATES, T3B];
+    expect(generateOrders(districts, pool, () => 0)[2].templateId).toBe('T3');
+    expect(generateOrders(districts, pool, () => 0.99)[2].templateId).toBe('T3B');
   });
   it('적격 템플릿이 없으면 throw', () => {
     expect(() => generateOrders({ ...districts, d2: { decay: 3 } }, [T3], () => 0)).toThrow(/적격/);

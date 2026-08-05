@@ -48,7 +48,12 @@ export function instantiateOrder(
   };
 }
 
-/** 구역당 1건 — 슬라이스는 구역 3개로 3건 고정. 후보는 minDecay ≤ decay, rng로 선택. */
+/**
+ * 구역당 1건 — 슬라이스는 구역 3개로 3건 고정. 후보는 minDecay ≤ decay.
+ * 적격 중 최고 minDecay를 우선한다 (동률만 rng) — 노후도가 깊은 구역엔
+ * 그에 맞는 지시서가 반드시 온다. 완곡어 시연(스펙 5장)의 WO-T3
+ * 재등장 보장이 이 규칙에 의존한다.
+ */
 export function generateOrders(
   districts: Record<DistrictId, { decay: number }>,
   templates: WorkOrderTemplate[],
@@ -60,7 +65,9 @@ export function generateOrders(
     if (eligible.length === 0) {
       throw new Error(`적격 템플릿 없음: 구역 ${district} (노후도 ${decay})`);
     }
-    const template = eligible[Math.floor(rng() * eligible.length)];
+    const maxMinDecay = Math.max(...eligible.map((t) => t.minDecay));
+    const severest = eligible.filter((t) => t.minDecay === maxMinDecay);
+    const template = severest[Math.floor(rng() * severest.length)];
     return instantiateOrder(template, district, decay);
   });
 }

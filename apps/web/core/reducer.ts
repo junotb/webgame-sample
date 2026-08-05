@@ -7,9 +7,10 @@ import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
 import { generateOrders } from './generate';
 import { resolveOption } from './resolve';
-import type { Condition, DistrictId, GameState, Reducer, StepResult, TextVariant } from './schema';
+import type { Condition, DistrictId, GameState, MenaceId, Reducer, StepResult, TextVariant } from './schema';
 
 export const SHIFT_PER_DAY = 2;
+export const MENACE_CAP = 8;
 export const BASE_ALTITUDE = 8000;
 export const ALTITUDE_PER_DECAY = 120;
 const MAX_DECAY = 10;
@@ -41,6 +42,18 @@ export function evalConditions(state: GameState, conditions: Condition[]): boole
 export function selectVariant(state: GameState, variants: TextVariant[]): string {
   const match = variants.find((v) => !v.if || evalConditions(state, v.if));
   return match?.text ?? '';
+}
+
+const MENACE_LABELS: Record<MenaceId, string> = { fatigue: '피로', scrutiny: '주목', unrest: '동요' };
+
+/**
+ * 메나스 상한 경고 (스펙 4장) — 도달 시 텍스트 경고만, 강제 이동 콘텐츠 없음.
+ * 이번 스텝에 새로 상한에 닿은 메나스만 경고한다 (이미 상한이면 침묵).
+ */
+export function menaceWarnings(prev: GameState, next: GameState): string[] {
+  return (Object.keys(MENACE_LABELS) as MenaceId[])
+    .filter((m) => prev.world.menace[m] < MENACE_CAP && next.world.menace[m] >= MENACE_CAP)
+    .map((m) => `⚠ ${MENACE_LABELS[m]}이(가) 한계에 달했다 (${MENACE_CAP}/${MENACE_CAP}).`);
 }
 
 function advanceSeed(rng: () => number): number {
@@ -88,6 +101,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.seed = advanceSeed(rng);
       const log = [result.success ? '처리 완료.' : '처리 실패.'];
       if (result.text) log.push(result.text);
+      log.push(...menaceWarnings(state, next));
       return { state: next, log };
     }
 
@@ -114,7 +128,9 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       const next = branch ? applyEffects(state, branch.effects) : structuredClone(state);
       next.world.phase = 'closing';
       next.world.seed = advanceSeed(rng);
-      return { state: next, log: branch?.text ? [branch.text] : [] };
+      const log = branch?.text ? [branch.text] : [];
+      log.push(...menaceWarnings(state, next));
+      return { state: next, log };
     }
 
     case 'CLOSE_DAY': {

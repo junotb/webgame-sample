@@ -95,8 +95,15 @@
           "check": { "kind": "broad", "stat": "procedure", "difficulty": 35 },
           "timeCost": 1,
           "onSuccess": {
-            "effects": [{ "path": "world.districts.{district}.decay", "op": "add", "value": -2 }],
-            "text": "'점검 완료. 연료 재생률 자연 변동. 이상 없음.' — 익숙한 문구가 익숙한 칸에 들어간다. 명멸은 새벽쯤 잦아들 것이다. 늘 그랬듯이."
+            "effects": [
+              { "path": "world.districts.{district}.decay", "op": "add", "value": -1 },
+              { "path": "world.flags.patched_{district}", "op": "add", "value": 1 }
+            ],
+            "text": "'점검 완료. 연료 재생률 자연 변동. 이상 없음.' — 익숙한 문구가 익숙한 칸에 들어간다. 명멸은 새벽쯤 잦아들 것이다. 늘 그랬듯이. 원인은 어디에도 적히지 않은 채로."
+          },
+          "onFailure": {
+            "effects": [{ "path": "world.menace.fatigue", "op": "add", "value": 2 }],
+            "text": "서식의 칸이 오늘따라 들어맞지 않는다. 명멸 횟수가 통례의 범위를 넘어서, '이상 없음'에 도장을 찍을 수가 없었다. 서류는 미결함으로 돌아갔다."
           }
         },
         {
@@ -105,14 +112,14 @@
           "timeCost": 1,
           "onSuccess": {
             "effects": [
-              { "path": "world.districts.{district}.decay", "op": "add", "value": -2 },
+              { "path": "world.districts.{district}.decay", "op": "add", "value": -3 },
               { "path": "world.menace.unrest", "op": "add", "value": 1 },
               { "path": "world.flags.saw_rhythm", "op": "set", "value": 1 }
             ],
             "text": "수첩에 명멸 간격을 옮겨 적다가 손이 멈춘다. 불규칙해야 할 변동이 규칙적이다. 4초. 4초. 4초. 기계의 리듬이라기엔 지나치게… 생물의 것 같은 간격."
           },
           "onFailure": {
-            "effects": [{ "path": "world.menace.fatigue", "op": "add", "value": 1 }],
+            "effects": [{ "path": "world.menace.fatigue", "op": "add", "value": 2 }],
             "text": "새벽까지 지켜봤지만 명멸은 기록을 시작하자마자 멎었다. 우연이겠지. 우연일 것이다."
           }
         }

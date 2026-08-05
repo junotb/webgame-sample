@@ -1,12 +1,7 @@
-import { notoSans } from "./fonts";
+import contentData from '../content/content.ep1-slice.json';
+import type { ContentBundle } from '../core/schema';
+import { GameClient } from './game-client';
 
 export default function Home() {
-  return (
-    <main
-      style={{ fontFamily: notoSans.style.fontFamily }}
-      className="flex min-h-screen items-center justify-center"
-    >
-      <p>텍스트 RPG — 새로 시작</p>
-    </main>
-  );
+  return <GameClient content={contentData as ContentBundle} />;
 }

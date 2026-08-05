@@ -74,6 +74,22 @@ export interface Effect {
   value: number;
 }
 
+/**
+ * 지시서 템플릿 전용 경로 — 템플릿은 구역 바인딩 전이므로 `{district}` 치환자를 허용.
+ * 생성기가 WorkOrder로 바인딩할 때 실제 DistrictId로 치환되며,
+ * 리듀서의 effect 적용기에는 항상 구체 EffectPath만 도달한다.
+ */
+export type TemplateEffectPath =
+  | EffectPath
+  | 'world.districts.{district}.decay'
+  | `world.flags.${string}{district}${string}`;
+
+export interface TemplateEffect {
+  path: TemplateEffectPath;
+  op: 'add' | 'set';
+  value: number;
+}
+
 // ─────────────────────────────────────────────
 // 조건 + 완곡어 텍스트 변형
 // ─────────────────────────────────────────────
@@ -104,16 +120,31 @@ export interface WorkOption {
   label: string;
   check: Check;
   timeCost: number;                 // 근무 시간 소모 (슬라이스: 1)
+  onSuccess: { effects: TemplateEffect[]; text: string };
+  onFailure?: { effects: TemplateEffect[]; text: string };
+}
+
+/** 생성 시점에 완전히 구체화된 옵션 — 경로 바인딩·난이도 보정 완료 */
+export interface BoundWorkOption {
+  label: string;
+  check: Check;                     // difficultyBonus 가산 완료
+  timeCost: number;
   onSuccess: { effects: Effect[]; text: string };
   onFailure?: { effects: Effect[]; text: string };
 }
 
-/** 생성기 출력: 템플릿 + 구역 바인딩 */
+/**
+ * 생성기 출력: 템플릿 + 구역 바인딩.
+ * 리듀서는 이 객체만 보고 처리한다 — 템플릿 재조회·치환 없음.
+ */
 export interface WorkOrder {
   templateId: string;
   district: DistrictId;
-  /** 난이도 보정: 구역 노후도가 템플릿 기본 난이도에 가산됨 (방치의 대가) */
+  /** 난이도 보정: 구역 노후도의 minDecay 초과분 (방치의 대가, 튜닝 대상) */
   difficultyBonus: number;
+  title: string;
+  body: TextVariant[];              // 변형 선택은 렌더 시점 (완곡어 시스템)
+  options: BoundWorkOption[];
   resolved: boolean;
 }
 

@@ -20,7 +20,20 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          patterns: ["react", "react-*", "next", "next/*", "@/app/*", "@/lib/*"],
+          patterns: [
+            "react",
+            "react-*",
+            "next",
+            "next/*",
+            "@/app/*",
+            "@/lib/*",
+            "@/content/*",
+            "@/components/*",
+            "**/app/*",
+            "**/lib/*",
+            "**/content/*",
+            "**/components/*",
+          ],
         },
       ],
     },

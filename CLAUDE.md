@@ -152,7 +152,7 @@
 
 ## 5. 단계별 경로 (순서 건너뛰기 금지)
 
-- **Phase 0** (현재): 수직 슬라이스 — 하루 루프 1주기. 서버 0원. 스펙: `docs/phase0-spec.md`
+- **Phase 0** (현재): 수직 슬라이스 — 1주차 루프 판정. 서버 0원. 스펙: `docs/phase0-slice-v3.md` (v1 결과 기록: `docs/phase0-slice-v1.md`)
 - **Phase 1**: 정적 호스팅 무료 공개. 지표는 D7 재방문 하나. 액션 게이트 활성화
 - **Phase 2**: 계정 + 클라우드 동기화 (Supabase)
 - **Phase 3**: 수익화 — MoR(Paddle/Lemon Squeezy) + 본편 언락. 직전에 GRAC 등급분류·사업자등록 해결

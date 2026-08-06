@@ -40,22 +40,83 @@ button {
   padding: 34px 0 72px;
 }
 
+/* ── L1 상단 띠 — 상시 노출은 날짜·구역·잔여 근무·패널 버튼뿐 (UI 층위 §3) ── */
 .topbar {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
+  align-items: center;
+  gap: 18px;
   color: #ddd5bf;
   border-bottom: 1px solid rgba(232, 225, 207, 0.25);
-  padding: 0 2px 22px;
+  padding: 0 2px 16px;
 }
 
-.topbar h1 {
-  margin: 5px 0 0;
-  font-family: Georgia, 'Noto Serif KR', serif;
-  font-size: clamp(1.8rem, 4vw, 3.5rem);
-  font-weight: 500;
-  letter-spacing: -0.045em;
+.day-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 13px;
+  border: 1px solid rgba(232, 225, 207, 0.34);
+}
+
+.day-chip strong {
+  font-family: Georgia, serif;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+}
+
+.day-chip span {
+  color: #a99f88;
+  font-size: 0.74rem;
+}
+
+.zone-name {
+  color: #b3aa93;
+  font-size: 0.82rem;
+  letter-spacing: 0.1em;
+}
+
+.shift-dots {
+  display: flex;
+  gap: 6px;
+  margin-right: auto;
+}
+
+.shift-dots i {
+  width: 9px;
+  height: 9px;
+  border: 1px solid #8a8270;
+  border-radius: 50%;
+}
+
+.shift-dots i.is-left {
+  background: #c9b98f;
+  border-color: #c9b98f;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.chip-action {
+  cursor: pointer;
+  padding: 7px 12px;
+  color: #b5aa91;
+  border: 1px solid #5f5b4f;
+  background: transparent;
+  font-size: 0.76rem;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.chip-action:hover:not(:disabled) {
+  color: #f0e6cf;
+  border-color: #8f866f;
+}
+
+.chip-action[aria-pressed='true'] {
+  color: #f2ead5;
+  background: var(--green);
+  border-color: var(--green);
 }
 
 .eyebrow {
@@ -66,33 +127,43 @@ button {
   letter-spacing: 0.19em;
 }
 
-.topbar .eyebrow {
-  color: #978d75;
+/* ── 층 ── */
+.stage {
+  position: relative;
+  padding-top: 26px;
 }
 
-.day-seal {
-  display: grid;
-  min-width: 126px;
-  padding: 12px 16px;
-  border: 1px solid rgba(232, 225, 207, 0.38);
-  text-align: center;
-  transform: rotate(-1deg);
+.panel-layer {
+  padding-top: 22px;
 }
 
-.day-seal strong {
-  font-family: Georgia, serif;
-  font-size: 1.25rem;
-  letter-spacing: 0.08em;
+/* L3 — 무대를 덮되 지우지 않는다 */
+.overlay-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow-y: auto;
+  padding: clamp(20px, 5vh, 64px) 16px;
+  background: rgba(12, 13, 11, 0.82);
+  backdrop-filter: blur(2px);
 }
 
-.day-seal span {
-  color: #a99f88;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
+.layer-dismiss {
+  cursor: pointer;
+  display: block;
+  margin-bottom: 16px;
+  padding: 8px 0;
+  color: #b5aa91;
+  border: 0;
+  border-bottom: 1px solid #77705f;
+  background: transparent;
+}
+
+.layer-dismiss:hover {
+  color: #f0e6cf;
 }
 
 .ledger {
-  margin: 24px 0;
   padding: 15px 18px 14px;
   color: #d7d0bd;
   border: 1px solid rgba(232, 225, 207, 0.18);
@@ -139,8 +210,10 @@ button {
   font-size: 1.15rem;
 }
 
+.stat-row,
+.multiday-row,
 .menace-row,
-.district-row {
+.zone-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 18px;
@@ -150,19 +223,17 @@ button {
   font-size: 0.72rem;
 }
 
+.stat-row b,
 .menace-row b {
   color: #d8c4a4;
 }
 
-.district-row {
+/* 노후도는 밴드 이름만 — 수치는 v3 §9의 유일한 비공개 항목 */
+.zone-row {
   margin-top: 8px;
   border-top: 0;
   padding-top: 0;
   color: #77705f;
-}
-
-.workspace {
-  position: relative;
 }
 
 .document {
@@ -188,7 +259,7 @@ button {
 .event-document,
 .closing-document {
   width: min(760px, 100%);
-  margin: 42px auto 0;
+  margin: 0 auto;
   padding: clamp(28px, 6vw, 64px);
 }
 

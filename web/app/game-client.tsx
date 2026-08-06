@@ -11,8 +11,9 @@ import { reduce } from '../core/reducer';
 import type { Action, ContentBundle, EncounterActionId, EncounterDef, GameState } from '../core/schema';
 import { EncounterView } from './encounter-view';
 import { createInitialState } from './game-state';
-import { GameView, type SaveStatus } from './game-view';
+import { GameView } from './game-view';
 import { loadGame, saveGame } from './save';
+import type { SaveStatus } from './ui-labels';
 
 interface GameClientProps {
   content: ContentBundle;

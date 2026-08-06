@@ -4,7 +4,7 @@
  */
 import { effectiveCheck, type EncounterState } from '../core/encounter';
 import { selectVariant } from '../core/reducer';
-import { checkLabel } from './game-view';
+import { checkLabel } from './ui-labels';
 import type { EncounterActionId, EncounterDef, GameState } from '../core/schema';
 
 const ACTION_ORDER: EncounterActionId[] = ['observe', 'soothe', 'burn', 'withdraw'];

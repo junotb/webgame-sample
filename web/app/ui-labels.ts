@@ -1,0 +1,53 @@
+/**
+ * UI 공용 라벨 — 층 컴포넌트들이 공유한다.
+ * (encounter-view가 game-view에서 checkLabel을 가져오던 역참조를 여기로 푼다)
+ */
+import { checkProbability } from '../core/checks';
+import { SKILL_LABELS, STAT_LABELS } from '../core/reducer';
+import type { CardFace, Check, DayPhase, GameState, ZoneId } from '../core/schema';
+
+/** 판정 표기: "각인학 · 72%" — 트리아지 고민의 재료 (v3 §4, v1 실패 처방) */
+export function checkLabel(check: Check, self: GameState['self']): string {
+  if (check.kind === 'auto') return '판정 없음';
+  const name = check.kind === 'narrow' ? SKILL_LABELS[check.skill] : STAT_LABELS[check.stat];
+  const p = Math.round(checkProbability(check, self.stats, self.skills) * 100);
+  return `${name} · ${p}%`;
+}
+
+export const ZONE_LABELS: Record<ZoneId, string> = {
+  d2: '제2구역',
+  d5: '제5구역',
+  d7: '제7구역',
+};
+
+export const WEEKDAY_LABELS: Record<number, string> = { 1: '월', 2: '화', 3: '수', 4: '목', 5: '금' };
+
+/**
+ * 카드 표면 분류 5종 (v3 §4 확정) — 이것은 분류명이지 얼굴 문구가 아니다.
+ * "정기 순시" / "미확인 구간 확인" 같은 표현 변형은 지시서의 title이 담당하며,
+ * 아이콘 어휘가 일대일로 대응하는 대상은 이 다섯 개다.
+ */
+export const FACE_LABELS: Record<CardFace, string> = {
+  inspection: '점검',
+  patrol: '순찰',
+  liaison: '보고',
+  supply: '자재',
+  survey: '탐사',
+};
+
+/** 단계 라벨 — 상단 띠에서는 쓰지 않는다 (화면이 이미 말하고 있다). 오버레이 내부 표기용 */
+export const PHASE_LABELS: Record<DayPhase, string> = {
+  morning: '업무 개시',
+  field: '현장 처리',
+  event: '특이 사항',
+  closing: '일일 정산',
+};
+
+export type SaveStatus = 'loading' | 'saving' | 'saved' | 'error';
+
+export const SAVE_LABELS: Record<SaveStatus, string> = {
+  loading: '세이브 확인 중',
+  saving: '저장 중…',
+  saved: '저장됨',
+  error: '저장 확인 필요',
+};

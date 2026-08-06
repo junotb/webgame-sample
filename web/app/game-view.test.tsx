@@ -22,7 +22,7 @@ describe('상단 띠 (L1)', () => {
     const html = render(createInitialState());
 
     expect(html).toContain('DAY 01');
-    expect(html).toContain('제5구역');
+    expect(html).toContain('서편 거주구역');
     expect(html).toContain('잔여 근무 2 / 2');
     expect(html).toContain('내 능력치');
     expect(html).toContain('도시 상태');

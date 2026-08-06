@@ -58,7 +58,7 @@ describe('L2 참조 패널', () => {
     await user.click(screen.getByRole('button', { name: '도시 상태' }));
     const zones = screen.getByLabelText('구역 상태');
 
-    expect(zones.textContent).toContain('제5구역');
+    expect(zones.textContent).toContain('서편 거주구역');
     expect(zones.textContent).toContain('이상');
     // 노후도 수치가 어떤 형태로도 새지 않는다 — dd에는 밴드 이름만 온다
     for (const dd of zones.querySelectorAll('dd')) {
@@ -74,7 +74,7 @@ describe('L2 참조 패널', () => {
     expect(self.textContent).toContain('기억');
     expect(self.textContent).toContain('피로');
     expect(self.textContent).not.toContain('주목');
-    expect(self.textContent).not.toContain('제5구역');
+    expect(self.textContent).not.toContain('서편 거주구역');
 
     await user.click(screen.getByRole('button', { name: '도시 상태' }));
     const city = screen.getByRole('region', { name: '도시 상태' });

@@ -14,9 +14,16 @@ export function checkLabel(check: Check, self: GameState['self']): string {
   return `${name} · ${p}%`;
 }
 
+/**
+ * 구역 표기 — 행정 코드가 아니라 사람들이 부르는 이름 (open-questions D).
+ * d5 = 서편 거주구역 (2026-08-07 확정): 도시 서쪽의 하위 거주구, 화자의 집이 있다.
+ * 특이 지형은 하수도 — 회색 폭포(하수가 공중도시 밖으로 떨어지는 곳),
+ * 인공습지(하층민들이 하수를 정화하는 갈대밭)가 여기 딸려 있다.
+ * d2/d7은 고유명사 미정 — 행정 코드로 남는다.
+ */
 export const ZONE_LABELS: Record<ZoneId, string> = {
   d2: '제2구역',
-  d5: '제5구역',
+  d5: '서편 거주구역',
   d7: '제7구역',
 };
 

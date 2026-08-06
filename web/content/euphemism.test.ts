@@ -105,12 +105,12 @@ describe('단서 축 — 제목이 지금의 나로 다시 읽힌다 (v3 §4 「
   }
 
   it('WO-T7 (기억 축): 기억 2부터 반려 이력이 제목에 나타난다', () => {
-    expect(titleOf('WO-T7', stateAt(5))).toBe('야간 소음 민원 순시 — 서편 3구');
+    expect(titleOf('WO-T7', stateAt(5))).toBe('야간 소음 민원 순시 — 인공습지 갈대밭');
     expect(titleOf('WO-T7', stateAt(5, { memory: 2 }))).toContain('가동 중단 요청 3회 반려');
   });
 
   it('WO-T8 (기술 축): 감류학 2부터 역류 흔적이 제목에 나타난다', () => {
-    expect(titleOf('WO-T8', stateAt(5))).toBe('배기 갱도 정기 점검 — 7구 하부');
+    expect(titleOf('WO-T8', stateAt(5))).toBe('배수 갱도 정기 점검 — 회색 폭포 상부');
     expect(titleOf('WO-T8', stateAt(5, { flowsense: 2 }))).toContain('역류 흔적 재확인');
   });
 

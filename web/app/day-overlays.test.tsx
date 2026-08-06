@@ -19,7 +19,7 @@ describe('일일 개시', () => {
 
     expect(screen.getByText('DAY 03')).toBeDefined();
     expect(screen.getByText('수요일')).toBeDefined();
-    expect(screen.getByText('제5구역')).toBeDefined();
+    expect(screen.getByText('서편 거주구역')).toBeDefined();
     expect(container.textContent).not.toMatch(/건 발부|지시서/);
   });
 
@@ -40,7 +40,7 @@ describe('사무소 장면', () => {
       <EventOverlay state={state} content={CONTENT} disabled={false} onAction={vi.fn()} />,
     );
 
-    expect(screen.getByText('제5구역 사무소')).toBeDefined();
+    expect(screen.getByText('서편 거주구역 사무소')).toBeDefined();
     expect(screen.getByText('업무 종료 후')).toBeDefined();
     // 이 층은 v3 §5의 필수 이벤트다. 경고로 읽히면 빈도가 문제로 오인된다
     expect(container.textContent).not.toContain('비정규 접촉 기록');

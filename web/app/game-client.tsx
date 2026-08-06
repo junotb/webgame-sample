@@ -13,6 +13,7 @@ import { EncounterView } from './encounter-view';
 import { createInitialState } from './game-state';
 import { GameView } from './game-view';
 import { loadGame, saveGame } from './save';
+import { TitleScreen } from './title-screen';
 import type { SaveStatus } from './ui-labels';
 
 interface GameClientProps {
@@ -32,6 +33,10 @@ export function GameClient({ content }: GameClientProps) {
   const [log, setLog] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('loading');
   const [ready, setReady] = useState(false);
+  /** L0 게이트 — 타이틀을 지나야 근무가 시작된다 (UI 층위 사양 §2) */
+  const [started, setStarted] = useState(false);
+  const [saved, setSaved] = useState<GameState | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const stateRef = useRef(state);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const saveVersion = useRef(0);
@@ -39,19 +44,16 @@ export function GameClient({ content }: GameClientProps) {
   useEffect(() => {
     let active = true;
     void loadGame()
-      .then((saved) => {
+      .then((restored) => {
         if (!active) return;
-        if (saved) {
-          stateRef.current = saved;
-          setState(saved);
-          setLog([`Day ${saved.world.calendar.day} 저장 기록을 복원했습니다.`]);
-        }
+        // 복원은 하되 화면은 넘기지 않는다 — 이어할지 새로 할지는 타이틀에서 고른다
+        setSaved(restored);
         setSaveStatus('saved');
         setReady(true);
       })
       .catch((error: unknown) => {
         if (!active) return;
-        setLog([error instanceof Error ? error.message : '세이브를 불러오지 못했습니다.']);
+        setLoadError(error instanceof Error ? error.message : '세이브를 불러오지 못했습니다.');
         setSaveStatus('error');
         setReady(true);
       });
@@ -78,6 +80,23 @@ export function GameClient({ content }: GameClientProps) {
         ]);
       });
   }, []);
+
+  const onContinue = useCallback(() => {
+    if (!saved) return;
+    stateRef.current = saved;
+    setState(saved);
+    setLog([`Day ${saved.world.calendar.day} 저장 기록을 복원했습니다.`]);
+    setStarted(true);
+  }, [saved]);
+
+  const onNewGame = useCallback(() => {
+    const fresh = createInitialState();
+    stateRef.current = fresh;
+    setState(fresh);
+    setLog([]);
+    setStarted(true);
+    persist(fresh); // 기존 세이브를 즉시 덮는다 — 타이틀에서 이미 확인을 받았다
+  }, [persist]);
 
   const [encounter, setEncounter] = useState<EncounterSession | null>(null);
 
@@ -135,6 +154,18 @@ export function GameClient({ content }: GameClientProps) {
       return null;
     });
   }, [onAction]);
+
+  if (!started) {
+    return (
+      <TitleScreen
+        saved={saved}
+        loading={!ready}
+        error={loadError}
+        onContinue={onContinue}
+        onNewGame={onNewGame}
+      />
+    );
+  }
 
   return (
     <GameView

@@ -40,6 +40,103 @@ button {
   padding: 34px 0 72px;
 }
 
+/* ── L0 타이틀 — 제목은 여기에만 있다 (UI 층위 §2) ── */
+.title-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 46px;
+  min-height: 100vh;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.title-block h1 {
+  margin: 0;
+  color: #e6ddc6;
+  font-family: Georgia, 'Noto Serif KR', serif;
+  font-size: clamp(2.2rem, 6vw, 3.9rem);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+}
+
+.title-sub {
+  margin: 12px 0 0;
+  color: #8b8270;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+}
+
+.title-menu {
+  display: grid;
+  gap: 12px;
+  width: min(320px, 100%);
+}
+
+.title-action {
+  cursor: pointer;
+  display: grid;
+  gap: 3px;
+  padding: 15px 18px;
+  color: #ddd4bd;
+  border: 1px solid #5f5b4f;
+  background: rgba(0, 0, 0, 0.22);
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.title-action:hover {
+  color: #f4ecd9;
+  border-color: #8f866f;
+  background: var(--green);
+}
+
+.title-action small {
+  color: #8b8270;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+.title-action:hover small {
+  color: #c3b99f;
+}
+
+.title-confirm {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(140, 62, 47, 0.5);
+}
+
+.title-confirm p {
+  margin: 0 0 4px;
+  color: #c0b6a0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.title-back,
+.title-status {
+  color: #857d6c;
+  font-size: 0.76rem;
+}
+
+.title-back {
+  cursor: pointer;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+}
+
+.title-back:hover {
+  color: #c3b99f;
+}
+
+.title-status.is-error {
+  color: #b35342;
+}
+
 /* ── L1 상단 띠 — 상시 노출은 날짜·구역·잔여 근무·패널 버튼뿐 (UI 층위 §3) ── */
 .topbar {
   display: flex;

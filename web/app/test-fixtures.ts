@@ -32,7 +32,13 @@ export const CONTENT: ContentBundle = {
   bundleId: 'ui-test',
   encounters: [],
   version: '1',
-  zoneMaps: [],
+  zoneMaps: [
+    {
+      zone: 'd5',
+      title: '제5구역 · 시설 배치도',
+      sites: [{ id: 'test-site', label: '제3중계실', x: 40, y: 55 }],
+    },
+  ],
   orderTemplates: [
     {
       id: 'WO-TEST',

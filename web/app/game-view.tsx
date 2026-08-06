@@ -136,6 +136,7 @@ export function GameView({
       <div className="stage" inert={hasOverlay || panel !== null}>
         <FieldStage
           state={state}
+          zoneMap={content.zoneMaps.find((m) => m.zone === state.world.assignment.zone) ?? null}
           disabled={disabled}
           onAction={onAction}
           onStartEncounter={onStartEncounter}

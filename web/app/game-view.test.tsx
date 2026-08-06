@@ -47,7 +47,7 @@ describe('층위 렌더 (L1/L2/L3)', () => {
     expect(html).toContain('저장됨');
   });
 
-  it('field는 오버레이 없이 무대만 보이고 기억 변형을 고른다', () => {
+  it('field는 오버레이 없이 지도만 보이고, 지시서는 아직 열려 있지 않다', () => {
     const state = createInitialState();
     state.self.memory = 1;
     state.world.phase = 'field';
@@ -55,13 +55,14 @@ describe('층위 렌더 (L1/L2/L3)', () => {
 
     const html = render(state);
 
-    expect(html).toContain('점검 01');
-    expect(html).toContain('간헐 명멸 현상 점검');
-    expect(html).toContain('당신은 이 문구가 무언가를 감추고 있음을 안다.');
-    expect(html).not.toContain('이상 없음으로 처리하십시오.');
-    expect(html).toContain('표준 절차로 처리');
+    expect(html).toContain('제5구역 · 시설 배치도');
+    expect(html).toContain('제3중계실');
+    expect(html).toContain('가리킨 지점의 지시서가 여기 열립니다.');
     expect(html).toContain('현장 업무 종료');
     expect(html).not.toContain('overlay-layer');
+    // 산문과 선택지는 가리켜야 나온다 — 4장을 나란히 펼치면 비교·스캔이 된다 (v3 §4)
+    expect(html).not.toContain('당신은 이 문구가 무언가를 감추고 있음을 안다.');
+    expect(html).not.toContain('표준 절차로 처리');
   });
 
   it('event·closing은 오버레이 층에 올라간다', () => {

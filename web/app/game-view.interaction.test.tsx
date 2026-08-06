@@ -96,7 +96,8 @@ describe('L1은 사라지지 않는다', () => {
 
     const stage = container.querySelector('.stage');
     expect(stage).not.toBeNull();
-    expect(stage?.textContent).toContain('간헐 명멸 현상 점검');
+    // 지도는 뒤에 남는다 — "사무실을 나간 적이 없다"는 감각
+    expect(stage?.textContent).toContain('제5구역 · 시설 배치도');
     expect(stage?.hasAttribute('inert')).toBe(true);
   });
 });

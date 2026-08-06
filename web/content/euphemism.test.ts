@@ -29,12 +29,12 @@ describe('EV-001 — 묻는다 선택의 기억 부여', () => {
 });
 
 describe('WO-T3 — 결정적 등장', () => {
-  const initialDistricts = { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } };
+  const initialZones = { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } };
 
   it('초기 노후도에서 d7에 WO-T3가 rng와 무관하게 등장한다 (Day 1)', () => {
     for (const r of [0, 0.5, 0.999]) {
-      const orders = generateOrders(initialDistricts, bundle.orderTemplates, () => r);
-      expect(orders.find((o) => o.district === 'd7')?.templateId).toBe('WO-T3');
+      const orders = generateOrders(initialZones, bundle.orderTemplates, () => r);
+      expect(orders.find((o) => o.zone === 'd7')?.templateId).toBe('WO-T3');
     }
   });
 

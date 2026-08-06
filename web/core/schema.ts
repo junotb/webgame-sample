@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────
 // 식별자
 // ─────────────────────────────────────────────
-export type DistrictId = 'd2' | 'd5' | 'd7'; // 제2·5·7구역 (가칭)
+export type ZoneId = 'd2' | 'd5' | 'd7'; // 제2·5·7구역 (가칭)
 export type NpcId = 'protagonist';           // Ep1 주인공 ("돌아온 자")
 export type StatId = 'repair' | 'insight' | 'procedure' | 'nerve'; // 정비/진단/절차/담력
 export type SkillId = 'inscription' | 'flowsense'; // 각인학/감류학 (슬라이스 범위)
@@ -31,7 +31,7 @@ export interface CharacterSheet {
 export interface WorldSheet {
   day: number;
   phase: DayPhase;
-  districts: Record<DistrictId, { decay: number }>; // 노후도 0~10
+  zones: Record<ZoneId, { decay: number }>; // 노후도 0~10
   menace: Record<MenaceId, number>;                 // 0~8
   npcs: Record<NpcId, { trust: number }>;           // 신뢰 0~7
   flags: Record<string, number>;                    // 서사 플래그 (patched_d5 등)
@@ -63,7 +63,7 @@ export type EffectPath =
   | `self.stats.${StatId}`
   | `self.skills.${SkillId}`
   | 'self.memory'
-  | `world.districts.${DistrictId}.decay`
+  | `world.zones.${ZoneId}.decay`
   | `world.menace.${MenaceId}`
   | `world.npcs.${NpcId}.trust`
   | `world.flags.${string}`;
@@ -75,14 +75,14 @@ export interface Effect {
 }
 
 /**
- * 지시서 템플릿 전용 경로 — 템플릿은 구역 바인딩 전이므로 `{district}` 치환자를 허용.
- * 생성기가 WorkOrder로 바인딩할 때 실제 DistrictId로 치환되며,
+ * 지시서 템플릿 전용 경로 — 템플릿은 구역 바인딩 전이므로 `{zone}` 치환자를 허용.
+ * 생성기가 WorkOrder로 바인딩할 때 실제 ZoneId로 치환되며,
  * 리듀서의 effect 적용기에는 항상 구체 EffectPath만 도달한다.
  */
 export type TemplateEffectPath =
   | EffectPath
-  | 'world.districts.{district}.decay'
-  | `world.flags.${string}{district}${string}`;
+  | 'world.zones.{zone}.decay'
+  | `world.flags.${string}{zone}${string}`;
 
 export interface TemplateEffect {
   path: TemplateEffectPath;
@@ -139,7 +139,7 @@ export interface BoundWorkOption {
  */
 export interface WorkOrder {
   templateId: string;
-  district: DistrictId;
+  zone: ZoneId;
   /** 난이도 보정: 구역 노후도의 minDecay 초과분 (방치의 대가, 튜닝 대상) */
   difficultyBonus: number;
   title: string;

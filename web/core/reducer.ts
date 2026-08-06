@@ -7,7 +7,7 @@ import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
 import { generateOrders } from './generate';
 import { resolveOption } from './resolve';
-import type { Condition, DistrictId, GameState, MenaceId, Reducer, StepResult, TextVariant } from './schema';
+import type { Condition, ZoneId, GameState, MenaceId, Reducer, StepResult, TextVariant } from './schema';
 
 export const SHIFT_PER_DAY = 2;
 export const MENACE_CAP = 8;
@@ -16,8 +16,8 @@ export const ALTITUDE_PER_DECAY = 120;
 const MAX_DECAY = 10;
 
 /** 고도 = 8000 − 120 × Σ노후도 (m) — 하루 요약에 숫자로만 표기 */
-export function altitude(districts: Record<DistrictId, { decay: number }>): number {
-  const total = Object.values(districts).reduce((sum, d) => sum + d.decay, 0);
+export function altitude(zones: Record<ZoneId, { decay: number }>): number {
+  const total = Object.values(zones).reduce((sum, d) => sum + d.decay, 0);
   return BASE_ALTITUDE - ALTITUDE_PER_DECAY * total;
 }
 
@@ -71,14 +71,14 @@ export const reduce: Reducer = (state, action, content): StepResult => {
     case 'START_DAY': {
       assertPhase(state, 'morning', 'START_DAY');
       const rng = mulberry32(state.world.seed);
-      const orders = generateOrders(state.world.districts, content.orderTemplates, rng);
+      const orders = generateOrders(state.world.zones, content.orderTemplates, rng);
       const next = structuredClone(state);
       next.world.pendingOrders = orders;
       next.world.phase = 'field';
       next.world.seed = advanceSeed(rng);
       return {
         state: next,
-        log: [`지시서 ${orders.length}건 발부.`, ...orders.map((o) => `— ${o.title} (${o.district})`)],
+        log: [`지시서 ${orders.length}건 발부.`, ...orders.map((o) => `— ${o.title} (${o.zone})`)],
       };
     }
 
@@ -86,7 +86,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       assertPhase(state, 'field', 'RESOLVE_ORDER');
       const order = state.world.pendingOrders[action.orderIndex];
       if (!order) throw new Error(`지시서 없음: index ${action.orderIndex}`);
-      if (order.resolved) throw new Error(`이미 처리한 지시서: ${order.templateId} (${order.district})`);
+      if (order.resolved) throw new Error(`이미 처리한 지시서: ${order.templateId} (${order.zone})`);
       const option = order.options[action.optionIndex];
       if (!option) throw new Error(`옵션 없음: index ${action.optionIndex}`);
       if (state.world.shiftLeft < option.timeCost) {
@@ -139,15 +139,15 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       // 방치 페널티: 미처리 지시서의 구역 +1
       for (const order of next.world.pendingOrders) {
         if (!order.resolved) {
-          const d = next.world.districts[order.district];
+          const d = next.world.zones[order.zone];
           d.decay = Math.min(MAX_DECAY, d.decay + 1);
         }
       }
       // 자연 틱: 전 구역 +1
-      for (const d of Object.values(next.world.districts)) {
+      for (const d of Object.values(next.world.zones)) {
         d.decay = Math.min(MAX_DECAY, d.decay + 1);
       }
-      const alt = altitude(next.world.districts);
+      const alt = altitude(next.world.zones);
       const closedDay = next.world.day;
       next.world.day += 1;
       next.world.phase = 'morning';

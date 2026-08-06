@@ -6,7 +6,7 @@ import { createInitialState } from './game-state';
 
 const ORDER: WorkOrder = {
   templateId: 'WO-TEST',
-  district: 'd5',
+  zone: 'd5',
   difficultyBonus: 0,
   title: '간헐 명멸 현상 점검',
   body: [

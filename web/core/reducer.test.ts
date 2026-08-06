@@ -14,7 +14,7 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
     world: {
       day: 1,
       phase: 'morning',
-      districts: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
+      zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
       npcs: { protagonist: { trust: 0 } },
       flags: {},
@@ -38,7 +38,7 @@ const AUTO_T: WorkOrderTemplate = {
       check: { kind: 'auto' },
       timeCost: 1,
       onSuccess: {
-        effects: [{ path: 'world.districts.{district}.decay', op: 'add', value: -2 }],
+        effects: [{ path: 'world.zones.{zone}.decay', op: 'add', value: -2 }],
         text: '처리 완료',
       },
     },
@@ -77,10 +77,10 @@ const CONTENT: ContentBundle = {
   ],
 };
 
-function makeOrder(district: WorkOrder['district'], resolved: boolean): WorkOrder {
+function makeOrder(zone: WorkOrder['zone'], resolved: boolean): WorkOrder {
   return {
     templateId: 'AUTO',
-    district,
+    zone,
     difficultyBonus: 0,
     title: '점검',
     body: [{ text: '본문' }],
@@ -93,7 +93,7 @@ describe('START_DAY — morning: 지시서 생성 → field', () => {
   it('구역당 1건씩 3건 생성, phase는 field로', () => {
     const { state } = reduce(baseState(), { type: 'START_DAY' }, CONTENT);
     expect(state.world.pendingOrders).toHaveLength(3);
-    expect(state.world.pendingOrders.map((o) => o.district)).toEqual(['d2', 'd5', 'd7']);
+    expect(state.world.pendingOrders.map((o) => o.zone)).toEqual(['d2', 'd5', 'd7']);
     expect(state.world.phase).toBe('field');
   });
   it('seed가 전진한다 (같은 seed → 같은 결과, 재현성)', () => {
@@ -113,7 +113,7 @@ describe('RESOLVE_ORDER — field: 판정·효과·트리아지', () => {
   }
   it('효과 적용, resolved 마킹, shiftLeft 차감', () => {
     const { state, log } = reduce(fieldState(), { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT);
-    expect(state.world.districts.d2.decay).toBe(1); // 3 − 2
+    expect(state.world.zones.d2.decay).toBe(1); // 3 − 2
     expect(state.world.pendingOrders[0].resolved).toBe(true);
     expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY - 1);
     expect(state.world.phase).toBe('field');
@@ -180,15 +180,15 @@ describe('CLOSE_DAY — closing 정산', () => {
   }
   it('미처리 구역 +1(방치) 후 전 구역 +1(자연 틱)', () => {
     const { state } = reduce(closingState(), { type: 'CLOSE_DAY' }, CONTENT);
-    expect(state.world.districts.d2.decay).toBe(4); // 3 + 틱
-    expect(state.world.districts.d5.decay).toBe(6); // 4 + 방치 + 틱
-    expect(state.world.districts.d7.decay).toBe(7); // 5 + 방치 + 틱
+    expect(state.world.zones.d2.decay).toBe(4); // 3 + 틱
+    expect(state.world.zones.d5.decay).toBe(6); // 4 + 방치 + 틱
+    expect(state.world.zones.d7.decay).toBe(7); // 5 + 방치 + 틱
   });
   it('노후도는 10에서 클램프', () => {
-    const s = baseState({ phase: 'closing', districts: { d2: { decay: 10 }, d5: { decay: 9 }, d7: { decay: 0 } }, pendingOrders: [makeOrder('d5', false)] });
+    const s = baseState({ phase: 'closing', zones: { d2: { decay: 10 }, d5: { decay: 9 }, d7: { decay: 0 } }, pendingOrders: [makeOrder('d5', false)] });
     const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
-    expect(state.world.districts.d2.decay).toBe(10);
-    expect(state.world.districts.d5.decay).toBe(10);
+    expect(state.world.zones.d2.decay).toBe(10);
+    expect(state.world.zones.d5.decay).toBe(10);
   });
   it('day+1, morning 복귀, shiftLeft 리셋, pendingOrders 비움', () => {
     const { state } = reduce(closingState(), { type: 'CLOSE_DAY' }, CONTENT);

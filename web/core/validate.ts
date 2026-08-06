@@ -22,7 +22,7 @@ function isValidEffectPath(path: string): boolean {
     return false;
   }
   if (segs[0] === 'world') {
-    if (segs.length === 4 && segs[1] === 'districts' && segs[3] === 'decay')
+    if (segs.length === 4 && segs[1] === 'zones' && segs[3] === 'decay')
       return DISTRICT_IDS.includes(segs[2]);
     if (segs.length === 3 && segs[1] === 'menace') return MENACE_IDS.includes(segs[2]);
     if (segs.length === 4 && segs[1] === 'npcs' && segs[3] === 'trust')
@@ -33,21 +33,21 @@ function isValidEffectPath(path: string): boolean {
   return false;
 }
 
-function checkEffect(effect: TemplateEffect, allowDistrictPlaceholder: boolean, where: string, errors: string[]): void {
+function checkEffect(effect: TemplateEffect, allowZonePlaceholder: boolean, where: string, errors: string[]): void {
   const { path, op, value } = effect;
 
   const placeholders = path.match(/\{[^}]*\}/g) ?? [];
-  const unknown = placeholders.filter((p) => p !== '{district}');
+  const unknown = placeholders.filter((p) => p !== '{zone}');
   if (unknown.length > 0) {
     errors.push(`${where}: 알 수 없는 치환자 ${unknown.join(', ')} (경로: ${path})`);
     return;
   }
-  if (placeholders.length > 0 && !allowDistrictPlaceholder) {
-    errors.push(`${where}: {district} 치환자는 지시서 템플릿에서만 허용됨 (경로: ${path})`);
+  if (placeholders.length > 0 && !allowZonePlaceholder) {
+    errors.push(`${where}: {zone} 치환자는 지시서 템플릿에서만 허용됨 (경로: ${path})`);
     return;
   }
   // 치환자 소거 후 구체 경로로 검증 (템플릿은 임의 구역으로 바인딩해 본다)
-  const concrete = path.replaceAll('{district}', DISTRICT_IDS[0]);
+  const concrete = path.replaceAll('{zone}', DISTRICT_IDS[0]);
   if (!isValidEffectPath(concrete)) {
     errors.push(`${where}: 스키마에 없는 효과 경로 '${path}'`);
   }

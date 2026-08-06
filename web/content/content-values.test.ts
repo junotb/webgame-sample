@@ -15,11 +15,11 @@ function template(id: string): WorkOrderTemplate {
 }
 
 function decayValue(effects: TemplateEffect[]): number | undefined {
-  return effects.find((e) => e.path === 'world.districts.{district}.decay')?.value;
+  return effects.find((e) => e.path === 'world.zones.{zone}.decay')?.value;
 }
 
 function hasPatchedFlag(effects: TemplateEffect[]): boolean {
-  return effects.some((e) => e.path === 'world.flags.patched_{district}');
+  return effects.some((e) => e.path === 'world.flags.patched_{zone}');
 }
 
 function fatigueOnFailure(opt: WorkOption): number | undefined {

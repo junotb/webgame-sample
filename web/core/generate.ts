@@ -7,7 +7,7 @@ import { bindEffects } from './bind';
 import type {
   BoundWorkOption,
   Check,
-  DistrictId,
+  ZoneId,
   WorkOption,
   WorkOrder,
   WorkOrderTemplate,
@@ -18,14 +18,14 @@ export function applyDifficultyBonus(check: Check, bonus: number): Check {
   return { ...check, difficulty: check.difficulty + bonus };
 }
 
-function bindOption(option: WorkOption, district: DistrictId, bonus: number): BoundWorkOption {
+function bindOption(option: WorkOption, zone: ZoneId, bonus: number): BoundWorkOption {
   return {
     label: option.label,
     check: applyDifficultyBonus(option.check, bonus),
     timeCost: option.timeCost,
-    onSuccess: { effects: bindEffects(option.onSuccess.effects, district), text: option.onSuccess.text },
+    onSuccess: { effects: bindEffects(option.onSuccess.effects, zone), text: option.onSuccess.text },
     ...(option.onFailure
-      ? { onFailure: { effects: bindEffects(option.onFailure.effects, district), text: option.onFailure.text } }
+      ? { onFailure: { effects: bindEffects(option.onFailure.effects, zone), text: option.onFailure.text } }
       : {}),
   };
 }
@@ -33,17 +33,17 @@ function bindOption(option: WorkOption, district: DistrictId, bonus: number): Bo
 /** difficultyBonus = minDecay 초과분 — 방치가 깊을수록 어려워진다 (튜닝 대상) */
 export function instantiateOrder(
   template: WorkOrderTemplate,
-  district: DistrictId,
+  zone: ZoneId,
   decay: number,
 ): WorkOrder {
   const difficultyBonus = Math.max(0, decay - template.minDecay);
   return {
     templateId: template.id,
-    district,
+    zone,
     difficultyBonus,
     title: template.title,
     body: template.body.map((v) => ({ ...v })),
-    options: template.options.map((o) => bindOption(o, district, difficultyBonus)),
+    options: template.options.map((o) => bindOption(o, zone, difficultyBonus)),
     resolved: false,
   };
 }
@@ -55,19 +55,19 @@ export function instantiateOrder(
  * 재등장 보장이 이 규칙에 의존한다.
  */
 export function generateOrders(
-  districts: Record<DistrictId, { decay: number }>,
+  zones: Record<ZoneId, { decay: number }>,
   templates: WorkOrderTemplate[],
   rng: () => number,
 ): WorkOrder[] {
-  return (Object.keys(districts) as DistrictId[]).map((district) => {
-    const { decay } = districts[district];
+  return (Object.keys(zones) as ZoneId[]).map((zone) => {
+    const { decay } = zones[zone];
     const eligible = templates.filter((t) => t.minDecay <= decay);
     if (eligible.length === 0) {
-      throw new Error(`적격 템플릿 없음: 구역 ${district} (노후도 ${decay})`);
+      throw new Error(`적격 템플릿 없음: 구역 ${zone} (노후도 ${decay})`);
     }
     const maxMinDecay = Math.max(...eligible.map((t) => t.minDecay));
     const severest = eligible.filter((t) => t.minDecay === maxMinDecay);
     const template = severest[Math.floor(rng() * severest.length)];
-    return instantiateOrder(template, district, decay);
+    return instantiateOrder(template, zone, decay);
   });
 }

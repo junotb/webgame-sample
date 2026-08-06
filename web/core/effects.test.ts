@@ -14,7 +14,7 @@ function baseState(): GameState {
     world: {
       day: 1,
       phase: 'field',
-      districts: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
+      zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
       npcs: { protagonist: { trust: 0 } },
       flags: {},
@@ -27,8 +27,8 @@ function baseState(): GameState {
 
 describe('applyEffect — add/set', () => {
   it('add: 기존 값에 가산', () => {
-    const next = applyEffect(baseState(), { path: 'world.districts.d5.decay', op: 'add', value: -3 });
-    expect(next.world.districts.d5.decay).toBe(1);
+    const next = applyEffect(baseState(), { path: 'world.zones.d5.decay', op: 'add', value: -3 });
+    expect(next.world.zones.d5.decay).toBe(1);
   });
   it('set: 값 대입', () => {
     const next = applyEffect(baseState(), { path: 'world.menace.unrest', op: 'set', value: 2 });
@@ -48,10 +48,10 @@ describe('applyEffect — add/set', () => {
 describe('applyEffect — 범위 클램프 (스키마 주석 범위)', () => {
   it('decay는 0~10', () => {
     expect(
-      applyEffect(baseState(), { path: 'world.districts.d2.decay', op: 'add', value: -99 }).world.districts.d2.decay,
+      applyEffect(baseState(), { path: 'world.zones.d2.decay', op: 'add', value: -99 }).world.zones.d2.decay,
     ).toBe(0);
     expect(
-      applyEffect(baseState(), { path: 'world.districts.d2.decay', op: 'add', value: 99 }).world.districts.d2.decay,
+      applyEffect(baseState(), { path: 'world.zones.d2.decay', op: 'add', value: 99 }).world.zones.d2.decay,
     ).toBe(10);
   });
   it('menace는 0~8, stats는 0~100, skills·memory·trust는 0~7', () => {
@@ -81,11 +81,11 @@ describe('applyEffect — 기억 감소 가드 (비가역 원칙)', () => {
 describe('applyEffects — 순차 적용', () => {
   it('여러 효과를 순서대로 누적 적용', () => {
     const next = applyEffects(baseState(), [
-      { path: 'world.districts.d5.decay', op: 'add', value: -1 },
+      { path: 'world.zones.d5.decay', op: 'add', value: -1 },
       { path: 'world.flags.patched_d5', op: 'add', value: 1 },
       { path: 'world.flags.patched_d5', op: 'add', value: 1 },
     ]);
-    expect(next.world.districts.d5.decay).toBe(3);
+    expect(next.world.zones.d5.decay).toBe(3);
     expect(next.world.flags.patched_d5).toBe(2);
   });
   it('빈 배열이면 동등한 상태 반환', () => {

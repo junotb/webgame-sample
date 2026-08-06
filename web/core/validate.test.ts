@@ -22,7 +22,7 @@ function validBundle(): ContentBundle {
             check: { kind: 'narrow', skill: 'inscription', difficulty: 1 },
             timeCost: 1,
             onSuccess: {
-              effects: [{ path: 'world.districts.{district}.decay', op: 'add', value: -3 }],
+              effects: [{ path: 'world.zones.{zone}.decay', op: 'add', value: -3 }],
               text: '성공',
             },
             onFailure: {
@@ -36,8 +36,8 @@ function validBundle(): ContentBundle {
             timeCost: 1,
             onSuccess: {
               effects: [
-                { path: 'world.districts.{district}.decay', op: 'add', value: -1 },
-                { path: 'world.flags.patched_{district}', op: 'add', value: 1 },
+                { path: 'world.zones.{zone}.decay', op: 'add', value: -1 },
+                { path: 'world.flags.patched_{zone}', op: 'add', value: 1 },
               ],
               text: '성공',
             },
@@ -108,7 +108,7 @@ describe('validateBundle — 식별자·구조', () => {
 describe('validateBundle — 효과 경로 무결성', () => {
   it('알 수 없는 구역 ID를 잡는다', () => {
     const errs = validateBundle(
-      mutate((b) => (b.storylets[0].choices[0].onSuccess.effects[0].path = 'world.districts.d9.decay')),
+      mutate((b) => (b.storylets[0].choices[0].onSuccess.effects[0].path = 'world.zones.d9.decay')),
     );
     expect(errs.some((e) => e.includes('d9'))).toBe(true);
   });
@@ -127,25 +127,25 @@ describe('validateBundle — 효과 경로 무결성', () => {
     expect(errs.length).toBeGreaterThan(0);
   });
 
-  it('스토리렛 효과에 {district} 치환자가 있으면 잡는다 (바인딩 대상 아님)', () => {
+  it('스토리렛 효과에 {zone} 치환자가 있으면 잡는다 (바인딩 대상 아님)', () => {
     const errs = validateBundle(
       mutate(
         (b) =>
-          (b.storylets[0].choices[0].onSuccess.effects[0].path = 'world.districts.{district}.decay'),
+          (b.storylets[0].choices[0].onSuccess.effects[0].path = 'world.zones.{zone}.decay'),
       ),
     );
-    expect(errs.some((e) => e.includes('{district}'))).toBe(true);
+    expect(errs.some((e) => e.includes('{zone}'))).toBe(true);
   });
 
-  it('템플릿 효과의 {district} 치환자는 허용한다 (유효 번들에 이미 포함)', () => {
+  it('템플릿 효과의 {zone} 치환자는 허용한다 (유효 번들에 이미 포함)', () => {
     expect(validateBundle(validBundle())).toEqual([]);
   });
 
   it('템플릿 효과에 알 수 없는 치환자가 있으면 잡는다', () => {
     const errs = validateBundle(
-      mutate((b) => (b.orderTemplates[0].options[0].onSuccess.effects[0].path = 'world.districts.{zone}.decay')),
+      mutate((b) => (b.orderTemplates[0].options[0].onSuccess.effects[0].path = 'world.zones.{sector}.decay')),
     );
-    expect(errs.some((e) => e.includes('{zone}'))).toBe(true);
+    expect(errs.some((e) => e.includes('{sector}'))).toBe(true);
   });
 });
 

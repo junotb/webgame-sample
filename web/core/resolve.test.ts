@@ -14,7 +14,7 @@ function baseState(): GameState {
     world: {
       day: 1,
       phase: 'field',
-      districts: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
+      zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
       npcs: { protagonist: { trust: 0 } },
       flags: {},
@@ -31,7 +31,7 @@ const OPTION: BoundWorkOption = {
   check: { kind: 'narrow', skill: 'inscription', difficulty: 1 },
   timeCost: 1,
   onSuccess: {
-    effects: [{ path: 'world.districts.d5.decay', op: 'add', value: -3 }],
+    effects: [{ path: 'world.zones.d5.decay', op: 'add', value: -3 }],
     text: '수리 성공',
   },
   onFailure: {
@@ -44,14 +44,14 @@ describe('resolveOption — 판정 → 분기 → 효과 반영', () => {
   it('성공(roll < p): onSuccess 효과 적용, 성공 텍스트', () => {
     const result = resolveOption(baseState(), OPTION, () => 0.49);
     expect(result.success).toBe(true);
-    expect(result.state.world.districts.d5.decay).toBe(1);
+    expect(result.state.world.zones.d5.decay).toBe(1);
     expect(result.state.world.menace.fatigue).toBe(0);
     expect(result.text).toBe('수리 성공');
   });
   it('실패(roll ≥ p): onFailure 효과 적용, 실패 텍스트', () => {
     const result = resolveOption(baseState(), OPTION, () => 0.5);
     expect(result.success).toBe(false);
-    expect(result.state.world.districts.d5.decay).toBe(4);
+    expect(result.state.world.zones.d5.decay).toBe(4);
     expect(result.state.world.menace.fatigue).toBe(2);
     expect(result.text).toBe('수리 실패');
   });
@@ -66,7 +66,7 @@ describe('resolveOption — 판정 → 분기 → 효과 반영', () => {
     const auto: BoundWorkOption = { ...OPTION, check: { kind: 'auto' } };
     const result = resolveOption(baseState(), auto, () => 0.999999);
     expect(result.success).toBe(true);
-    expect(result.state.world.districts.d5.decay).toBe(1);
+    expect(result.state.world.zones.d5.decay).toBe(1);
   });
   it('p와 roll을 결과에 노출 (로그·디버그용)', () => {
     const result = resolveOption(baseState(), OPTION, () => 0.3);

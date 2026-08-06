@@ -38,7 +38,7 @@ function StatusLedger({ state }: { state: GameState }) {
       <dl className="ledger-grid">
         <div>
           <dt>도시 고도</dt>
-          <dd>{altitude(state.world.districts).toLocaleString('ko-KR')} m</dd>
+          <dd>{altitude(state.world.zones).toLocaleString('ko-KR')} m</dd>
         </div>
         <div>
           <dt>잔여 근무</dt>
@@ -58,9 +58,9 @@ function StatusLedger({ state }: { state: GameState }) {
         <span>주목 <b>{menace.scrutiny}</b></span>
         <span>동요 <b>{menace.unrest}</b></span>
       </div>
-      <div className="district-row">
-        {Object.entries(state.world.districts).map(([district, value]) => (
-          <span key={district}>{DISTRICT_LABELS[district as keyof typeof DISTRICT_LABELS]} 노후 {value.decay}</span>
+      <div className="zone-row">
+        {Object.entries(state.world.zones).map(([zone, value]) => (
+          <span key={zone}>{DISTRICT_LABELS[zone as keyof typeof DISTRICT_LABELS]} 노후 {value.decay}</span>
         ))}
       </div>
     </aside>
@@ -99,10 +99,10 @@ function FieldDocuments({ state, disabled, onAction }: Pick<GameViewProps, 'stat
       </div>
       <div className="orders-grid">
         {state.world.pendingOrders.map((order, orderIndex) => (
-          <article className={`document order-card${order.resolved ? ' is-resolved' : ''}`} key={`${order.templateId}-${order.district}`}>
+          <article className={`document order-card${order.resolved ? ' is-resolved' : ''}`} key={`${order.templateId}-${order.zone}`}>
             <header className="document-header">
               <span>지시서 {String(orderIndex + 1).padStart(2, '0')}</span>
-              <span>{DISTRICT_LABELS[order.district]}</span>
+              <span>{DISTRICT_LABELS[order.zone]}</span>
             </header>
             <p className="order-code">{order.templateId} · 난이도 보정 +{order.difficultyBonus}</p>
             <h3>{order.title}</h3>
@@ -175,7 +175,7 @@ function ClosingDocument({ state, log, disabled, onAction }: Pick<GameViewProps,
       <dl className="report-lines">
         <div><dt>처리 완료</dt><dd>{state.world.pendingOrders.length - unresolved.length}건</dd></div>
         <div><dt>미처리 이월</dt><dd>{unresolved.length}건</dd></div>
-        <div><dt>현재 고도</dt><dd>{altitude(state.world.districts).toLocaleString('ko-KR')} m</dd></div>
+        <div><dt>현재 고도</dt><dd>{altitude(state.world.zones).toLocaleString('ko-KR')} m</dd></div>
       </dl>
       <p className="document-note">확정 시 미처리 구역의 방치 페널티와 전 구역 자연 노후가 반영됩니다.</p>
       <button className="primary-action" disabled={disabled} onClick={() => onAction({ type: 'CLOSE_DAY' })}>

@@ -14,7 +14,7 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
     world: {
       day: 1,
       phase: 'morning',
-      districts: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
+      zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
       npcs: { protagonist: { trust: 0 } },
       flags: {},
@@ -64,7 +64,7 @@ describe('menaceWarnings — 상한 도달 감지', () => {
 
 const FATIGUE_ORDER: WorkOrder = {
   templateId: 'WO-FATIGUE',
-  district: 'd2',
+  zone: 'd2',
   difficultyBonus: 0,
   title: '소모적인 작업',
   body: [{ text: '본문' }],

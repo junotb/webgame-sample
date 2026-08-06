@@ -17,7 +17,7 @@
           "check": { "kind": "narrow", "skill": "inscription", "difficulty": 1 },
           "timeCost": 1,
           "onSuccess": {
-            "effects": [{ "path": "world.districts.{district}.decay", "op": "add", "value": -3 }],
+            "effects": [{ "path": "world.zones.{zone}.decay", "op": "add", "value": -3 }],
             "text": "새 각인이 자리를 잡자 가로등이 일제히 밝아진다. 규정 광량, 오차 없음. 거리의 악사가 당신에게 모자를 들어 보인다."
           },
           "onFailure": {
@@ -31,8 +31,8 @@
           "timeCost": 1,
           "onSuccess": {
             "effects": [
-              { "path": "world.districts.{district}.decay", "op": "add", "value": -1 },
-              { "path": "world.flags.patched_{district}", "op": "add", "value": 1 }
+              { "path": "world.zones.{zone}.decay", "op": "add", "value": -1 },
+              { "path": "world.flags.patched_{zone}", "op": "add", "value": 1 }
             ],
             "text": "덧그린 각인은 오래가지 않는다. 당신도 알고, 다음 담당자도 알게 될 것이다. 하지만 오늘 밤 이 거리는 밝다."
           }
@@ -54,7 +54,7 @@
           "check": { "kind": "narrow", "skill": "flowsense", "difficulty": 2 },
           "timeCost": 1,
           "onSuccess": {
-            "effects": [{ "path": "world.districts.{district}.decay", "op": "add", "value": -3 }],
+            "effects": [{ "path": "world.zones.{zone}.decay", "op": "add", "value": -3 }],
             "text": "손끝에 흐름이 잡힌다. 편차의 근원은 세 갈래 아래 이음부 — 각인 두 획으로 잠잠해졌다. 관로가 고르게 숨을 고른다."
           },
           "onFailure": {
@@ -68,8 +68,8 @@
           "timeCost": 1,
           "onSuccess": {
             "effects": [
-              { "path": "world.districts.{district}.decay", "op": "add", "value": -1 },
-              { "path": "world.flags.patched_{district}", "op": "add", "value": 1 }
+              { "path": "world.zones.{zone}.decay", "op": "add", "value": -1 },
+              { "path": "world.flags.patched_{zone}", "op": "add", "value": 1 }
             ],
             "text": "우회로가 열리며 계기 바늘이 정상 범위로 돌아온다. 편차는 사라진 게 아니라 다른 관로로 옮겨 갔을 뿐이다."
           }
@@ -96,8 +96,8 @@
           "timeCost": 1,
           "onSuccess": {
             "effects": [
-              { "path": "world.districts.{district}.decay", "op": "add", "value": -1 },
-              { "path": "world.flags.patched_{district}", "op": "add", "value": 1 }
+              { "path": "world.zones.{zone}.decay", "op": "add", "value": -1 },
+              { "path": "world.flags.patched_{zone}", "op": "add", "value": 1 }
             ],
             "text": "'점검 완료. 연료 재생률 자연 변동. 이상 없음.' — 익숙한 문구가 익숙한 칸에 들어간다. 명멸은 새벽쯤 잦아들 것이다. 늘 그랬듯이. 원인은 어디에도 적히지 않은 채로."
           },
@@ -112,7 +112,7 @@
           "timeCost": 1,
           "onSuccess": {
             "effects": [
-              { "path": "world.districts.{district}.decay", "op": "add", "value": -3 },
+              { "path": "world.zones.{zone}.decay", "op": "add", "value": -3 },
               { "path": "world.menace.unrest", "op": "add", "value": 1 },
               { "path": "world.flags.saw_rhythm", "op": "set", "value": 1 }
             ],

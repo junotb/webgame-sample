@@ -109,6 +109,14 @@ describe('방치 장부 — 미시 피드백의 근거 (v3 §2)', () => {
     expect(state.world.pendingOrders[0].difficultyBonus).toBe(1 + 4); // 방치 1 + decay 초과분 4
     expect(log.join(' ')).not.toContain('재발부');
   });
+  it('START_DAY 로그는 건수만 말하고 제목을 나열하지 않는다 (UI 층위 §5)', () => {
+    const { state, log } = reduce(baseState(), { type: 'START_DAY' }, CONTENT);
+    expect(log).toEqual([`지시서 ${state.world.pendingOrders.length}건 발부.`]);
+    // 로그가 먼저 읽어 주면 카드를 열 이유가 준다 — v3 §4가 노린 지점이 무너진다
+    for (const order of state.world.pendingOrders) {
+      expect(log.join(' ')).not.toContain(order.title);
+    }
+  });
 });
 
 describe('다일 이벤트 — 3일 점유의 수명 주기 (v3 §5)', () => {

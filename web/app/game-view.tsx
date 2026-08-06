@@ -106,7 +106,7 @@ export function GameView({
   // 조우(overlay)는 field 중에 열리므로 단계 오버레이보다 우선한다.
   function flowOverlayFor(): React.ReactNode {
     if (overlay) return overlay;
-    if (phase === 'morning') return <MorningOverlay disabled={disabled} onAction={onAction} />;
+    if (phase === 'morning') return <MorningOverlay state={state} disabled={disabled} onAction={onAction} />;
     if (phase === 'event') return <EventOverlay state={state} content={content} disabled={disabled} onAction={onAction} />;
     if (phase === 'closing') return <ClosingOverlay state={state} log={log} disabled={disabled} onAction={onAction} />;
     return null;

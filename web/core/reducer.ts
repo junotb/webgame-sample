@@ -126,7 +126,9 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.seed = advanceSeed(rng);
       const today = next.world.calendar.day;
       for (const o of orders) archiveAdd(next.world.archive, { kind: 'order', day: today, templateId: o.templateId, zone: o.zone });
-      const log = [`지시서 ${orders.length}건 발부.`, ...orders.map((o) => `— ${o.title}`)];
+      // 제목을 나열하지 않는다 (UI 층위 사양 §5): 로그가 먼저 읽어 주면 무대를 열 이유가 준다.
+      // 무엇이 왔는지는 지시서를 열어서 안다 — v3 §4가 카드 이중 구조로 노린 그 지점이다.
+      const log = [`지시서 ${orders.length}건 발부.`];
       // 다일 이벤트 점유 (v3 §5): 오늘 하루를 소모하고 근무 슬롯이 줄어든다
       if (next.world.multiday) {
         next.world.multiday.daysLeft -= 1;

@@ -6,7 +6,7 @@
  */
 import { evalConditions, selectVariant } from '../core/reducer';
 import type { Action, ContentBundle, GameState } from '../core/schema';
-import { checkLabel } from './ui-labels';
+import { checkLabel, WEEKDAY_FULL, ZONE_LABELS } from './ui-labels';
 
 interface OverlayProps {
   state: GameState;
@@ -14,40 +14,53 @@ interface OverlayProps {
   onAction: (action: Action) => void;
 }
 
-export function MorningOverlay({ disabled, onAction }: Omit<OverlayProps, 'state'>) {
+/**
+ * 일일 개시 — 하루의 시작에 한 번만 크게 (사양 §5).
+ * 이후 날짜는 상단 띠의 작은 칩으로만 남는다.
+ *
+ * 발부 건수는 말하지 않는다. START_DAY 전이라 아직 생성되지 않았고, 무엇보다
+ * 화면이 미리 세어 주면 무대를 볼 이유가 준다 — 몇 건인지는 지시서가 놓인 것을 보고 안다.
+ */
+export function MorningOverlay({ state, disabled, onAction }: OverlayProps) {
+  const { day, weekday } = state.world.calendar;
   return (
-    <article className="document document-featured">
-      <header className="document-header">
-        <span>중앙 시설국 · 일일 배부</span>
-        <span>승인 대기</span>
-      </header>
-      <p className="eyebrow">MORNING BRIEF</p>
-      <h2>업무 개시 보고</h2>
-      <p className="document-copy">
-        야간 관측 기록을 취합했습니다. 담당 구역의 지시서를 발부하면 오늘 처리할 건을 선택하십시오.
-        미처리 건은 익일 재발부됩니다.
-      </p>
+    <section className="day-open" aria-label="일일 개시">
+      <p className="day-open-num">DAY {String(day).padStart(2, '0')}</p>
+      <h2 className="day-open-weekday">{WEEKDAY_FULL[weekday] ?? ''}</h2>
+      <p className="day-open-zone">{ZONE_LABELS[state.world.assignment.zone]}</p>
+      {state.world.multiday ? (
+        <p className="day-open-note">약속된 일정이 오늘 근무의 대부분을 가져간다.</p>
+      ) : null}
       <button className="primary-action" disabled={disabled} onClick={() => onAction({ type: 'START_DAY' })}>
-        오늘 업무 시작
+        업무 개시
       </button>
-    </article>
+    </section>
   );
 }
 
+/**
+ * 사무소 장면 — 일과를 마치고 돌아온 자리 (사양 §5).
+ *
+ * 이전 프레이밍(`비정규 접촉 기록` / `INCIDENT MEMO` / `특이 사항 면담록`)은
+ * 사고 보고서 양식이라 "위험 경고가 시도 때도 없이 뜬다"로 읽혔다. 그러나 이 층은
+ * v3 §5의 **필수 이벤트 = 진실에 도달하는 뼈대**이고 자주 나오는 것이 의도다.
+ * 고칠 것은 빈도가 아니라 양식이었다. 사고 서식을 걷어내고 시간과 장소만 준다.
+ *
+ * 스토리렛 ID도 표시하지 않는다 — 문서 번호는 이것이 접수된 사건이라는 뜻이다.
+ */
 export function EventOverlay({ state, content, disabled, onAction }: OverlayProps & { content: ContentBundle }) {
   const storylet = content.storylets.find((item) => evalConditions(state, item.requirements));
   if (!storylet) {
-    return <p className="empty-notice">오늘 보고된 특이 사항이 없습니다.</p>;
+    return <p className="empty-notice">오늘은 사무소에 아무도 남아 있지 않다.</p>;
   }
 
   return (
     <article className="document event-document">
       <header className="document-header">
-        <span>비정규 접촉 기록</span>
-        <span>{storylet.id}</span>
+        <span>{ZONE_LABELS[state.world.assignment.zone]} 사무소</span>
+        <span>업무 종료 후</span>
       </header>
-      <p className="eyebrow">INCIDENT MEMO</p>
-      <h2>특이 사항 면담록</h2>
+      <h2>일과 뒤</h2>
       <p className="document-copy narrative">{selectVariant(state, storylet.body)}</p>
       <div className="choices event-choices">
         {storylet.choices.map((choice, choiceIndex) => (

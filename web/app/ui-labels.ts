@@ -22,6 +22,15 @@ export const ZONE_LABELS: Record<ZoneId, string> = {
 
 export const WEEKDAY_LABELS: Record<number, string> = { 1: '월', 2: '화', 3: '수', 4: '목', 5: '금' };
 
+/** 일일 개시 오버레이용 — 하루에 한 번 크게 나오는 자리에서는 한 글자로 두지 않는다 */
+export const WEEKDAY_FULL: Record<number, string> = {
+  1: '월요일',
+  2: '화요일',
+  3: '수요일',
+  4: '목요일',
+  5: '금요일',
+};
+
 /**
  * 카드 표면 분류 5종 (v3 §4 확정) — 이것은 분류명이지 얼굴 문구가 아니다.
  * "정기 순시" / "미확인 구간 확인" 같은 표현 변형은 지시서의 title이 담당하며,

@@ -35,11 +35,12 @@ describe('상단 띠 (L1)', () => {
 });
 
 describe('층위 렌더 (L1/L2/L3)', () => {
-  it('morning은 개시 오버레이를 덮고 원장은 열지 않은 채 둔다', () => {
+  it('morning은 일일 개시로 덮고 원장은 열지 않은 채 둔다', () => {
     const html = render(createInitialState());
 
-    expect(html).toContain('업무 개시 보고');
-    expect(html).toContain('오늘 업무 시작');
+    expect(html).toContain('DAY 01');
+    expect(html).toContain('월요일');
+    expect(html).toContain('업무 개시');
     // 원장은 L2 — 버튼을 눌러야 열린다 (상시 노출이 집중을 흩뜨렸다)
     expect(html).not.toContain('도시 운용 원장');
     expect(html).not.toContain('정비 <b>40</b>');

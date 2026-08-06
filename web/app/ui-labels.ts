@@ -52,6 +52,17 @@ export const PHASE_LABELS: Record<DayPhase, string> = {
   closing: '일일 정산',
 };
 
+/**
+ * 시간 소모 표기 — "근무 1"이라는 내부 단위 대신 시간의 말로.
+ * 하루 = 근무 슬롯 2이므로 1슬롯 = 반나절이다. "하루 소요"라는 제안을 받았으나
+ * 슬롯 1은 하루의 절반이라 그대로 쓰면 거짓말이 된다 — 반나절/하루로 접는다.
+ */
+export function timeCostLabel(timeCost: number): string {
+  if (timeCost <= 1) return '반나절';
+  if (timeCost === 2) return '하루';
+  return `${timeCost} 반나절`; // 슬라이스 밖의 값 — 나오면 콘텐츠를 의심할 것
+}
+
 export type SaveStatus = 'loading' | 'saving' | 'saved' | 'error';
 
 export const SAVE_LABELS: Record<SaveStatus, string> = {

@@ -105,3 +105,17 @@ describe.each(['WO-T1', 'WO-T2', 'WO-T3', 'WO-T4'])('%s — v3 정산 규칙 정
     }
   });
 });
+
+describe('선택지 라벨 — 판정 메타와 중복 금지', () => {
+  const SKILL_STAT_NAMES = ['각인학', '감류학', '정비', '진단', '절차', '담력'];
+  it('라벨 끝의 괄호가 판정 기술·스탯명을 반복하지 않는다 (메타 줄이 이미 말한다)', () => {
+    const labels = [
+      ...bundle.orderTemplates.flatMap((t) => t.options.map((o) => o.label)),
+      ...bundle.encounters.flatMap((e) => Object.values(e.actions).map((a) => a.label)),
+    ];
+    for (const label of labels) {
+      const paren = label.match(/\(([^)]+)\)$/);
+      if (paren) expect(SKILL_STAT_NAMES).not.toContain(paren[1]);
+    }
+  });
+});

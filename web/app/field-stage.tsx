@@ -17,7 +17,7 @@ import { useState } from 'react';
 import { selectVariant } from '../core/reducer';
 import type { Action, GameState, WorkOrder, ZoneMap as ZoneMapDef } from '../core/schema';
 import { FaceIcon } from './face-icons';
-import { checkLabel, FACE_LABELS } from './ui-labels';
+import { checkLabel, FACE_LABELS, timeCostLabel } from './ui-labels';
 import { ZoneMap } from './zone-map';
 
 interface FieldStageProps {
@@ -72,7 +72,7 @@ function OrderPanel({
           >
             <span>{option.label}</span>
             <small>
-              {option.startsEncounter ? '현장 확인' : checkLabel(option.check, state.self)} · 근무 {option.timeCost}
+              {option.startsEncounter ? '현장 확인' : checkLabel(option.check, state.self)} · {timeCostLabel(option.timeCost)}
             </small>
           </button>
         ))}

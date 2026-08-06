@@ -78,10 +78,20 @@ export function growthNotes(prev: GameState, next: GameState): string[] {
   return notes;
 }
 
-/** 서류함 기록 — 중복 없이 뒤에 쌓는다 (본문은 렌더 시점에 콘텐츠에서 다시 뽑는다) */
+/**
+ * 서류함 기록 — 중복 없이 뒤에 쌓는다 (본문은 렌더 시점에 콘텐츠에서 다시 뽑는다).
+ * 동일성 판정에서 `day`는 뺀다: 같은 문서를 다른 날 다시 겪어도 항목은 하나이고,
+ * 남는 일차는 **처음 겪은 날**이다.
+ */
+function archiveKey(entry: ArchiveEntry): string {
+  if (entry.kind === 'order') return `order:${entry.templateId}:${entry.zone}`;
+  if (entry.kind === 'storylet') return `storylet:${entry.id}`;
+  return `encounter:${entry.id}:${entry.zone}`;
+}
+
 function archiveAdd(archive: ArchiveEntry[], entry: ArchiveEntry): void {
-  const key = JSON.stringify(entry);
-  if (!archive.some((e) => JSON.stringify(e) === key)) archive.push(entry);
+  const key = archiveKey(entry);
+  if (!archive.some((e) => archiveKey(e) === key)) archive.push(entry);
 }
 
 /**
@@ -114,7 +124,8 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.pendingOrders = orders;
       next.world.phase = 'field';
       next.world.seed = advanceSeed(rng);
-      for (const o of orders) archiveAdd(next.world.archive, { kind: 'order', templateId: o.templateId, zone: o.zone });
+      const today = next.world.calendar.day;
+      for (const o of orders) archiveAdd(next.world.archive, { kind: 'order', day: today, templateId: o.templateId, zone: o.zone });
       const log = [`지시서 ${orders.length}건 발부.`, ...orders.map((o) => `— ${o.title}`)];
       // 다일 이벤트 점유 (v3 §5): 오늘 하루를 소모하고 근무 슬롯이 줄어든다
       if (next.world.multiday) {
@@ -169,7 +180,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.pendingOrders[action.orderIndex].outcome = success ? 'success' : 'failure';
       next.world.shiftLeft -= entry.timeCost;
       if (next.world.shiftLeft <= 0) next.world.phase = 'event';
-      archiveAdd(next.world.archive, { kind: 'encounter', id: entry.startsEncounter!, zone: order.zone });
+      archiveAdd(next.world.archive, { kind: 'encounter', day: next.world.calendar.day, id: entry.startsEncounter!, zone: order.zone });
       const log = [action.text, '보고서 제출: 설비 이상 점검 완료.'];
       log.push(...growthNotes(state, next), ...menaceWarnings(state, next));
       return { state: next, log };
@@ -204,7 +215,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
         next.world.multiday = { id: choice.startsMultiday.id, daysLeft: choice.startsMultiday.days };
         next.world.flags[`md_${choice.startsMultiday.id}_started`] = 1;
       }
-      archiveAdd(next.world.archive, { kind: 'storylet', id: storylet.id });
+      archiveAdd(next.world.archive, { kind: 'storylet', day: next.world.calendar.day, id: storylet.id });
       next.world.phase = 'closing';
       next.world.seed = advanceSeed(rng);
       const log = branch?.text ? [branch.text] : [];

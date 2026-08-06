@@ -31,11 +31,16 @@ export interface CharacterSheet {
 /** 주간 평가 등급 (v3 §2) — 금요일 종료 시점의 배치 구역 밴드가 곧 등급 */
 export type WeeklyRating = 'perfect' | 'good' | 'concern' | 'warning';
 
-/** 재열람 항목 — 구역 바인딩이 필요한 문서는 구역을 함께 기억한다 */
+/**
+ * 재열람 항목 — 구역 바인딩이 필요한 문서는 구역을 함께 기억한다.
+ * `day`는 **처음 겪은 일차**다. 같은 문서가 재발부되어도 항목은 늘지 않으므로
+ * (v3 §7 "중복도 없다") 나중 일차로 덮어쓰지 않는다.
+ * 일차는 상태값이지 렌더된 문장이 아니라서 "렌더 문장 미저장" 제약에 걸리지 않는다.
+ */
 export type ArchiveEntry =
-  | { kind: 'order'; templateId: string; zone: ZoneId }
-  | { kind: 'storylet'; id: string }
-  | { kind: 'encounter'; id: string; zone: ZoneId };
+  | { kind: 'order'; day: number; templateId: string; zone: ZoneId }
+  | { kind: 'storylet'; day: number; id: string }
+  | { kind: 'encounter'; day: number; id: string; zone: ZoneId };
 
 export interface WorldSheet {
   calendar: {

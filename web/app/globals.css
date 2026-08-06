@@ -245,6 +245,83 @@ button {
   backdrop-filter: blur(2px);
 }
 
+/* ── L2 서류함 — 일기 (UI 층위 §4). 한 번에 한 건만 펼쳐진다 ── */
+.archive {
+  display: grid;
+  grid-template-columns: minmax(230px, 300px) 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.archive-index {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid rgba(232, 225, 207, 0.14);
+}
+
+.archive-entry {
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 11px 12px;
+  color: #a9a18e;
+  border: 0;
+  border-bottom: 1px solid rgba(232, 225, 207, 0.14);
+  background: transparent;
+  text-align: left;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.archive-entry:hover {
+  color: #e6ddc6;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.archive-entry[aria-current='true'] {
+  color: #f2ead5;
+  background: var(--green);
+}
+
+.archive-day {
+  font-family: Georgia, serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+}
+
+.archive-anchor {
+  color: #857d6c;
+  font-size: 0.66rem;
+}
+
+.archive-entry[aria-current='true'] .archive-anchor {
+  color: #b6ac93;
+}
+
+.archive-title {
+  grid-column: 1 / -1;
+  font-family: Georgia, 'Noto Serif KR', serif;
+  font-size: 0.94rem;
+}
+
+.archive-open {
+  padding: 26px;
+}
+
+.archive-open .document-header {
+  margin: -26px -26px 24px;
+}
+
+@media (max-width: 820px) {
+  .archive {
+    grid-template-columns: 1fr;
+  }
+}
+
 .layer-dismiss {
   cursor: pointer;
   display: block;

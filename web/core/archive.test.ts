@@ -75,13 +75,22 @@ const CONTENT: ContentBundle = {
 describe('서류함 기록', () => {
   it('START_DAY: 제시된 카드가 서류함에 오르고, 재발부돼도 중복되지 않는다', () => {
     const day1 = reduce(baseState(), { type: 'START_DAY' }, CONTENT).state;
-    expect(day1.world.archive).toEqual([{ kind: 'order', templateId: 'AUTO', zone: 'd5' }]);
+    expect(day1.world.archive).toEqual([{ kind: 'order', day: 1, templateId: 'AUTO', zone: 'd5' }]);
     const again = reduce({ ...day1, world: { ...day1.world, phase: 'morning' } }, { type: 'START_DAY' }, CONTENT).state;
     expect(again.world.archive).toHaveLength(1);
   });
+  it('재발부돼도 남는 일차는 처음 겪은 날이다', () => {
+    const day1 = reduce(baseState(), { type: 'START_DAY' }, CONTENT).state;
+    const later = reduce(
+      { ...day1, world: { ...day1.world, phase: 'morning', calendar: { day: 4, weekday: 4 } } },
+      { type: 'START_DAY' },
+      CONTENT,
+    ).state;
+    expect(later.world.archive).toEqual([{ kind: 'order', day: 1, templateId: 'AUTO', zone: 'd5' }]);
+  });
   it('CHOOSE_STORYLET: 읽은 스토리렛이 서류함에 오른다', () => {
     const { state } = reduce(baseState({ phase: 'event' }), { type: 'CHOOSE_STORYLET', storyletId: 'EV-001', choiceIndex: 0 }, CONTENT);
-    expect(state.world.archive).toContainEqual({ kind: 'storylet', id: 'EV-001' });
+    expect(state.world.archive).toContainEqual({ kind: 'storylet', day: 1, id: 'EV-001' });
   });
 });
 

@@ -15,7 +15,7 @@ function fieldState(): GameState {
   const state = createInitialState();
   state.world.phase = 'field';
   state.world.pendingOrders = [ORDER];
-  state.world.archive = [{ kind: 'storylet', id: 'EV-001' }];
+  state.world.archive = [{ kind: 'storylet', day: 1, id: 'EV-001' }];
   return state;
 }
 

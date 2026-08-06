@@ -140,8 +140,9 @@ button {
 /* ── L1 상단 띠 — 상시 노출은 날짜·구역·잔여 근무·패널 버튼뿐 (UI 층위 §3) ── */
 .topbar {
   display: flex;
+  flex-wrap: wrap; /* 좁은 화면에서 패널 버튼이 줄을 바꾼다 — 글자를 세로로 꺾지 않는다 */
   align-items: center;
-  gap: 18px;
+  gap: 10px 18px;
   color: #ddd5bf;
   border-bottom: 1px solid rgba(232, 225, 207, 0.25);
   padding: 0 2px 16px;
@@ -197,6 +198,7 @@ button {
 
 .chip-action {
   cursor: pointer;
+  white-space: nowrap;
   padding: 7px 12px;
   color: #b5aa91;
   border: 1px solid #5f5b4f;
@@ -956,6 +958,7 @@ button:disabled {
 }
 
 .save-indicator {
+  pointer-events: none; /* 상태 표시일 뿐 — 아래 버튼의 탭을 막지 않는다 */
   position: fixed;
   right: 18px;
   bottom: 16px;
@@ -1043,6 +1046,61 @@ button:disabled {
 
   .transmission {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ── 짧은 화면 (모바일 가로모드) — 비율이 비슷해도 절대 높이가 없다.
+      여백을 줄이고 지도 높이를 뷰포트에 맞춰, 지도+열람 패널이 한눈에 들게 한다 ── */
+@media (max-height: 520px) {
+  .game-shell {
+    padding: 10px 0 40px;
+  }
+
+  .topbar {
+    padding-bottom: 8px;
+  }
+
+  .stage {
+    padding-top: 12px;
+  }
+
+  .zone-map-plan {
+    max-height: 58vh;
+  }
+
+  .reading-slot {
+    top: 8px;
+  }
+
+  .day-open {
+    min-height: 78vh;
+    gap: 2px;
+  }
+
+  .overlay-layer {
+    padding: 12px 12px 24px;
+  }
+
+  .document-featured,
+  .event-document,
+  .closing-document,
+  .notice-document {
+    padding: 20px;
+  }
+
+  .document-featured .document-header,
+  .event-document .document-header,
+  .closing-document .document-header,
+  .notice-document .document-header {
+    margin: -20px -20px 18px;
+  }
+}
+
+@media (max-width: 520px) {
+  .save-indicator {
+    padding: 5px 8px;
+    font-size: 0.6rem;
+    opacity: 0.8;
   }
 }
 

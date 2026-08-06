@@ -17,6 +17,7 @@ describe('createInitialState', () => {
         weekRatings: {},
         cardNeglect: {},
         multiday: null,
+        archive: [],
         phase: 'morning',
         zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
         menace: { fatigue: 0, scrutiny: 0, unrest: 0 },

@@ -1,6 +1,10 @@
+'use client';
+
+import { useState } from 'react';
+import { bindVariants } from '../core/bind';
 import { checkProbability } from '../core/checks';
 import { evalConditions, selectVariant, SHIFT_PER_DAY, SKILL_LABELS, STAT_LABELS } from '../core/reducer';
-import type { Action, CardFace, Check, ContentBundle, DayPhase, GameState } from '../core/schema';
+import type { Action, ArchiveEntry, CardFace, Check, ContentBundle, DayPhase, GameState, TextVariant } from '../core/schema';
 
 /** 판정 표기: "각인학 · 72%" — 트리아지 고민의 재료 (v1 실패 처방) */
 export function checkLabel(check: Check, self: GameState['self']): string {
@@ -47,6 +51,42 @@ const SAVE_LABELS: Record<SaveStatus, string> = {
   saved: '저장됨',
   error: '저장 확인 필요',
 };
+
+/** 재열람 서류함 (v3 §7) — 본문은 저장돼 있지 않다. 지금의 나로 다시 읽는다. */
+function ArchivePanel({ state, content }: { state: GameState; content: ContentBundle }) {
+  function resolveDocument(entry: ArchiveEntry): { title: string; body: TextVariant[] } | null {
+    if (entry.kind === 'order') {
+      const t = content.orderTemplates.find((t) => t.id === entry.templateId);
+      return t ? { title: t.title, body: bindVariants(t.body, entry.zone) } : null;
+    }
+    if (entry.kind === 'storylet') {
+      const s = content.storylets.find((s) => s.id === entry.id);
+      return s ? { title: `면담록 ${s.id}`, body: s.body } : null;
+    }
+    const e = content.encounters.find((e) => e.id === entry.id);
+    return e ? { title: e.title, body: bindVariants(e.intro, entry.zone) } : null;
+  }
+  const documents = state.world.archive
+    .map((entry) => resolveDocument(entry))
+    .filter((d): d is { title: string; body: TextVariant[] } => d !== null);
+  if (documents.length === 0) {
+    return <p className="empty-notice">보관된 문서가 없습니다.</p>;
+  }
+  return (
+    <section className="document-stack" aria-label="서류함">
+      {documents.map((doc, i) => (
+        <article className="document" key={`${doc.title}-${i}`}>
+          <header className="document-header">
+            <span>보관 문서 {String(i + 1).padStart(2, '0')}</span>
+            <span>재열람</span>
+          </header>
+          <h3>{doc.title}</h3>
+          <p className="document-copy">{selectVariant(state, doc.body)}</p>
+        </article>
+      ))}
+    </section>
+  );
+}
 
 function StatusLedger({ state }: { state: GameState }) {
   const menace = state.world.menace;
@@ -224,6 +264,7 @@ function ClosingDocument({ state, log, disabled, onAction }: Pick<GameViewProps,
 }
 
 export function GameView({ state, content, log, saveStatus, onAction, onStartEncounter, disabled = false, overlay }: GameViewProps) {
+  const [archiveOpen, setArchiveOpen] = useState(false);
   return (
     <main className="game-shell">
       <header className="topbar">
@@ -238,15 +279,22 @@ export function GameView({ state, content, log, saveStatus, onAction, onStartEnc
       </header>
 
       <StatusLedger state={state} />
+      <button className="text-action" onClick={() => setArchiveOpen((open) => !open)}>
+        {archiveOpen ? '← 업무로 돌아가기' : `서류함 열람 (${state.world.archive.length})`}
+      </button>
 
       <div className="workspace">
-        {overlay ?? (
-          <>
-            {state.world.phase === 'morning' ? <MorningDocument disabled={disabled} onAction={onAction} /> : null}
-            {state.world.phase === 'field' ? <FieldDocuments state={state} disabled={disabled} onAction={onAction} onStartEncounter={onStartEncounter} /> : null}
-            {state.world.phase === 'event' ? <EventDocument state={state} content={content} disabled={disabled} onAction={onAction} /> : null}
-            {state.world.phase === 'closing' ? <ClosingDocument state={state} log={log} disabled={disabled} onAction={onAction} /> : null}
-          </>
+        {archiveOpen ? (
+          <ArchivePanel state={state} content={content} />
+        ) : (
+          overlay ?? (
+            <>
+              {state.world.phase === 'morning' ? <MorningDocument disabled={disabled} onAction={onAction} /> : null}
+              {state.world.phase === 'field' ? <FieldDocuments state={state} disabled={disabled} onAction={onAction} onStartEncounter={onStartEncounter} /> : null}
+              {state.world.phase === 'event' ? <EventDocument state={state} content={content} disabled={disabled} onAction={onAction} /> : null}
+              {state.world.phase === 'closing' ? <ClosingDocument state={state} log={log} disabled={disabled} onAction={onAction} /> : null}
+            </>
+          )
         )}
       </div>
 

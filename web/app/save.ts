@@ -9,7 +9,7 @@ const SAVE_KEY = 'phase0';
  * 세이브 스키마 버전 — GameState 구조가 바뀔 때마다 올린다.
  * 불일치 세이브는 복원하지 않고 버린다 (Phase 0: 마이그레이션 없이 새 게임).
  */
-export const SAVE_SCHEMA = 2;
+export const SAVE_SCHEMA = 3;
 
 interface SaveEnvelope {
   schema: number;

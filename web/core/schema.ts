@@ -31,6 +31,12 @@ export interface CharacterSheet {
 /** 주간 평가 등급 (v3 §2) — 금요일 종료 시점의 배치 구역 밴드가 곧 등급 */
 export type WeeklyRating = 'perfect' | 'good' | 'concern' | 'warning';
 
+/** 재열람 항목 — 구역 바인딩이 필요한 문서는 구역을 함께 기억한다 */
+export type ArchiveEntry =
+  | { kind: 'order'; templateId: string; zone: ZoneId }
+  | { kind: 'storylet'; id: string }
+  | { kind: 'encounter'; id: string; zone: ZoneId };
+
 export interface WorldSheet {
   calendar: {
     day: number;      // 통산 일차 (주말 포함, day 1 = 1주차 월요일)
@@ -42,6 +48,12 @@ export interface WorldSheet {
   cardNeglect: Record<string, number>;
   /** 다일 이벤트 점유 (v3 §5) — 점유 중 근무 슬롯 축소. daysLeft는 남은 점유 근무일 */
   multiday: { id: string; daysLeft: number } | null;
+  /**
+   * 재열람 서류함 (v3 §7) — 한 번 제시된 문서의 목록. 본문은 저장하지 않고
+   * 콘텐츠에서 현재 상태로 다시 렌더링한다: 같은 문서가 기억에 따라 다르게 읽힌다.
+   * 강조는 답을 주고, 재열람은 질문을 준다.
+   */
+  archive: ArchiveEntry[];
   phase: DayPhase;
   zones: Record<ZoneId, { decay: number }>; // 노후도 0~10
   menace: Record<MenaceId, number>;                 // 0~8

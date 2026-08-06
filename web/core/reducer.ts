@@ -8,7 +8,7 @@ import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
 import { generateCards } from './generate';
 import { resolveOption } from './resolve';
-import type { Condition, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult, TextVariant } from './schema';
+import type { ArchiveEntry, Condition, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult, TextVariant } from './schema';
 
 export const SHIFT_PER_DAY = 2;
 /** 다일 이벤트 점유 중의 근무 슬롯 (v3 §5) — 처리 1장/방치 3장, 노후도 급등의 근원 */
@@ -71,7 +71,17 @@ export function growthNotes(prev: GameState, next: GameState): string[] {
       notes.push(`${STAT_LABELS[stat]}이(가) ${next.self.stats[stat]}에 이르렀다.`);
     }
   }
+  // 재열람 안내 (v3 §7): 기억이 오른 사실만 알린다 — 무엇이 달라졌는지는 말하지 않는다
+  if (next.self.memory > prev.self.memory) {
+    notes.push(`기억이 남았다 (${next.self.memory}/7). 서류함의 옛 문서를 다시 열 수 있다.`);
+  }
   return notes;
+}
+
+/** 서류함 기록 — 중복 없이 뒤에 쌓는다 (본문은 렌더 시점에 콘텐츠에서 다시 뽑는다) */
+function archiveAdd(archive: ArchiveEntry[], entry: ArchiveEntry): void {
+  const key = JSON.stringify(entry);
+  if (!archive.some((e) => JSON.stringify(e) === key)) archive.push(entry);
 }
 
 /**
@@ -104,6 +114,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.pendingOrders = orders;
       next.world.phase = 'field';
       next.world.seed = advanceSeed(rng);
+      for (const o of orders) archiveAdd(next.world.archive, { kind: 'order', templateId: o.templateId, zone: o.zone });
       const log = [`지시서 ${orders.length}건 발부.`, ...orders.map((o) => `— ${o.title}${o.reissueCount > 0 ? ` (재발부 ${o.reissueCount}차)` : ''}`)];
       // 다일 이벤트 점유 (v3 §5): 오늘 하루를 소모하고 근무 슬롯이 줄어든다
       if (next.world.multiday) {
@@ -158,6 +169,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.pendingOrders[action.orderIndex].outcome = success ? 'success' : 'failure';
       next.world.shiftLeft -= entry.timeCost;
       if (next.world.shiftLeft <= 0) next.world.phase = 'event';
+      archiveAdd(next.world.archive, { kind: 'encounter', id: entry.startsEncounter!, zone: order.zone });
       const log = [action.text, '보고서 제출: 설비 이상 점검 완료.'];
       log.push(...growthNotes(state, next), ...menaceWarnings(state, next));
       return { state: next, log };
@@ -192,6 +204,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
         next.world.multiday = { id: choice.startsMultiday.id, daysLeft: choice.startsMultiday.days };
         next.world.flags[`md_${choice.startsMultiday.id}_started`] = 1;
       }
+      archiveAdd(next.world.archive, { kind: 'storylet', id: storylet.id });
       next.world.phase = 'closing';
       next.world.seed = advanceSeed(rng);
       const log = branch?.text ? [branch.text] : [];

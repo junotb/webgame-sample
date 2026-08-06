@@ -26,6 +26,7 @@ const minimalBundle = {
     {
       id: 'WO-M1',
       minDecay: 0,
+      weight: 1,
       title: '지시서',
       body: [{ text: '본문' }],
       options: [

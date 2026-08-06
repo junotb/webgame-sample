@@ -3,6 +3,7 @@
  * 순수 리듀서: PRNG는 world.seed로 재현, 매 판정 후 seed 전진.
  * 트리아지 장치: shiftLeft(근무 시간 2)로 3건 중 2건만 처리 가능.
  */
+import { bandOf, RATING_LABELS, ratingOfBand, weekOf, WORKDAYS_PER_WEEK } from './calendar';
 import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
 import { generateOrders } from './generate';
@@ -14,6 +15,10 @@ export const MENACE_CAP = 8;
 export const BASE_ALTITUDE = 8000;
 export const ALTITUDE_PER_DECAY = 120;
 const MAX_DECAY = 10;
+
+function clampDecay(value: number): number {
+  return Math.max(0, Math.min(MAX_DECAY, value));
+}
 
 /** 고도 = 8000 − 120 × Σ노후도 (m) — 하루 요약에 숫자로만 표기 */
 export function altitude(zones: Record<ZoneId, { decay: number }>): number {
@@ -96,6 +101,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       const result = resolveOption(state, option, rng);
       const next = result.state === state ? structuredClone(state) : result.state;
       next.world.pendingOrders[action.orderIndex].resolved = true;
+      next.world.pendingOrders[action.orderIndex].outcome = result.success ? 'success' : 'failure';
       next.world.shiftLeft -= option.timeCost;
       if (next.world.shiftLeft <= 0) next.world.phase = 'event';
       next.world.seed = advanceSeed(rng);
@@ -136,27 +142,36 @@ export const reduce: Reducer = (state, action, content): StepResult => {
     case 'CLOSE_DAY': {
       assertPhase(state, 'closing', 'CLOSE_DAY');
       const next = structuredClone(state);
-      // 방치 페널티: 미처리 지시서의 구역 +1
+      // 가중치 정산 (v3 §3): 처리 성공 −w / 처리 실패 0 / 방치 +w, 자연 틱 +1/일.
+      // 하루치 증감을 합산한 뒤 한 번만 클램프한다 (중간 클램프는 −분을 잘라먹는다)
+      const delta: Partial<Record<ZoneId, number>> = {};
       for (const order of next.world.pendingOrders) {
         if (!order.resolved) {
-          const d = next.world.zones[order.zone];
-          d.decay = Math.min(MAX_DECAY, d.decay + 1);
+          delta[order.zone] = (delta[order.zone] ?? 0) + order.weight;
+        } else if (order.outcome === 'success') {
+          delta[order.zone] = (delta[order.zone] ?? 0) - order.weight;
         }
       }
-      // 자연 틱: 전 구역 +1
-      for (const d of Object.values(next.world.zones)) {
-        d.decay = Math.min(MAX_DECAY, d.decay + 1);
+      for (const [zoneId, z] of Object.entries(next.world.zones) as [ZoneId, { decay: number }][]) {
+        z.decay = clampDecay(z.decay + (delta[zoneId] ?? 0) + 1);
       }
       const alt = altitude(next.world.zones);
-      const closedDay = next.world.day;
-      next.world.day += 1;
+      const { day, weekday } = next.world.calendar;
+      const log = [`Day ${day} 종료. 도시 고도 ${alt}m.`];
+      if (weekday === WORKDAYS_PER_WEEK) {
+        // 금요일: 배치 구역의 정산 후 밴드가 곧 주간 평가 (별도 산식 없음)
+        const band = bandOf(next.world.zones[next.world.assignment.zone].decay);
+        const rating = ratingOfBand(band);
+        next.world.weekRatings[weekOf(day)] = rating;
+        log.push(`본부 주간 평가: ${RATING_LABELS[rating]}.`, '이틀의 휴일이 지나간다.');
+        next.world.calendar = { day: day + 3, weekday: 1 };
+      } else {
+        next.world.calendar = { day: day + 1, weekday: weekday + 1 };
+      }
       next.world.phase = 'morning';
       next.world.shiftLeft = SHIFT_PER_DAY;
       next.world.pendingOrders = [];
-      return {
-        state: next,
-        log: [`Day ${closedDay} 종료. 도시 고도 ${alt}m.`],
-      };
+      return { state: next, log };
     }
   }
 };

@@ -19,7 +19,8 @@ const PHASE_LABELS: Record<DayPhase, string> = {
   closing: '일일 정산',
 };
 
-const DISTRICT_LABELS = { d2: '제2구역', d5: '제5구역', d7: '제7구역' } as const;
+const ZONE_LABELS = { d2: '제2구역', d5: '제5구역', d7: '제7구역' } as const;
+const WEEKDAY_LABELS: Record<number, string> = { 1: '월', 2: '화', 3: '수', 4: '목', 5: '금' };
 const SAVE_LABELS: Record<SaveStatus, string> = {
   loading: '세이브 확인 중',
   saving: '저장 중…',
@@ -60,7 +61,7 @@ function StatusLedger({ state }: { state: GameState }) {
       </div>
       <div className="zone-row">
         {Object.entries(state.world.zones).map(([zone, value]) => (
-          <span key={zone}>{DISTRICT_LABELS[zone as keyof typeof DISTRICT_LABELS]} 노후 {value.decay}</span>
+          <span key={zone}>{ZONE_LABELS[zone as keyof typeof ZONE_LABELS]} 노후 {value.decay}</span>
         ))}
       </div>
     </aside>
@@ -102,7 +103,7 @@ function FieldDocuments({ state, disabled, onAction }: Pick<GameViewProps, 'stat
           <article className={`document order-card${order.resolved ? ' is-resolved' : ''}`} key={`${order.templateId}-${order.zone}`}>
             <header className="document-header">
               <span>지시서 {String(orderIndex + 1).padStart(2, '0')}</span>
-              <span>{DISTRICT_LABELS[order.zone]}</span>
+              <span>{ZONE_LABELS[order.zone]}</span>
             </header>
             <p className="order-code">{order.templateId} · 난이도 보정 +{order.difficultyBonus}</p>
             <h3>{order.title}</h3>
@@ -167,7 +168,7 @@ function ClosingDocument({ state, log, disabled, onAction }: Pick<GameViewProps,
     <article className="document closing-document">
       <header className="document-header">
         <span>중앙 시설국 · 일일 결산</span>
-        <span>DAY {String(state.world.day).padStart(2, '0')}</span>
+        <span>DAY {String(state.world.calendar.day).padStart(2, '0')}</span>
       </header>
       <p className="eyebrow">CLOSING REPORT</p>
       <h2>하루 정산 보고</h2>
@@ -190,12 +191,12 @@ export function GameView({ state, content, log, saveStatus, onAction, disabled =
     <main className="game-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">CHRONICLE / PHASE 0</p>
-          <h1>부서진 왕국의 연대기</h1>
+          <p className="eyebrow">PHASE 0</p>
+          <h1>가제 미정 — 정비 일지</h1>
         </div>
         <div className="day-seal">
-          <strong>DAY {String(state.world.day).padStart(2, '0')}</strong>
-          <span>{PHASE_LABELS[state.world.phase]}</span>
+          <strong>DAY {String(state.world.calendar.day).padStart(2, '0')}</strong>
+          <span>{WEEKDAY_LABELS[state.world.calendar.weekday] ?? ''} · {PHASE_LABELS[state.world.phase]}</span>
         </div>
       </header>
 

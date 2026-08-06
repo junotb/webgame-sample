@@ -28,8 +28,16 @@ export interface CharacterSheet {
   rank: number;                     // 직위 (슬라이스: 0 고정)
 }
 
+/** 주간 평가 등급 (v3 §2) — 금요일 종료 시점의 배치 구역 밴드가 곧 등급 */
+export type WeeklyRating = 'perfect' | 'good' | 'concern' | 'warning';
+
 export interface WorldSheet {
-  day: number;
+  calendar: {
+    day: number;      // 통산 일차 (주말 포함, day 1 = 1주차 월요일)
+    weekday: number;  // 주중 일차 1~5 (금요일 = 5)
+  };
+  assignment: { zone: ZoneId };            // 현재 배치 구역 — 1주차는 한 구역 고정 (v3 §9)
+  weekRatings: Record<number, WeeklyRating>; // 주차 → 주간 평가
   phase: DayPhase;
   zones: Record<ZoneId, { decay: number }>; // 노후도 0~10
   menace: Record<MenaceId, number>;                 // 0~8
@@ -94,7 +102,7 @@ export interface TemplateEffect {
 // 조건 + 완곡어 텍스트 변형
 // ─────────────────────────────────────────────
 export interface Condition {
-  path: EffectPath | 'world.day';
+  path: EffectPath | 'world.calendar.day';
   gte?: number;
   lte?: number;
 }
@@ -111,6 +119,7 @@ export interface TextVariant {
 export interface WorkOrderTemplate {
   id: string;                       // 'WO-T1' ...
   minDecay: number;                 // 이 노후도 이상 구역에서 생성됨
+  weight: number;                   // 1~3 — CLOSE_DAY 노후도 정산 폭 (v3 §3, 빌드 검증 대상)
   title: string;                    // 공식 완곡어 제목
   body: TextVariant[];              // 완곡어 시스템 적용 지점
   options: WorkOption[];
@@ -142,10 +151,13 @@ export interface WorkOrder {
   zone: ZoneId;
   /** 난이도 보정: 구역 노후도의 minDecay 초과분 (방치의 대가, 튜닝 대상) */
   difficultyBonus: number;
+  weight: number;                   // 템플릿에서 복사 — 정산은 리듀서가 이 값만 본다
   title: string;
   body: TextVariant[];              // 변형 선택은 렌더 시점 (완곡어 시스템)
   options: BoundWorkOption[];
   resolved: boolean;
+  /** 처리 결과 — CLOSE_DAY 정산 근거: 성공 −weight / 실패 0 / 방치(미기록) +weight */
+  outcome?: 'success' | 'failure';
 }
 
 // ─────────────────────────────────────────────

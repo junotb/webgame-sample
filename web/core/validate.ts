@@ -6,7 +6,7 @@
  */
 import type { Check, Condition, ContentBundle, TemplateEffect, TextVariant } from './schema';
 
-const DISTRICT_IDS = ['d2', 'd5', 'd7'];
+const ZONE_IDS = ['d2', 'd5', 'd7'];
 const NPC_IDS = ['protagonist'];
 const STAT_IDS = ['repair', 'insight', 'procedure', 'nerve'];
 const SKILL_IDS = ['inscription', 'flowsense'];
@@ -23,7 +23,7 @@ function isValidEffectPath(path: string): boolean {
   }
   if (segs[0] === 'world') {
     if (segs.length === 4 && segs[1] === 'zones' && segs[3] === 'decay')
-      return DISTRICT_IDS.includes(segs[2]);
+      return ZONE_IDS.includes(segs[2]);
     if (segs.length === 3 && segs[1] === 'menace') return MENACE_IDS.includes(segs[2]);
     if (segs.length === 4 && segs[1] === 'npcs' && segs[3] === 'trust')
       return NPC_IDS.includes(segs[2]);
@@ -47,7 +47,7 @@ function checkEffect(effect: TemplateEffect, allowZonePlaceholder: boolean, wher
     return;
   }
   // 치환자 소거 후 구체 경로로 검증 (템플릿은 임의 구역으로 바인딩해 본다)
-  const concrete = path.replaceAll('{zone}', DISTRICT_IDS[0]);
+  const concrete = path.replaceAll('{zone}', ZONE_IDS[0]);
   if (!isValidEffectPath(concrete)) {
     errors.push(`${where}: 스키마에 없는 효과 경로 '${path}'`);
   }
@@ -68,7 +68,7 @@ function checkCheck(check: Check, where: string, errors: string[]): void {
 
 function checkConditions(conditions: Condition[], where: string, errors: string[]): void {
   for (const cond of conditions) {
-    if (cond.path !== 'world.day' && !isValidEffectPath(cond.path)) {
+    if (cond.path !== 'world.calendar.day' && !isValidEffectPath(cond.path)) {
       errors.push(`${where}: 스키마에 없는 조건 경로 '${cond.path}'`);
     }
     if (cond.gte === undefined && cond.lte === undefined) {
@@ -107,6 +107,10 @@ export function validateBundle(bundle: ContentBundle): string[] {
     const where = `지시서 템플릿 ${t.id}`;
     if (seenTemplateIds.has(t.id)) errors.push(`중복 지시서 템플릿 id: ${t.id}`);
     seenTemplateIds.add(t.id);
+
+    if (!Number.isInteger(t.weight) || t.weight < 1 || t.weight > 3) {
+      errors.push(`${where}: weight는 1~3 정수여야 함 (현재: ${t.weight})`);
+    }
 
     checkVariants(t.body, where, errors);
     t.options.forEach((opt, i) => {

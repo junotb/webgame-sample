@@ -8,6 +8,7 @@ const ORDER: WorkOrder = {
   templateId: 'WO-TEST',
   zone: 'd5',
   difficultyBonus: 0,
+  weight: 1,
   title: '간헐 명멸 현상 점검',
   body: [
     { if: [{ path: 'self.memory', gte: 1 }], text: '당신은 이 문구가 무언가를 감추고 있음을 안다.' },
@@ -31,7 +32,7 @@ const CONTENT: ContentBundle = {
   storylets: [
     {
       id: 'EV-001',
-      requirements: [{ path: 'world.day', gte: 1 }],
+      requirements: [{ path: 'world.calendar.day', gte: 1 }],
       body: [{ text: '귀환자가 서류를 내려다본다.' }],
       choices: [
         {

@@ -28,7 +28,7 @@ export function GameClient({ content }: GameClientProps) {
         if (saved) {
           stateRef.current = saved;
           setState(saved);
-          setLog([`Day ${saved.world.day} 저장 기록을 복원했습니다.`]);
+          setLog([`Day ${saved.world.calendar.day} 저장 기록을 복원했습니다.`]);
         }
         setSaveStatus('saved');
         setReady(true);

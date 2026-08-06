@@ -5,6 +5,7 @@ import type { ZoneId, WorkOrderTemplate } from './schema';
 const T1: WorkOrderTemplate = {
   id: 'T1',
   minDecay: 0,
+  weight: 1,
   title: '정기 점검',
   body: [{ text: '기본 본문' }],
   options: [
@@ -36,6 +37,7 @@ const T1: WorkOrderTemplate = {
 const T2: WorkOrderTemplate = {
   id: 'T2',
   minDecay: 4,
+  weight: 2,
   title: '압력 시정',
   body: [{ text: '본문' }],
   options: [

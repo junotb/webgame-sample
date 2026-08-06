@@ -12,7 +12,9 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
       rank: 0,
     },
     world: {
-      day: 1,
+      calendar: { day: 1, weekday: 1 },
+      assignment: { zone: 'd5' },
+      weekRatings: {},
       phase: 'morning',
       zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
@@ -66,6 +68,7 @@ const FATIGUE_ORDER: WorkOrder = {
   templateId: 'WO-FATIGUE',
   zone: 'd2',
   difficultyBonus: 0,
+  weight: 1,
   title: '소모적인 작업',
   body: [{ text: '본문' }],
   options: [

@@ -11,6 +11,7 @@ function validBundle(): ContentBundle {
       {
         id: 'WO-X1',
         minDecay: 0,
+        weight: 1,
         title: '테스트 지시서',
         body: [
           { if: [{ path: 'self.memory', gte: 1 }], text: '변형 본문' },
@@ -48,7 +49,7 @@ function validBundle(): ContentBundle {
     storylets: [
       {
         id: 'EV-X1',
-        requirements: [{ path: 'world.day', gte: 1 }],
+        requirements: [{ path: 'world.calendar.day', gte: 1 }],
         body: [{ text: '이벤트 본문' }],
         choices: [
           {

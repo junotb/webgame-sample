@@ -60,7 +60,7 @@ describe('IndexedDB save', () => {
     const factory = new MemoryIndexedDB() as unknown as IDBFactory;
     const state = createInitialState(77);
     state.self.memory = 1;
-    state.world.day = 2;
+    state.world.calendar.day = 2;
     state.world.flags.saw_rhythm = 1;
 
     await saveGame(state, factory);

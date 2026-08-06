@@ -1,6 +1,7 @@
 /**
- * 스펙 4장 수치 표와 실제 콘텐츠의 정합 검사.
- * 정석 수리 성공 −3 / 임시방편 성공 −1 + patched 플래그 / 수리 실패 피로 +2.
+ * slice v3 §3 수치와 실제 콘텐츠의 정합 검사.
+ * 노후도 증감은 콘텐츠 효과가 아니라 CLOSE_DAY 가중치 정산의 몫이다 —
+ * 템플릿에 zone decay 효과가 남아 있으면 이중 계산이므로 여기서 잡는다.
  */
 import { describe, expect, it } from 'vitest';
 import type { TemplateEffect, WorkOption, WorkOrderTemplate } from '../core/schema';
@@ -14,8 +15,8 @@ function template(id: string): WorkOrderTemplate {
   return t;
 }
 
-function decayValue(effects: TemplateEffect[]): number | undefined {
-  return effects.find((e) => e.path === 'world.zones.{zone}.decay')?.value;
+function hasDecayEffect(effects: TemplateEffect[]): boolean {
+  return effects.some((e) => e.path === 'world.zones.{zone}.decay');
 }
 
 function hasPatchedFlag(effects: TemplateEffect[]): boolean {
@@ -26,27 +27,31 @@ function fatigueOnFailure(opt: WorkOption): number | undefined {
   return opt.onFailure?.effects.find((e) => e.path === 'world.menace.fatigue')?.value;
 }
 
-describe.each(['WO-T1', 'WO-T2', 'WO-T3'])('%s — 스펙 수치 표 정합', (id) => {
+describe('가중치 — minDecay가 깊을수록 무겁다 (일일 합 8 전후의 재료)', () => {
+  it('WO-T1=1, WO-T2=2, WO-T3=3', () => {
+    expect(template('WO-T1').weight).toBe(1);
+    expect(template('WO-T2').weight).toBe(2);
+    expect(template('WO-T3').weight).toBe(3);
+  });
+});
+
+describe.each(['WO-T1', 'WO-T2', 'WO-T3'])('%s — v3 정산 규칙 정합', (id) => {
   const t = template(id);
-  const proper = t.options.find((o) => decayValue(o.onSuccess.effects) === -3);
-  const makeshift = t.options.find((o) => hasPatchedFlag(o.onSuccess.effects));
 
-  it('정석 수리 성공 시 노후도 −3인 옵션이 있다', () => {
-    expect(proper).toBeDefined();
-  });
-
-  it('정석 수리 실패 시 피로 +2', () => {
-    expect(fatigueOnFailure(proper!)).toBe(2);
-  });
-
-  it('임시방편 성공 시 노후도 −1 + patched 플래그', () => {
-    expect(makeshift).toBeDefined();
-    expect(decayValue(makeshift!.onSuccess.effects)).toBe(-1);
-  });
-
-  it('수리 실패 시 노후도 변화가 없다 (모든 옵션)', () => {
+  it('어떤 옵션도 노후도를 직접 건드리지 않는다 (정산 이중화 금지)', () => {
     for (const opt of t.options) {
-      expect(decayValue(opt.onFailure?.effects ?? [])).toBeUndefined();
+      expect(hasDecayEffect(opt.onSuccess.effects)).toBe(false);
+      expect(hasDecayEffect(opt.onFailure?.effects ?? [])).toBe(false);
+    }
+  });
+
+  it('임시방편 옵션은 patched 플래그를 남긴다', () => {
+    expect(t.options.some((o) => hasPatchedFlag(o.onSuccess.effects))).toBe(true);
+  });
+
+  it('실패 분기가 있는 옵션은 피로 +2', () => {
+    for (const opt of t.options) {
+      if (opt.onFailure) expect(fatigueOnFailure(opt)).toBe(2);
     }
   });
 });

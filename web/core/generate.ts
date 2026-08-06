@@ -41,6 +41,7 @@ export function instantiateOrder(
     templateId: template.id,
     zone,
     difficultyBonus,
+    weight: template.weight,
     title: template.title,
     body: template.body.map((v) => ({ ...v })),
     options: template.options.map((o) => bindOption(o, zone, difficultyBonus)),

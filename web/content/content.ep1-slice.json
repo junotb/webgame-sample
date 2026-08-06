@@ -5,6 +5,7 @@
     {
       "id": "WO-T1",
       "minDecay": 0,
+      "weight": 1,
       "title": "정기 재각인 — 가로등 회로",
       "body": [
         {
@@ -14,25 +15,42 @@
       "options": [
         {
           "label": "표준 재각인 절차 수행 (각인학)",
-          "check": { "kind": "narrow", "skill": "inscription", "difficulty": 1 },
+          "check": {
+            "kind": "narrow",
+            "skill": "inscription",
+            "difficulty": 1
+          },
           "timeCost": 1,
           "onSuccess": {
-            "effects": [{ "path": "world.zones.{zone}.decay", "op": "add", "value": -3 }],
+            "effects": [],
             "text": "새 각인이 자리를 잡자 가로등이 일제히 밝아진다. 규정 광량, 오차 없음. 거리의 악사가 당신에게 모자를 들어 보인다."
           },
           "onFailure": {
-            "effects": [{ "path": "world.menace.fatigue", "op": "add", "value": 2 }],
+            "effects": [
+              {
+                "path": "world.menace.fatigue",
+                "op": "add",
+                "value": 2
+              }
+            ],
             "text": "선이 두 번 어긋났다. 해가 기울도록 다시 그렸지만 광량은 규정치에 닿지 않는다. 내일 다시 와야 한다."
           }
         },
         {
           "label": "마모부만 덧그리는 응급 처치",
-          "check": { "kind": "broad", "stat": "repair", "difficulty": 30 },
+          "check": {
+            "kind": "broad",
+            "stat": "repair",
+            "difficulty": 30
+          },
           "timeCost": 1,
           "onSuccess": {
             "effects": [
-              { "path": "world.zones.{zone}.decay", "op": "add", "value": -1 },
-              { "path": "world.flags.patched_{zone}", "op": "add", "value": 1 }
+              {
+                "path": "world.flags.patched_{zone}",
+                "op": "add",
+                "value": 1
+              }
             ],
             "text": "덧그린 각인은 오래가지 않는다. 당신도 알고, 다음 담당자도 알게 될 것이다. 하지만 오늘 밤 이 거리는 밝다."
           }
@@ -42,6 +60,7 @@
     {
       "id": "WO-T2",
       "minDecay": 4,
+      "weight": 2,
       "title": "관로 압력 편차 시정",
       "body": [
         {
@@ -51,25 +70,42 @@
       "options": [
         {
           "label": "흐름을 판독하고 원인 지점을 잡는다 (감류학)",
-          "check": { "kind": "narrow", "skill": "flowsense", "difficulty": 2 },
+          "check": {
+            "kind": "narrow",
+            "skill": "flowsense",
+            "difficulty": 2
+          },
           "timeCost": 1,
           "onSuccess": {
-            "effects": [{ "path": "world.zones.{zone}.decay", "op": "add", "value": -3 }],
+            "effects": [],
             "text": "손끝에 흐름이 잡힌다. 편차의 근원은 세 갈래 아래 이음부 — 각인 두 획으로 잠잠해졌다. 관로가 고르게 숨을 고른다."
           },
           "onFailure": {
-            "effects": [{ "path": "world.menace.fatigue", "op": "add", "value": 2 }],
+            "effects": [
+              {
+                "path": "world.menace.fatigue",
+                "op": "add",
+                "value": 2
+              }
+            ],
             "text": "흐름이 손끝에서 자꾸 미끄러진다. 판독값이 서로 맞지 않는다. 이 관로는… 유난히 읽기 어렵다."
           }
         },
         {
           "label": "밸브를 잠가 압력을 우회시킨다 (임시방편)",
-          "check": { "kind": "broad", "stat": "repair", "difficulty": 40 },
+          "check": {
+            "kind": "broad",
+            "stat": "repair",
+            "difficulty": 40
+          },
           "timeCost": 1,
           "onSuccess": {
             "effects": [
-              { "path": "world.zones.{zone}.decay", "op": "add", "value": -1 },
-              { "path": "world.flags.patched_{zone}", "op": "add", "value": 1 }
+              {
+                "path": "world.flags.patched_{zone}",
+                "op": "add",
+                "value": 1
+              }
             ],
             "text": "우회로가 열리며 계기 바늘이 정상 범위로 돌아온다. 편차는 사라진 게 아니라 다른 관로로 옮겨 갔을 뿐이다."
           }
@@ -79,10 +115,16 @@
     {
       "id": "WO-T3",
       "minDecay": 5,
+      "weight": 3,
       "title": "간헐 명멸 현상 점검",
       "body": [
         {
-          "if": [{ "path": "self.memory", "gte": 1 }],
+          "if": [
+            {
+              "path": "self.memory",
+              "gte": 1
+            }
+          ],
           "text": "심야 시간대 간헐 명멸 현상 신고 3건. 점검 결과란에는 언제나처럼 '연료 재생률 변동'을 기입하게 될 것이다. 당신은 이제 그 문구가 무엇의 다른 이름인지 안다. 관로 저편에서 무언가가 고르게, 아주 고르게 밝기를 밀어 올렸다 낮추고 있다. 마치 숨처럼."
         },
         {
@@ -92,34 +134,64 @@
       "options": [
         {
           "label": "표준 점검 후 통례대로 처리한다 (절차)",
-          "check": { "kind": "broad", "stat": "procedure", "difficulty": 35 },
+          "check": {
+            "kind": "broad",
+            "stat": "procedure",
+            "difficulty": 35
+          },
           "timeCost": 1,
           "onSuccess": {
             "effects": [
-              { "path": "world.zones.{zone}.decay", "op": "add", "value": -1 },
-              { "path": "world.flags.patched_{zone}", "op": "add", "value": 1 }
+              {
+                "path": "world.flags.patched_{zone}",
+                "op": "add",
+                "value": 1
+              }
             ],
             "text": "'점검 완료. 연료 재생률 자연 변동. 이상 없음.' — 익숙한 문구가 익숙한 칸에 들어간다. 명멸은 새벽쯤 잦아들 것이다. 늘 그랬듯이. 원인은 어디에도 적히지 않은 채로."
           },
           "onFailure": {
-            "effects": [{ "path": "world.menace.fatigue", "op": "add", "value": 2 }],
+            "effects": [
+              {
+                "path": "world.menace.fatigue",
+                "op": "add",
+                "value": 2
+              }
+            ],
             "text": "서식의 칸이 오늘따라 들어맞지 않는다. 명멸 횟수가 통례의 범위를 넘어서, '이상 없음'에 도장을 찍을 수가 없었다. 서류는 미결함으로 돌아갔다."
           }
         },
         {
           "label": "명멸의 주기를 기록하며 지켜본다 (진단)",
-          "check": { "kind": "broad", "stat": "insight", "difficulty": 60 },
+          "check": {
+            "kind": "broad",
+            "stat": "insight",
+            "difficulty": 60
+          },
           "timeCost": 1,
           "onSuccess": {
             "effects": [
-              { "path": "world.zones.{zone}.decay", "op": "add", "value": -3 },
-              { "path": "world.menace.unrest", "op": "add", "value": 1 },
-              { "path": "world.flags.saw_rhythm", "op": "set", "value": 1 }
+              {
+                "path": "world.menace.unrest",
+                "op": "add",
+                "value": 1
+              },
+              {
+                "path": "world.flags.saw_rhythm",
+                "op": "set",
+                "value": 1
+              }
             ],
             "text": "수첩에 명멸 간격을 옮겨 적다가 손이 멈춘다. 불규칙해야 할 변동이 규칙적이다. 4초. 4초. 4초. 기계의 리듬이라기엔 지나치게… 생물의 것 같은 간격."
           },
           "onFailure": {
-            "effects": [{ "path": "world.menace.fatigue", "op": "add", "value": 2 }],
+            "effects": [
+              {
+                "path": "world.menace.fatigue",
+                "op": "add",
+                "value": 2
+              }
+            ],
             "text": "새벽까지 지켜봤지만 명멸은 기록을 시작하자마자 멎었다. 우연이겠지. 우연일 것이다."
           }
         }
@@ -129,7 +201,12 @@
   "storylets": [
     {
       "id": "EV-001",
-      "requirements": [{ "path": "world.day", "gte": 1 }],
+      "requirements": [
+        {
+          "path": "world.calendar.day",
+          "gte": 1
+        }
+      ],
       "body": [
         {
           "text": "퇴근길 사무소. 그 사람은 오늘 자 점검 대장을 넘겨보고 있었다. 당신이 처리한 서류들 — 승인 도장이 가지런한 페이지들. 그러다 한 장에서 손이 멈춘다. '연료 재생률 변동'이라는 활자 위에, 그 사람의 시선이 필요 이상으로 오래 머문다. 사무소의 축음기는 여전히 축제 행진곡을 틀고 있다."
@@ -138,28 +215,60 @@
       "choices": [
         {
           "label": "\"그 항목… 뭔가 문제라도 있습니까?\" 하고 묻는다",
-          "check": { "kind": "broad", "stat": "nerve", "difficulty": 30 },
+          "check": {
+            "kind": "broad",
+            "stat": "nerve",
+            "difficulty": 30
+          },
           "onSuccess": {
             "effects": [
-              { "path": "self.memory", "op": "add", "value": 1 },
-              { "path": "world.menace.unrest", "op": "add", "value": 2 },
-              { "path": "world.npcs.protagonist.trust", "op": "add", "value": 1 }
+              {
+                "path": "self.memory",
+                "op": "add",
+                "value": 1
+              },
+              {
+                "path": "world.menace.unrest",
+                "op": "add",
+                "value": 2
+              },
+              {
+                "path": "world.npcs.protagonist.trust",
+                "op": "add",
+                "value": 1
+              }
             ],
             "text": "그 사람은 대장을 덮지 않았다. 한참 뒤에, 행진곡 소리에 반쯤 묻히는 목소리로 말했다. \"…재생률이라는 말, 이상하다고 생각해 본 적 없나. 연료가 '재생'된다는 게.\" 그러곤 당신의 얼굴을 보더니 덧붙였다. \"아니, 됐네. 신입이 알 건 아니야. 아직은.\" — 아직은. 그 두 글자가 퇴근길 내내 따라왔다."
           },
           "onFailure": {
             "effects": [
-              { "path": "self.memory", "op": "add", "value": 1 },
-              { "path": "world.npcs.protagonist.trust", "op": "add", "value": 1 }
+              {
+                "path": "self.memory",
+                "op": "add",
+                "value": 1
+              },
+              {
+                "path": "world.npcs.protagonist.trust",
+                "op": "add",
+                "value": 1
+              }
             ],
             "text": "말이 목에서 멎었다. 그 사람이 먼저 고개를 들었고, 잠깐 서로 눈이 마주쳤다. \"…퇴근 안 하나.\" 그게 전부였다. 하지만 대장을 덮는 그 손이, 어딘가 조심스러웠다. 묻지 못한 질문은 사라지지 않았다. 그것은 이제 당신 안에 있다."
           }
         },
         {
           "label": "못 본 척 퇴근 준비를 한다",
-          "check": { "kind": "auto" },
+          "check": {
+            "kind": "auto"
+          },
           "onSuccess": {
-            "effects": [{ "path": "world.flags.looked_away", "op": "add", "value": 1 }],
+            "effects": [
+              {
+                "path": "world.flags.looked_away",
+                "op": "add",
+                "value": 1
+              }
+            ],
             "text": "외투를 걸치고 인사를 했다. 그 사람은 대답 대신 고개만 끄덕였다. 계단을 내려오는데 축제의 불빛이 창마다 환했다. 아름다웠다. 정말로 아름다웠고, 당신은 그 생각을 조금 서두르듯 했다."
           }
         }

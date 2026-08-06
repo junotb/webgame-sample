@@ -191,8 +191,8 @@ export function GameView({ state, content, log, saveStatus, onAction, disabled =
     <main className="game-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">PHASE 0</p>
-          <h1>가제 미정 — 정비 일지</h1>
+          <p className="eyebrow">STILL HERE TOMORROW / PHASE 0</p>
+          <h1>내일도 난 여기에</h1>
         </div>
         <div className="day-seal">
           <strong>DAY {String(state.world.calendar.day).padStart(2, '0')}</strong>

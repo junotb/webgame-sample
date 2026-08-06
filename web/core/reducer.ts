@@ -115,7 +115,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.phase = 'field';
       next.world.seed = advanceSeed(rng);
       for (const o of orders) archiveAdd(next.world.archive, { kind: 'order', templateId: o.templateId, zone: o.zone });
-      const log = [`지시서 ${orders.length}건 발부.`, ...orders.map((o) => `— ${o.title}${o.reissueCount > 0 ? ` (재발부 ${o.reissueCount}차)` : ''}`)];
+      const log = [`지시서 ${orders.length}건 발부.`, ...orders.map((o) => `— ${o.title}`)];
       // 다일 이벤트 점유 (v3 §5): 오늘 하루를 소모하고 근무 슬롯이 줄어든다
       if (next.world.multiday) {
         next.world.multiday.daysLeft -= 1;

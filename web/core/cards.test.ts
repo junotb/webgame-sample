@@ -101,13 +101,13 @@ describe('방치 장부 — 미시 피드백의 근거 (v3 §2)', () => {
     const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
     expect(state.world.cardNeglect).toEqual({});
   });
-  it('START_DAY: 방치된 카드가 재발부 표기와 함께 우선 등장한다', () => {
+  it('START_DAY: 방치된 카드가 우선 등장하되, 재발부는 표기되지 않는다 (v3 §0)', () => {
     const s = baseState({ cardNeglect: { AUTO2: 1 } });
     const { state, log } = reduce(s, { type: 'START_DAY' }, CONTENT);
     expect(state.world.pendingOrders[0].templateId).toBe('AUTO2');
     expect(state.world.pendingOrders[0].reissueCount).toBe(1);
     expect(state.world.pendingOrders[0].difficultyBonus).toBe(1 + 4); // 방치 1 + decay 초과분 4
-    expect(log.join(' ')).toContain('재발부 1차');
+    expect(log.join(' ')).not.toContain('재발부');
   });
 });
 

@@ -178,7 +178,6 @@ function FieldDocuments({ state, disabled, onAction, onStartEncounter }: Pick<Ga
             </header>
             <p className="order-code">
               {order.templateId} · 난이도 보정 +{order.difficultyBonus}
-              {order.reissueCount > 0 ? ` · 재발부 ${order.reissueCount}차` : ''}
             </p>
             <h3>{order.title}</h3>
             <p className="document-copy">{selectVariant(state, order.body)}</p>

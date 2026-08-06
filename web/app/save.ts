@@ -12,10 +12,12 @@ const SAVE_KEY = 'phase0';
  * 불일치 세이브는 복원하지 않고 버린다 (Phase 0: 마이그레이션 없이 새 게임).
  *
  * 4: ArchiveEntry에 `day` 추가 (서류함 일기화).
- *    v3 §8의 제약을 재확인함 — 저장되는 것은 문서 ID·구역·일차뿐이고
- *    렌더된 문장은 여전히 들어가지 않는다.
+ * 5: WorkOrder.title이 string → TextVariant[] (v3 §4 단서 축).
+ *    pendingOrders가 세이브에 들어가므로 구 세이브의 문자열 제목이
+ *    selectVariant에 도달해 터졌다 — 스키마를 올려 새 게임으로 보낸다.
+ *    v3 §8 제약 재확인: title 변형 목록은 조건+원문이지 렌더된 문장이 아니다.
  */
-export const SAVE_SCHEMA = 4;
+export const SAVE_SCHEMA = 5;
 
 interface SaveEnvelope {
   schema: number;

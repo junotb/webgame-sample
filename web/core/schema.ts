@@ -23,7 +23,10 @@ export interface AccountSheet {
 
 export interface CharacterSheet {
   stats: Record<StatId, number>;    // 0~100
-  skills: Record<SkillId, number>;  // 0~7
+  /** 기술 등급 0~7 — **파생 캐시.** skillXp에서 승격되며 직접 쓰는 효과 경로는 없다 */
+  skills: Record<SkillId, number>;
+  /** 기술 경험치 — 원본. 비가역 (core/skills.ts). 콘텐츠 효과는 여기에만 쓴다 */
+  skillXp: Record<SkillId, number>;
   memory: number;                   // 기억 0~7, 비가역 (감소 이펙트 금지 — 빌드 검증 대상)
   rank: number;                     // 직위 (슬라이스: 0 고정)
 }
@@ -90,7 +93,7 @@ export type Check =
 // ─────────────────────────────────────────────
 export type EffectPath =
   | `self.stats.${StatId}`
-  | `self.skills.${SkillId}`
+  | `self.skillXp.${SkillId}`   // 등급(self.skills.*)에 직접 쓰는 경로는 없다 — 승격은 적용기의 몫
   | 'self.memory'
   | `world.zones.${ZoneId}.decay`
   | `world.menace.${MenaceId}`
@@ -128,7 +131,8 @@ export interface TemplateEffect {
  * 스토리렛에서의 사용은 빌드 검증이 거부한다.
  */
 export interface Condition {
-  path: EffectPath | 'world.calendar.day' | 'world.zones.{zone}.decay';
+  /** 조건은 등급(`self.skills.*`)을 읽을 수 있다 — 쓰기만 경험치 경유다 */
+  path: EffectPath | `self.skills.${SkillId}` | 'world.calendar.day' | 'world.zones.{zone}.decay';
   gte?: number;
   lte?: number;
 }

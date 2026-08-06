@@ -16,8 +16,9 @@ const SAVE_KEY = 'phase0';
  *    pendingOrders가 세이브에 들어가므로 구 세이브의 문자열 제목이
  *    selectVariant에 도달해 터졌다 — 스키마를 올려 새 게임으로 보낸다.
  *    v3 §8 제약 재확인: title 변형 목록은 조건+원문이지 렌더된 문장이 아니다.
+ * 6: CharacterSheet.skillXp 추가 (기술 경험치 — open-questions B 결정).
  */
-export const SAVE_SCHEMA = 5;
+export const SAVE_SCHEMA = 6;
 
 interface SaveEnvelope {
   schema: number;

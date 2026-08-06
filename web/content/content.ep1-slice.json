@@ -35,7 +35,13 @@
           },
           "timeCost": 1,
           "onSuccess": {
-            "effects": [],
+            "effects": [
+              {
+                "path": "self.skillXp.inscription",
+                "op": "add",
+                "value": 4
+              }
+            ],
             "text": "새 각인이 자리를 잡자 가로등이 일제히 밝아진다. 규정 광량, 오차 없음. 거리의 악사가 당신에게 모자를 들어 보인다."
           },
           "onFailure": {
@@ -107,9 +113,9 @@
           "onSuccess": {
             "effects": [
               {
-                "path": "self.skills.flowsense",
-                "op": "set",
-                "value": 2
+                "path": "self.skillXp.flowsense",
+                "op": "add",
+                "value": 8
               }
             ],
             "text": "손끝에 흐름이 잡힌다. 편차의 근원은 세 갈래 아래 이음부 — 각인 두 획으로 잠잠해졌다. 관로가 고르게 숨을 고른다."
@@ -619,6 +625,11 @@
                 "path": "self.memory",
                 "op": "add",
                 "value": 1
+              },
+              {
+                "path": "self.skillXp.flowsense",
+                "op": "add",
+                "value": 4
               }
             ],
             "text": "꺾인 자리는 전부 배기가 아니라 흡기 쪽이었다. 갱도가 그 시각에만 숨을 들이켰다는 뜻이다. 보고서에는 「계기 오차」라고 적었다. 그렇게 적으라고 배웠다."
@@ -797,6 +808,11 @@
               "path": "world.flags.enc_burned_{zone}",
               "op": "set",
               "value": 1
+            },
+            {
+              "path": "self.skillXp.inscription",
+              "op": "add",
+              "value": 4
             }
           ],
           "text": "연소 후 잔류 열이 관로를 타고 흘렀다. 그날 저녁 구역의 가로등이 유난히 밝았다고, 민원 대신 감사 편지가 한 통 들어왔다. 보고서에는 이렇게 적었다: '과증식 조직 절제 완료. 연료 재생률 정상화.'"
@@ -812,6 +828,11 @@
               "path": "world.flags.enc_soothed_{zone}",
               "op": "set",
               "value": 1
+            },
+            {
+              "path": "self.skillXp.flowsense",
+              "op": "add",
+              "value": 4
             }
           ],
           "text": "간격이 길어지다가, 이윽고 들리지 않게 되었다. 잠든 것이다. 회수된 동력은 없다. 보고서의 '조치 결과' 칸 앞에서 펜이 오래 멈춰 있었다. 결국 이렇게 적었다: '경과 관찰.'"

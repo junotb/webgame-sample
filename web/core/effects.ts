@@ -3,12 +3,13 @@
  * 기억(self.memory)은 비가역: 감소시키는 효과는 콘텐츠 빌드 검증과 별개로
  * 런타임에서도 throw로 차단한다 (이중 방어).
  */
-import type { Effect, GameState } from './schema';
+import { skillLevelOf, SKILL_XP_MAX } from './skills';
+import type { Effect, GameState, SkillId } from './schema';
 
 /** 경로 접두사별 값 범위 — 스키마 주석의 범위와 일치해야 한다 */
 const RANGES: Array<{ test: RegExp; min: number; max: number }> = [
   { test: /^self\.stats\./, min: 0, max: 100 },
-  { test: /^self\.skills\./, min: 0, max: 7 },
+  { test: /^self\.skillXp\./, min: 0, max: SKILL_XP_MAX },
   { test: /^self\.memory$/, min: 0, max: 7 },
   { test: /^world\.zones\..+\.decay$/, min: 0, max: 10 },
   { test: /^world\.menace\./, min: 0, max: 8 },
@@ -39,8 +40,17 @@ export function applyEffect(state: GameState, effect: Effect): GameState {
   if (effect.path === 'self.memory' && raw < current) {
     throw new Error(`기억은 비가역: 감소 효과 거부 (현재 ${current} → ${raw})`);
   }
+  if (effect.path.startsWith('self.skillXp.') && raw < current) {
+    throw new Error(`경험은 비가역: 감소 효과 거부 (${effect.path}: ${current} → ${raw})`);
+  }
 
   parent[key] = clampForPath(effect.path, raw);
+
+  // 등급 승격 — 경험치가 원본, 등급은 파생 캐시 (core/skills.ts)
+  if (effect.path.startsWith('self.skillXp.')) {
+    const skill = key as SkillId;
+    next.self.skills[skill] = Math.max(next.self.skills[skill], skillLevelOf(next.self.skillXp[skill]));
+  }
   return next;
 }
 

@@ -9,6 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { selectVariant } from '../core/conditions';
+import { skillLevelOf } from '../core/skills';
 import { generateCards } from '../core/generate';
 import type { Effect, GameState, TemplateEffect } from '../core/schema';
 import { loadContent } from './loader';
@@ -28,6 +29,7 @@ function stateAt(
     self: {
       stats: { repair: 40, insight: 35, procedure: 30, nerve: 25 },
       skills: { inscription: 1, flowsense: extra?.flowsense ?? 1 },
+      skillXp: { inscription: 0, flowsense: 0 },
       memory: extra?.memory ?? 0,
       rank: 0,
     },
@@ -112,10 +114,12 @@ describe('단서 축 — 제목이 지금의 나로 다시 읽힌다 (v3 §4 「
     expect(titleOf('WO-T8', stateAt(5, { flowsense: 2 }))).toContain('역류 흔적 재확인');
   });
 
-  it('WO-T2 정석 성공이 감류학 2를 연다 — 기술 단서로 가는 다리 (set이라 멱등)', () => {
+  it('WO-T2 정석 성공이 감류학 2를 연다 — 기술 단서로 가는 다리', () => {
     const t2 = bundle.orderTemplates.find((t) => t.id === 'WO-T2')!;
-    const fx = t2.options[0].onSuccess.effects.find((e) => e.path === 'self.skills.flowsense');
-    expect(fx).toEqual({ path: 'self.skills.flowsense', op: 'set', value: 2 });
+    const fx = t2.options[0].onSuccess.effects.find((e) => e.path === 'self.skillXp.flowsense');
+    // 한 번의 성공이 신입(경험 0)을 등급 2로 올릴 만큼이어야 다리가 놓인다
+    expect(fx?.op).toBe('add');
+    expect(skillLevelOf(0 + (fx?.value ?? 0))).toBeGreaterThanOrEqual(2);
   });
 
   it('단서 카드도 표면 분류는 5종 그대로다 — 단서는 문구이지 표식이 아니다', () => {

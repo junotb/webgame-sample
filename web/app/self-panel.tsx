@@ -8,6 +8,7 @@
  * 여기는 나에 관한 것만: 스탯, 기술, 기억, 피로.
  */
 import { SKILL_LABELS, STAT_LABELS } from '../core/reducer';
+import { SKILL_LEVEL_MAX, XP_PER_LEVEL, xpIntoLevel } from '../core/skills';
 import type { GameState } from '../core/schema';
 
 export function SelfPanel({ state }: { state: GameState }) {
@@ -32,10 +33,27 @@ export function SelfPanel({ state }: { state: GameState }) {
           <span key={stat}>{STAT_LABELS[stat]} <b>{state.self.stats[stat]}</b></span>
         ))}
       </div>
-      <div className="stat-row" aria-label="전문 기술">
-        {(Object.keys(SKILL_LABELS) as (keyof typeof SKILL_LABELS)[]).map((skill) => (
-          <span key={skill}>{SKILL_LABELS[skill]} <b>{state.self.skills[skill]}등급</b></span>
-        ))}
+      {/* 경험치 바 — 카드 선택이 준 경험이 다음 등급까지 얼마나 찼는가 (core/skills.ts) */}
+      <div className="skill-rows" aria-label="전문 기술">
+        {(Object.keys(SKILL_LABELS) as (keyof typeof SKILL_LABELS)[]).map((skill) => {
+          const level = state.self.skills[skill];
+          const into = xpIntoLevel(state.self.skillXp[skill]);
+          return (
+            <div className="skill-row" key={skill}>
+              <span>{SKILL_LABELS[skill]} <b>{level}등급</b></span>
+              <div
+                aria-label={`${SKILL_LABELS[skill]} 경험 ${into} / ${XP_PER_LEVEL}`}
+                aria-valuemax={XP_PER_LEVEL}
+                aria-valuenow={into}
+                className="xp-bar"
+                role="meter"
+              >
+                <i style={{ width: `${(into / XP_PER_LEVEL) * 100}%` }} />
+              </div>
+              <small>{level >= SKILL_LEVEL_MAX ? '최고 등급' : `${into} / ${XP_PER_LEVEL}`}</small>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

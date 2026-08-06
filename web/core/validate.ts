@@ -22,7 +22,8 @@ function isValidEffectPath(path: string): boolean {
   if (segs[0] === 'self') {
     if (segs.length === 2) return segs[1] === 'memory';
     if (segs.length === 3 && segs[1] === 'stats') return STAT_IDS.includes(segs[2]);
-    if (segs.length === 3 && segs[1] === 'skills') return SKILL_IDS.includes(segs[2]);
+    // 등급(self.skills.*)은 효과 대상이 아니다 — 쓰기는 경험치(skillXp) 경유 (core/skills.ts)
+    if (segs.length === 3 && segs[1] === 'skillXp') return SKILL_IDS.includes(segs[2]);
     return false;
   }
   if (segs[0] === 'world') {
@@ -59,6 +60,9 @@ function checkEffect(effect: TemplateEffect, allowZonePlaceholder: boolean, wher
   if (path === 'self.memory' && (op === 'set' || (op === 'add' && value < 0))) {
     errors.push(`${where}: 기억(self.memory)은 비가역 — 감소 가능 효과(${op} ${value}) 거부`);
   }
+  if (path.startsWith('self.skillXp.') && (op === 'set' || (op === 'add' && value < 0))) {
+    errors.push(`${where}: 경험치(${path})는 비가역 — 감소 가능 효과(${op} ${value}) 거부`);
+  }
 }
 
 function checkCheck(check: Check, where: string, errors: string[]): void {
@@ -78,7 +82,9 @@ function checkConditions(conditions: Condition[], where: string, errors: string[
       continue;
     }
     const concrete = cond.path.replaceAll('{zone}', ZONE_IDS[0]);
-    if (concrete !== 'world.calendar.day' && !isValidEffectPath(concrete)) {
+    const segs = concrete.split('.');
+    const isSkillLevel = segs.length === 3 && segs[0] === 'self' && segs[1] === 'skills' && SKILL_IDS.includes(segs[2]);
+    if (concrete !== 'world.calendar.day' && !isSkillLevel && !isValidEffectPath(concrete)) {
       errors.push(`${where}: 스키마에 없는 조건 경로 '${cond.path}'`);
     }
     if (cond.gte === undefined && cond.lte === undefined) {

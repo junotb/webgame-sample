@@ -6,11 +6,13 @@
 import { bandOf, RATING_LABELS, ratingOfBand, weekOf, WORKDAYS_PER_WEEK } from './calendar';
 import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
-import { generateOrders } from './generate';
+import { generateCards } from './generate';
 import { resolveOption } from './resolve';
 import type { Condition, ZoneId, GameState, MenaceId, Reducer, StepResult, TextVariant } from './schema';
 
 export const SHIFT_PER_DAY = 2;
+/** 다일 이벤트 점유 중의 근무 슬롯 (v3 §5) — 처리 1장/방치 3장, 노후도 급등의 근원 */
+export const MULTIDAY_SHIFT = 1;
 export const MENACE_CAP = 8;
 export const BASE_ALTITUDE = 8000;
 export const ALTITUDE_PER_DECAY = 120;
@@ -76,15 +78,19 @@ export const reduce: Reducer = (state, action, content): StepResult => {
     case 'START_DAY': {
       assertPhase(state, 'morning', 'START_DAY');
       const rng = mulberry32(state.world.seed);
-      const orders = generateOrders(state.world.zones, content.orderTemplates, rng);
+      const orders = generateCards(state.world, content.orderTemplates, rng);
       const next = structuredClone(state);
       next.world.pendingOrders = orders;
       next.world.phase = 'field';
       next.world.seed = advanceSeed(rng);
-      return {
-        state: next,
-        log: [`지시서 ${orders.length}건 발부.`, ...orders.map((o) => `— ${o.title} (${o.zone})`)],
-      };
+      const log = [`지시서 ${orders.length}건 발부.`, ...orders.map((o) => `— ${o.title}${o.reissueCount > 0 ? ` (재발부 ${o.reissueCount}차)` : ''}`)];
+      // 다일 이벤트 점유 (v3 §5): 오늘 하루를 소모하고 근무 슬롯이 줄어든다
+      if (next.world.multiday) {
+        next.world.multiday.daysLeft -= 1;
+        next.world.shiftLeft = MULTIDAY_SHIFT;
+        log.push('오늘도 약속된 일정이 근무의 대부분을 가져간다.');
+      }
+      return { state: next, log };
     }
 
     case 'RESOLVE_ORDER': {
@@ -128,10 +134,18 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       }
       const choice = storylet.choices[action.choiceIndex];
       if (!choice) throw new Error(`선택지 없음: index ${action.choiceIndex}`);
+      if (choice.startsMultiday && state.world.multiday) {
+        throw new Error(`다일 이벤트 중복 점유 불가: ${state.world.multiday.id} 진행 중`);
+      }
       const rng = mulberry32(state.world.seed);
       const { success } = rollCheck(choice.check, state.self.stats, state.self.skills, rng);
       const branch = success ? choice.onSuccess : choice.onFailure;
       const next = branch ? applyEffects(state, branch.effects) : structuredClone(state);
+      if (choice.startsMultiday) {
+        // 점유는 판정과 무관한 선언 — 내일 아침부터 근무 슬롯이 줄어든다
+        next.world.multiday = { id: choice.startsMultiday.id, daysLeft: choice.startsMultiday.days };
+        next.world.flags[`md_${choice.startsMultiday.id}_started`] = 1;
+      }
       next.world.phase = 'closing';
       next.world.seed = advanceSeed(rng);
       const log = branch?.text ? [branch.text] : [];
@@ -148,8 +162,11 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       for (const order of next.world.pendingOrders) {
         if (!order.resolved) {
           delta[order.zone] = (delta[order.zone] ?? 0) + order.weight;
+          // 미시 피드백 장부: 방치 누적 — 내일 재발부 우선순위·난이도 보정의 근거
+          next.world.cardNeglect[order.templateId] = (next.world.cardNeglect[order.templateId] ?? 0) + 1;
         } else if (order.outcome === 'success') {
           delta[order.zone] = (delta[order.zone] ?? 0) - order.weight;
+          delete next.world.cardNeglect[order.templateId];
         }
       }
       for (const [zoneId, z] of Object.entries(next.world.zones) as [ZoneId, { decay: number }][]) {
@@ -158,6 +175,12 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       const alt = altitude(next.world.zones);
       const { day, weekday } = next.world.calendar;
       const log = [`Day ${day} 종료. 도시 고도 ${alt}m.`];
+      // 다일 이벤트 종료 판정 — 마지막 점유일의 저녁에 끝난다
+      if (next.world.multiday && next.world.multiday.daysLeft <= 0) {
+        next.world.flags[`md_${next.world.multiday.id}_done`] = 1;
+        log.push('약속했던 일정이 끝났다. 내일부터는 다시 온전한 하루다.');
+        next.world.multiday = null;
+      }
       if (weekday === WORKDAYS_PER_WEEK) {
         // 금요일: 배치 구역의 정산 후 밴드가 곧 주간 평가 (별도 산식 없음)
         const band = bandOf(next.world.zones[next.world.assignment.zone].decay);

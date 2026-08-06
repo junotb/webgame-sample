@@ -1,9 +1,10 @@
 /**
- * 지시서 생성기 — 노후도 테이블 × 템플릿 (스펙 2장 morning 단계)
- * 생성 시점에 경로 바인딩·난이도 보정을 전부 끝낸다:
- * 리듀서는 WorkOrder만 보고 처리하며 템플릿을 재조회하지 않는다.
+ * 카드 생성기 (v3 §4) — 기존 지시서 생성기의 표현 변경.
+ * 무작위성의 출처는 셔플이 아니라 도시 상태다: 어떤 카드가 오는지는
+ * 배치 구역의 노후도와 방치 누적이 결정하고, rng는 완전 동률에서만 갈린다.
+ * 생성 시점에 경로·본문 조건 바인딩과 난이도 보정을 전부 끝낸다.
  */
-import { bindEffects } from './bind';
+import { bindEffects, bindVariants } from './bind';
 import type {
   BoundWorkOption,
   Check,
@@ -11,7 +12,11 @@ import type {
   WorkOption,
   WorkOrder,
   WorkOrderTemplate,
+  WorldSheet,
 } from './schema';
+
+/** 제시 4장 / 처리 2장 (v3 §4) — 방치 2장이 미시 피드백의 재료가 된다 */
+export const CARDS_PER_DAY = 4;
 
 export function applyDifficultyBonus(check: Check, bonus: number): Check {
   if (check.kind === 'auto') return { ...check };
@@ -30,45 +35,53 @@ function bindOption(option: WorkOption, zone: ZoneId, bonus: number): BoundWorkO
   };
 }
 
-/** difficultyBonus = minDecay 초과분 — 방치가 깊을수록 어려워진다 (튜닝 대상) */
-export function instantiateOrder(
+/**
+ * difficultyBonus = (노후도의 minDecay 초과분) + (방치 누적) —
+ * 넘긴 카드는 악화된 채 돌아온다 (v3 §1 놀람의 설계: 귀속).
+ */
+export function instantiateCard(
   template: WorkOrderTemplate,
   zone: ZoneId,
   decay: number,
+  neglect: number,
 ): WorkOrder {
-  const difficultyBonus = Math.max(0, decay - template.minDecay);
+  const difficultyBonus = Math.max(0, decay - template.minDecay) + neglect;
   return {
     templateId: template.id,
     zone,
     difficultyBonus,
     weight: template.weight,
+    face: template.face,
+    reissueCount: neglect,
     title: template.title,
-    body: template.body.map((v) => ({ ...v })),
+    body: bindVariants(template.body, zone),
     options: template.options.map((o) => bindOption(o, zone, difficultyBonus)),
     resolved: false,
   };
 }
 
 /**
- * 구역당 1건 — 슬라이스는 구역 3개로 3건 고정. 후보는 minDecay ≤ decay.
- * 적격 중 최고 minDecay를 우선한다 (동률만 rng) — 노후도가 깊은 구역엔
- * 그에 맞는 지시서가 반드시 온다. 완곡어 시연(스펙 5장)의 WO-T3
- * 재등장 보장이 이 규칙에 의존한다.
+ * 배치 구역 하나에서 최대 4장 (v3 §9: 1주차 한 구역 고정).
+ * 우선순위: 방치 누적 큰 순 → minDecay 깊은 순 → 완전 동률만 rng.
+ * 방치한 카드가 다음 날 반드시 다시 올라오는 것이 미시 피드백의 전제다.
  */
-export function generateOrders(
-  zones: Record<ZoneId, { decay: number }>,
+export function generateCards(
+  world: Pick<WorldSheet, 'assignment' | 'zones' | 'cardNeglect'>,
   templates: WorkOrderTemplate[],
   rng: () => number,
 ): WorkOrder[] {
-  return (Object.keys(zones) as ZoneId[]).map((zone) => {
-    const { decay } = zones[zone];
-    const eligible = templates.filter((t) => t.minDecay <= decay);
-    if (eligible.length === 0) {
-      throw new Error(`적격 템플릿 없음: 구역 ${zone} (노후도 ${decay})`);
-    }
-    const maxMinDecay = Math.max(...eligible.map((t) => t.minDecay));
-    const severest = eligible.filter((t) => t.minDecay === maxMinDecay);
-    const template = severest[Math.floor(rng() * severest.length)];
-    return instantiateOrder(template, zone, decay);
+  const zone = world.assignment.zone;
+  const decay = world.zones[zone].decay;
+  const eligible = templates.filter((t) => t.minDecay <= decay);
+  if (eligible.length === 0) {
+    throw new Error(`적격 템플릿 없음: 구역 ${zone} (노후도 ${decay})`);
+  }
+  const neglectOf = (t: WorkOrderTemplate) => world.cardNeglect[t.id] ?? 0;
+  const jitter = new Map(eligible.map((t) => [t.id, rng()]));
+  const sorted = [...eligible].sort((a, b) => {
+    if (neglectOf(a) !== neglectOf(b)) return neglectOf(b) - neglectOf(a);
+    if (a.minDecay !== b.minDecay) return b.minDecay - a.minDecay;
+    return (jitter.get(a.id) ?? 0) - (jitter.get(b.id) ?? 0);
   });
+  return sorted.slice(0, CARDS_PER_DAY).map((t) => instantiateCard(t, zone, decay, neglectOf(t)));
 }

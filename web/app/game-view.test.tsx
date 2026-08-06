@@ -9,6 +9,8 @@ const ORDER: WorkOrder = {
   zone: 'd5',
   difficultyBonus: 0,
   weight: 1,
+  face: 'inspection',
+  reissueCount: 0,
   title: '간헐 명멸 현상 점검',
   body: [
     { if: [{ path: 'self.memory', gte: 1 }], text: '당신은 이 문구가 무언가를 감추고 있음을 안다.' },
@@ -77,7 +79,7 @@ describe('GameView document UI', () => {
 
     const html = render(state);
 
-    expect(html).toContain('지시서 01');
+    expect(html).toContain('점검 01');
     expect(html).toContain('간헐 명멸 현상 점검');
     expect(html).toContain('당신은 이 문구가 무언가를 감추고 있음을 안다.');
     expect(html).not.toContain('이상 없음으로 처리하십시오.');

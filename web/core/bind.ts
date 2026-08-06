@@ -3,7 +3,7 @@
  * 지시서 생성기가 WorkOrder를 만들 때 여기서 경로를 확정한다 —
  * 리듀서의 effect 적용기에는 구체 EffectPath만 도달해야 한다.
  */
-import type { ZoneId, Effect, EffectPath, TemplateEffect, TemplateEffectPath } from './schema';
+import type { Condition, TextVariant, ZoneId, Effect, EffectPath, TemplateEffect, TemplateEffectPath } from './schema';
 
 export function bindEffectPath(path: TemplateEffectPath, zone: ZoneId): EffectPath {
   const bound = path.replaceAll('{zone}', zone);
@@ -16,4 +16,19 @@ export function bindEffectPath(path: TemplateEffectPath, zone: ZoneId): EffectPa
 
 export function bindEffects(effects: TemplateEffect[], zone: ZoneId): Effect[] {
   return effects.map((e) => ({ ...e, path: bindEffectPath(e.path, zone) }));
+}
+
+/**
+ * 본문 변형 조건의 `{zone}` 치환 (악화 축, v3 §7) —
+ * 카드의 body는 바인딩 후 항상 구체 경로만 갖는다. 렌더러는 치환을 모른다.
+ */
+export function bindVariants(body: TextVariant[], zone: ZoneId): TextVariant[] {
+  return body.map((v) =>
+    v.if
+      ? {
+          ...v,
+          if: v.if.map((c): Condition => ({ ...c, path: bindEffectPath(c.path as TemplateEffectPath, zone) as Condition['path'] })),
+        }
+      : { ...v },
+  );
 }

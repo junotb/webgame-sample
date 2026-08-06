@@ -15,6 +15,8 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
       calendar: { day: 1, weekday: 1 },
       assignment: { zone: 'd5' },
       weekRatings: {},
+      cardNeglect: {},
+      multiday: null,
       phase: 'morning',
       zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
@@ -34,6 +36,7 @@ const AUTO_T: WorkOrderTemplate = {
   id: 'AUTO',
   minDecay: 0,
   weight: 2,
+  face: 'inspection',
   title: '점검',
   body: [{ text: '본문' }],
   options: [
@@ -52,7 +55,7 @@ const AUTO_T: WorkOrderTemplate = {
 const CONTENT: ContentBundle = {
   bundleId: 'test',
   version: '0',
-  orderTemplates: [AUTO_T],
+  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: '자재 수령' }],
   storylets: [
     {
       id: 'EV-001',
@@ -92,6 +95,8 @@ function makeOrder(
     zone,
     difficultyBonus: 0,
     weight,
+    face: 'inspection',
+    reissueCount: 0,
     title: '점검',
     body: [{ text: '본문' }],
     options: [],
@@ -100,11 +105,11 @@ function makeOrder(
   };
 }
 
-describe('START_DAY — morning: 지시서 생성 → field', () => {
-  it('구역당 1건씩 3건 생성, phase는 field로', () => {
+describe('START_DAY — morning: 카드 발부 → field', () => {
+  it('배치 구역에서만 카드가 발부된다, phase는 field로', () => {
     const { state } = reduce(baseState(), { type: 'START_DAY' }, CONTENT);
-    expect(state.world.pendingOrders).toHaveLength(3);
-    expect(state.world.pendingOrders.map((o) => o.zone)).toEqual(['d2', 'd5', 'd7']);
+    expect(state.world.pendingOrders).toHaveLength(2); // 템플릿 2종 전부 적격
+    expect(state.world.pendingOrders.every((o) => o.zone === 'd5')).toBe(true);
     expect(state.world.phase).toBe('field');
   });
   it('seed가 전진한다 (같은 seed → 같은 결과, 재현성)', () => {
@@ -124,7 +129,7 @@ describe('RESOLVE_ORDER — field: 판정·효과·트리아지', () => {
   }
   it('resolved 마킹 + outcome 기록, shiftLeft 차감 (노후도는 정산 전까지 불변)', () => {
     const { state, log } = reduce(fieldState(), { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT);
-    expect(state.world.zones.d2.decay).toBe(3); // 증감은 CLOSE_DAY 가중치 정산의 몫
+    expect(state.world.zones.d5.decay).toBe(4); // 증감은 CLOSE_DAY 가중치 정산의 몫
     expect(state.world.pendingOrders[0].resolved).toBe(true);
     expect(state.world.pendingOrders[0].outcome).toBe('success');
     expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY - 1);

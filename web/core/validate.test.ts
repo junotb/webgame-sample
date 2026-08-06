@@ -12,6 +12,7 @@ function validBundle(): ContentBundle {
         id: 'WO-X1',
         minDecay: 0,
         weight: 1,
+        face: 'inspection',
         title: '테스트 지시서',
         body: [
           { if: [{ path: 'self.memory', gte: 1 }], text: '변형 본문' },
@@ -147,6 +148,36 @@ describe('validateBundle — 효과 경로 무결성', () => {
       mutate((b) => (b.orderTemplates[0].options[0].onSuccess.effects[0].path = 'world.zones.{sector}.decay')),
     );
     expect(errs.some((e) => e.includes('{sector}'))).toBe(true);
+  });
+});
+
+describe('validateBundle — 카드 레이어 (v3 §4·§5)', () => {
+  it('알 수 없는 카드 얼굴을 잡는다 (표면 층은 조직의 언어만)', () => {
+    const errs = validateBundle(mutate((b) => (b.orderTemplates[0].face = 'combat')));
+    expect(errs.some((e) => e.includes('combat'))).toBe(true);
+  });
+
+  it('weight 범위 밖(0, 4)을 잡는다', () => {
+    expect(validateBundle(mutate((b) => (b.orderTemplates[0].weight = 0))).length).toBeGreaterThan(0);
+    expect(validateBundle(mutate((b) => (b.orderTemplates[0].weight = 4))).length).toBeGreaterThan(0);
+  });
+
+  it('startsMultiday.days가 1~3 밖이면 잡는다', () => {
+    const errs = validateBundle(
+      mutate((b) => (b.storylets[0].choices[0].startsMultiday = { id: 'x', days: 4 })),
+    );
+    expect(errs.some((e) => e.includes('days'))).toBe(true);
+  });
+
+  it('템플릿 본문 변형 조건의 {zone}은 허용, 스토리렛 조건의 {zone}은 거부', () => {
+    const ok = validateBundle(
+      mutate((b) => (b.orderTemplates[0].body[0].if = [{ path: 'world.zones.{zone}.decay', gte: 6 }])),
+    );
+    expect(ok).toEqual([]);
+    const bad = validateBundle(
+      mutate((b) => (b.storylets[0].requirements = [{ path: 'world.zones.{zone}.decay', gte: 6 }])),
+    );
+    expect(bad.some((e) => e.includes('{zone}'))).toBe(true);
   });
 });
 

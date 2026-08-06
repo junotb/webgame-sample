@@ -1,11 +1,11 @@
 /**
- * 스펙 5장 — 완곡어 증명 시나리오의 성립 보장.
+ * 완곡어 증명 시나리오의 성립 보장 (v3 §4 검증 목표 3).
  * 1) EV-001 '묻는다'는 판정 결과와 무관하게 기억 0→1을 부여한다.
- * 2) WO-T3는 노후도 5 이상 구역에서 결정적으로 등장한다 (초기 d7=5,
- *    자연 틱으로 감소하지 않으므로 Day 2에도 재등장이 보장된다).
+ * 2) WO-T3는 배치 구역 노후도 5 이상에서 결정적으로 등장한다 —
+ *    시작 4에서 방치·틱으로 오르면 반드시 온다 (변형 확인 지점).
  */
 import { describe, expect, it } from 'vitest';
-import { generateOrders } from '../core/generate';
+import { generateCards } from '../core/generate';
 import type { Effect } from '../core/schema';
 import { loadContent } from './loader';
 
@@ -13,6 +13,14 @@ const [bundle] = loadContent();
 
 function grantsMemory(effects: Effect[] | undefined): boolean {
   return (effects ?? []).some((e) => e.path === 'self.memory' && e.op === 'add' && e.value >= 1);
+}
+
+function worldAt(decay: number) {
+  return {
+    assignment: { zone: 'd5' as const },
+    zones: { d2: { decay: 3 }, d5: { decay }, d7: { decay: 5 } },
+    cardNeglect: {},
+  };
 }
 
 describe('EV-001 — 묻는다 선택의 기억 부여', () => {
@@ -28,21 +36,20 @@ describe('EV-001 — 묻는다 선택의 기억 부여', () => {
   });
 });
 
-describe('WO-T3 — 결정적 등장', () => {
-  const initialZones = { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } };
-
-  it('초기 노후도에서 d7에 WO-T3가 rng와 무관하게 등장한다 (Day 1)', () => {
+describe('WO-T3 — 결정적 등장 (도시 상태가 곧 무작위성)', () => {
+  it('시작 노후도 4에서는 아직 오지 않는다 (임계 아래의 평온)', () => {
     for (const r of [0, 0.5, 0.999]) {
-      const orders = generateOrders(initialZones, bundle.orderTemplates, () => r);
-      expect(orders.find((o) => o.zone === 'd7')?.templateId).toBe('WO-T3');
+      const cards = generateCards(worldAt(4), bundle.orderTemplates, () => r);
+      expect(cards.some((c) => c.templateId === 'WO-T3')).toBe(false);
     }
   });
 
-  it('노후도가 오른 다음 날에도 재등장한다 (Day 2 — 변형 확인 지점)', () => {
-    const day2 = { d2: { decay: 4 }, d5: { decay: 5 }, d7: { decay: 6 } };
-    for (const r of [0, 0.5, 0.999]) {
-      const orders = generateOrders(day2, bundle.orderTemplates, () => r);
-      expect(orders.filter((o) => o.templateId === 'WO-T3').length).toBeGreaterThanOrEqual(2);
+  it('노후도 5부터 rng와 무관하게 맨 앞에 온다 (변형 확인 지점)', () => {
+    for (const decay of [5, 7, 10]) {
+      for (const r of [0, 0.5, 0.999]) {
+        const cards = generateCards(worldAt(decay), bundle.orderTemplates, () => r);
+        expect(cards[0].templateId).toBe('WO-T3');
+      }
     }
   });
 });

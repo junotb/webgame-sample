@@ -11,6 +11,8 @@ const NPC_IDS = ['protagonist'];
 const STAT_IDS = ['repair', 'insight', 'procedure', 'nerve'];
 const SKILL_IDS = ['inscription', 'flowsense'];
 const MENACE_IDS = ['fatigue', 'scrutiny', 'unrest'];
+const CARD_FACES = ['inspection', 'patrol', 'liaison', 'supply', 'survey'];
+const MULTIDAY_MAX_DAYS = 3;
 
 /** 스키마의 EffectPath와 1:1 — 스키마 타입이 바뀌면 여기도 갱신해야 한다 */
 function isValidEffectPath(path: string): boolean {
@@ -66,9 +68,15 @@ function checkCheck(check: Check, where: string, errors: string[]): void {
   }
 }
 
-function checkConditions(conditions: Condition[], where: string, errors: string[]): void {
+function checkConditions(conditions: Condition[], where: string, errors: string[], allowZonePlaceholder = false): void {
   for (const cond of conditions) {
-    if (cond.path !== 'world.calendar.day' && !isValidEffectPath(cond.path)) {
+    const hasPlaceholder = cond.path.includes('{zone}');
+    if (hasPlaceholder && !allowZonePlaceholder) {
+      errors.push(`${where}: {zone} 조건 치환자는 지시서 템플릿 본문에서만 허용됨 (경로: ${cond.path})`);
+      continue;
+    }
+    const concrete = cond.path.replaceAll('{zone}', ZONE_IDS[0]);
+    if (concrete !== 'world.calendar.day' && !isValidEffectPath(concrete)) {
       errors.push(`${where}: 스키마에 없는 조건 경로 '${cond.path}'`);
     }
     if (cond.gte === undefined && cond.lte === undefined) {
@@ -78,7 +86,7 @@ function checkConditions(conditions: Condition[], where: string, errors: string[
 }
 
 /** 첫-매치 규칙: 무조건 기본 변형이 정확히 마지막에 온다 */
-function checkVariants(body: TextVariant[], where: string, errors: string[]): void {
+function checkVariants(body: TextVariant[], where: string, errors: string[], allowZonePlaceholder = false): void {
   if (body.length === 0) {
     errors.push(`${where}: 본문 변형이 비어 있음`);
     return;
@@ -89,7 +97,7 @@ function checkVariants(body: TextVariant[], where: string, errors: string[]): vo
     if (isDefault && !isLast) {
       errors.push(`${where}: 무조건 변형이 마지막이 아님 (index ${i}) — 뒤 변형이 도달 불가`);
     }
-    if (!isDefault) checkConditions(v.if!, `${where} 변형[${i}]`, errors);
+    if (!isDefault) checkConditions(v.if!, `${where} 변형[${i}]`, errors, allowZonePlaceholder);
   });
   const last = body[body.length - 1];
   if (last.if && last.if.length > 0) {
@@ -111,8 +119,11 @@ export function validateBundle(bundle: ContentBundle): string[] {
     if (!Number.isInteger(t.weight) || t.weight < 1 || t.weight > 3) {
       errors.push(`${where}: weight는 1~3 정수여야 함 (현재: ${t.weight})`);
     }
+    if (!CARD_FACES.includes(t.face)) {
+      errors.push(`${where}: 알 수 없는 카드 얼굴 '${t.face}' — 표면 층은 조직의 언어만 허용 (${CARD_FACES.join('/')})`);
+    }
 
-    checkVariants(t.body, where, errors);
+    checkVariants(t.body, where, errors, true);
     t.options.forEach((opt, i) => {
       const optWhere = `${where} 옵션[${i}]`;
       checkCheck(opt.check, optWhere, errors);
@@ -132,6 +143,13 @@ export function validateBundle(bundle: ContentBundle): string[] {
     s.choices.forEach((c, i) => {
       const choiceWhere = `${where} 선택지[${i}]`;
       checkCheck(c.check, choiceWhere, errors);
+      if (c.startsMultiday) {
+        const { id, days } = c.startsMultiday;
+        if (!id) errors.push(`${choiceWhere}: startsMultiday.id가 비어 있음`);
+        if (!Number.isInteger(days) || days < 1 || days > MULTIDAY_MAX_DAYS) {
+          errors.push(`${choiceWhere}: startsMultiday.days는 1~${MULTIDAY_MAX_DAYS} 정수여야 함 (현재: ${days})`);
+        }
+      }
       c.onSuccess.effects.forEach((e) => checkEffect(e, false, `${choiceWhere} onSuccess`, errors));
       c.onFailure?.effects.forEach((e) => checkEffect(e, false, `${choiceWhere} onFailure`, errors));
     });

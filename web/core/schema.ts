@@ -38,6 +38,10 @@ export interface WorldSheet {
   };
   assignment: { zone: ZoneId };            // 현재 배치 구역 — 1주차는 한 구역 고정 (v3 §9)
   weekRatings: Record<number, WeeklyRating>; // 주차 → 주간 평가
+  /** 템플릿별 방치 누적 — 미시 피드백의 근거. 처리 성공 시 리셋 (v3 §2 미시 층) */
+  cardNeglect: Record<string, number>;
+  /** 다일 이벤트 점유 (v3 §5) — 점유 중 근무 슬롯 축소. daysLeft는 남은 점유 근무일 */
+  multiday: { id: string; daysLeft: number } | null;
   phase: DayPhase;
   zones: Record<ZoneId, { decay: number }>; // 노후도 0~10
   menace: Record<MenaceId, number>;                 // 0~8
@@ -101,8 +105,13 @@ export interface TemplateEffect {
 // ─────────────────────────────────────────────
 // 조건 + 완곡어 텍스트 변형
 // ─────────────────────────────────────────────
+/**
+ * 조건 경로. `world.zones.{zone}.decay`는 지시서 템플릿 본문 변형에서만 허용 —
+ * 생성기가 카드로 바인딩할 때 구체 경로로 치환된다 (악화 축, v3 §7).
+ * 스토리렛에서의 사용은 빌드 검증이 거부한다.
+ */
 export interface Condition {
-  path: EffectPath | 'world.calendar.day';
+  path: EffectPath | 'world.calendar.day' | 'world.zones.{zone}.decay';
   gte?: number;
   lte?: number;
 }
@@ -116,10 +125,22 @@ export interface TextVariant {
 // ─────────────────────────────────────────────
 // 지시서 (자동 생성 콘텐츠)
 // ─────────────────────────────────────────────
+/**
+ * 카드 표면 층 — 전부 조직의 언어 (v3 §4). 표면은 실제를 예고하지 않는다:
+ * '전투' 같은 분류는 존재할 수 없다 (설비 이상은 고장 신고서 양식으로만 존재).
+ */
+export type CardFace =
+  | 'inspection'   // 점검
+  | 'patrol'       // 정기 순시
+  | 'liaison'      // 조직 방문·보고
+  | 'supply'       // 자재 수령
+  | 'survey';      // 미확인 구간 확인
+
 export interface WorkOrderTemplate {
   id: string;                       // 'WO-T1' ...
   minDecay: number;                 // 이 노후도 이상 구역에서 생성됨
   weight: number;                   // 1~3 — CLOSE_DAY 노후도 정산 폭 (v3 §3, 빌드 검증 대상)
+  face: CardFace;                   // 카드 얼굴 (표면 층)
   title: string;                    // 공식 완곡어 제목
   body: TextVariant[];              // 완곡어 시스템 적용 지점
   options: WorkOption[];
@@ -152,6 +173,9 @@ export interface WorkOrder {
   /** 난이도 보정: 구역 노후도의 minDecay 초과분 (방치의 대가, 튜닝 대상) */
   difficultyBonus: number;
   weight: number;                   // 템플릿에서 복사 — 정산은 리듀서가 이 값만 본다
+  face: CardFace;
+  /** 재발부 차수 = 생성 시점의 방치 누적. 0이면 신규 발부 */
+  reissueCount: number;
   title: string;
   body: TextVariant[];              // 변형 선택은 렌더 시점 (완곡어 시스템)
   options: BoundWorkOption[];
@@ -173,6 +197,11 @@ export interface Storylet {
 export interface StoryletChoice {
   label: string;
   check: Check;
+  /**
+   * 다일 이벤트 점유 선언 (v3 §5) — 판정 결과와 무관하게 선택 즉시 점유가 시작된다.
+   * days는 1~3 (빌드 검증). 시작 시 flags[`md_${id}_started`]=1, 종료 시 flags[`md_${id}_done`]=1.
+   */
+  startsMultiday?: { id: string; days: number };
   onSuccess: { effects: Effect[]; text: string };
   onFailure?: { effects: Effect[]; text: string };
 }

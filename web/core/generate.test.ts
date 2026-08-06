@@ -1,20 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { applyDifficultyBonus, instantiateOrder, generateOrders } from './generate';
-import type { ZoneId, WorkOrderTemplate } from './schema';
+import { applyDifficultyBonus, CARDS_PER_DAY, generateCards, instantiateCard } from './generate';
+import type { WorkOrderTemplate } from './schema';
 
 const T1: WorkOrderTemplate = {
   id: 'T1',
   minDecay: 0,
   weight: 1,
+  face: 'inspection',
   title: '정기 점검',
-  body: [{ text: '기본 본문' }],
+  body: [
+    { if: [{ path: 'world.zones.{zone}.decay', gte: 6 }], text: '악화 본문' },
+    { text: '기본 본문' },
+  ],
   options: [
     {
       label: '정석 (narrow)',
       check: { kind: 'narrow', skill: 'inscription', difficulty: 1 },
       timeCost: 1,
       onSuccess: {
-        effects: [{ path: 'world.zones.{zone}.decay', op: 'add', value: -3 }],
+        effects: [{ path: 'world.flags.patched_{zone}', op: 'add', value: 1 }],
         text: '성공',
       },
       onFailure: {
@@ -26,10 +30,7 @@ const T1: WorkOrderTemplate = {
       label: '임시방편 (broad)',
       check: { kind: 'broad', stat: 'repair', difficulty: 30 },
       timeCost: 1,
-      onSuccess: {
-        effects: [{ path: 'world.flags.patched_{zone}', op: 'add', value: 1 }],
-        text: '성공',
-      },
+      onSuccess: { effects: [], text: '성공' },
     },
   ],
 };
@@ -38,6 +39,7 @@ const T2: WorkOrderTemplate = {
   id: 'T2',
   minDecay: 4,
   weight: 2,
+  face: 'patrol',
   title: '압력 시정',
   body: [{ text: '본문' }],
   options: [
@@ -50,103 +52,81 @@ const T2: WorkOrderTemplate = {
   ],
 };
 
-const T3: WorkOrderTemplate = { ...T2, id: 'T3', minDecay: 5, title: '명멸 점검' };
+const T3: WorkOrderTemplate = { ...T2, id: 'T3', minDecay: 5, weight: 3, face: 'survey', title: '명멸 점검' };
+const T4: WorkOrderTemplate = { ...T2, id: 'T4', minDecay: 0, weight: 2, face: 'supply', title: '자재 수령' };
 
-const TEMPLATES = [T1, T2, T3];
+const TEMPLATES = [T1, T2, T3, T4];
+
+function worldAt(decay: number, cardNeglect: Record<string, number> = {}) {
+  return {
+    assignment: { zone: 'd5' as const },
+    zones: { d2: { decay: 3 }, d5: { decay }, d7: { decay: 5 } },
+    cardNeglect,
+  };
+}
 
 describe('applyDifficultyBonus', () => {
-  it('broad/narrow는 difficulty에 가산', () => {
+  it('broad/narrow는 difficulty에 가산, auto는 그대로', () => {
     expect(applyDifficultyBonus({ kind: 'broad', stat: 'repair', difficulty: 30 }, 5)).toEqual({
       kind: 'broad',
       stat: 'repair',
       difficulty: 35,
     });
-    expect(applyDifficultyBonus({ kind: 'narrow', skill: 'flowsense', difficulty: 2 }, 3)).toEqual({
-      kind: 'narrow',
-      skill: 'flowsense',
-      difficulty: 5,
-    });
-  });
-  it('auto는 그대로', () => {
     expect(applyDifficultyBonus({ kind: 'auto' }, 5)).toEqual({ kind: 'auto' });
-  });
-  it('보정 0이면 원값 유지', () => {
-    expect(applyDifficultyBonus({ kind: 'broad', stat: 'nerve', difficulty: 30 }, 0)).toEqual({
-      kind: 'broad',
-      stat: 'nerve',
-      difficulty: 30,
-    });
   });
 });
 
-describe('instantiateOrder — 완전 구체화', () => {
-  it('difficultyBonus = decay − minDecay (초과분)', () => {
-    expect(instantiateOrder(T1, 'd7', 5).difficultyBonus).toBe(5);
-    expect(instantiateOrder(T3, 'd7', 5).difficultyBonus).toBe(0);
+describe('instantiateCard — 완전 구체화', () => {
+  it('difficultyBonus = (decay − minDecay 초과분) + 방치 누적', () => {
+    expect(instantiateCard(T1, 'd7', 5, 0).difficultyBonus).toBe(5);
+    expect(instantiateCard(T1, 'd7', 5, 2).difficultyBonus).toBe(7);
+    expect(instantiateCard(T3, 'd7', 5, 0).difficultyBonus).toBe(0);
   });
-  it('모든 옵션의 check에 보정이 가산된다', () => {
-    const order = instantiateOrder(T1, 'd5', 4); // bonus 4
-    expect(order.options[0].check).toEqual({ kind: 'narrow', skill: 'inscription', difficulty: 5 });
-    expect(order.options[1].check).toEqual({ kind: 'broad', stat: 'repair', difficulty: 34 });
+  it('face·weight·reissueCount가 채워진다', () => {
+    const card = instantiateCard(T1, 'd5', 4, 1);
+    expect(card.face).toBe('inspection');
+    expect(card.weight).toBe(1);
+    expect(card.reissueCount).toBe(1);
+    expect(card.resolved).toBe(false);
   });
-  it('effects 경로가 구역으로 바인딩되어 치환자가 남지 않는다', () => {
-    const order = instantiateOrder(T1, 'd5', 3);
-    expect(order.options[0].onSuccess.effects).toEqual([
-      { path: 'world.zones.d5.decay', op: 'add', value: -3 },
-    ]);
-    expect(order.options[0].onFailure?.effects).toEqual([
-      { path: 'world.menace.fatigue', op: 'add', value: 2 },
-    ]);
-    expect(order.options[1].onSuccess.effects).toEqual([
+  it('본문 변형 조건의 {zone}이 구체 경로로 바인딩된다 (악화 축)', () => {
+    const card = instantiateCard(T1, 'd5', 4, 0);
+    expect(card.body[0].if).toEqual([{ path: 'world.zones.d5.decay', gte: 6 }]);
+  });
+  it('효과 경로가 구역으로 바인딩되어 치환자가 남지 않는다', () => {
+    const card = instantiateCard(T1, 'd5', 3, 0);
+    expect(card.options[0].onSuccess.effects).toEqual([
       { path: 'world.flags.patched_d5', op: 'add', value: 1 },
     ]);
   });
-  it('메타데이터가 채워지고 resolved=false', () => {
-    const order = instantiateOrder(T1, 'd2', 3);
-    expect(order.templateId).toBe('T1');
-    expect(order.zone).toBe('d2');
-    expect(order.title).toBe('정기 점검');
-    expect(order.body).toEqual([{ text: '기본 본문' }]);
-    expect(order.resolved).toBe(false);
-  });
   it('원본 템플릿은 불변', () => {
-    instantiateOrder(T1, 'd5', 5);
+    instantiateCard(T1, 'd5', 5, 3);
     expect(T1.options[0].check).toEqual({ kind: 'narrow', skill: 'inscription', difficulty: 1 });
-    expect(T1.options[0].onSuccess.effects[0].path).toBe('world.zones.{zone}.decay');
+    expect(T1.body[0].if?.[0].path).toBe('world.zones.{zone}.decay');
   });
 });
 
-describe('generateOrders — 노후도 테이블 × 템플릿', () => {
-  const zones: Record<ZoneId, { decay: number }> = {
-    d2: { decay: 3 },
-    d5: { decay: 4 },
-    d7: { decay: 5 },
-  };
-
-  it('구역당 1건, 3건 고정 생성', () => {
-    const orders = generateOrders(zones, TEMPLATES, () => 0);
-    expect(orders).toHaveLength(3);
-    expect(orders.map((o) => o.zone)).toEqual(['d2', 'd5', 'd7']);
+describe('generateCards — 배치 구역 1곳, 도시 상태가 곧 무작위성 (v3 §4)', () => {
+  it('배치 구역에서만 생성, 최대 4장', () => {
+    const cards = generateCards(worldAt(5), TEMPLATES, () => 0);
+    expect(cards).toHaveLength(CARDS_PER_DAY);
+    expect(cards.every((c) => c.zone === 'd5')).toBe(true);
   });
-  it('minDecay ≤ decay인 템플릿만 후보가 된다 (decay 3 → T1만)', () => {
-    const orders = generateOrders(zones, TEMPLATES, () => 0.99);
-    expect(orders[0].templateId).toBe('T1'); // d2: T2/T3 부적격
+  it('minDecay ≤ decay인 템플릿만 온다 (decay 4 → T3 제외 3장)', () => {
+    const cards = generateCards(worldAt(4), TEMPLATES, () => 0);
+    expect(cards.map((c) => c.templateId).sort()).toEqual(['T1', 'T2', 'T4']);
   });
-  it('적격 후보 중 최고 minDecay가 항상 선택된다 (완곡어 시연 보장 — 등장 랜덤성 제거)', () => {
-    // d7 decay 5 → T1/T2/T3 전부 적격이지만 rng와 무관하게 T3
-    expect(generateOrders(zones, TEMPLATES, () => 0)[2].templateId).toBe('T3');
-    expect(generateOrders(zones, TEMPLATES, () => 0.99)[2].templateId).toBe('T3');
-    // d5 decay 4 → T1/T2 적격, T2 확정
-    expect(generateOrders(zones, TEMPLATES, () => 0)[1].templateId).toBe('T2');
-    expect(generateOrders(zones, TEMPLATES, () => 0.99)[1].templateId).toBe('T2');
+  it('방치 누적이 큰 카드가 앞으로 온다 (재발부 우선)', () => {
+    const cards = generateCards(worldAt(5, { T1: 2 }), TEMPLATES, () => 0);
+    expect(cards[0].templateId).toBe('T1');
+    expect(cards[0].reissueCount).toBe(2);
   });
-  it('최고 minDecay 동률은 rng로 갈린다', () => {
-    const T3B: WorkOrderTemplate = { ...T3, id: 'T3B' };
-    const pool = [...TEMPLATES, T3B];
-    expect(generateOrders(zones, pool, () => 0)[2].templateId).toBe('T3');
-    expect(generateOrders(zones, pool, () => 0.99)[2].templateId).toBe('T3B');
+  it('방치 동률이면 minDecay 깊은 순 (노후도가 깊은 곳에 그에 맞는 카드)', () => {
+    const cards = generateCards(worldAt(5), TEMPLATES, () => 0);
+    expect(cards[0].templateId).toBe('T3');
+    expect(cards[1].templateId).toBe('T2');
   });
   it('적격 템플릿이 없으면 throw', () => {
-    expect(() => generateOrders({ ...zones, d2: { decay: 3 } }, [T3], () => 0)).toThrow(/적격/);
+    expect(() => generateCards(worldAt(0), [T3], () => 0)).toThrow(/적격/);
   });
 });

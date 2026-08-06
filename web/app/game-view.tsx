@@ -1,5 +1,5 @@
 import { altitude, evalConditions, selectVariant, SHIFT_PER_DAY } from '../core/reducer';
-import type { Action, ContentBundle, DayPhase, GameState } from '../core/schema';
+import type { Action, CardFace, ContentBundle, DayPhase, GameState } from '../core/schema';
 
 export type SaveStatus = 'loading' | 'saving' | 'saved' | 'error';
 
@@ -21,6 +21,13 @@ const PHASE_LABELS: Record<DayPhase, string> = {
 
 const ZONE_LABELS = { d2: '제2구역', d5: '제5구역', d7: '제7구역' } as const;
 const WEEKDAY_LABELS: Record<number, string> = { 1: '월', 2: '화', 3: '수', 4: '목', 5: '금' };
+const FACE_LABELS: Record<CardFace, string> = {
+  inspection: '점검',
+  patrol: '정기 순시',
+  liaison: '조직 방문·보고',
+  supply: '자재 수령',
+  survey: '미확인 구간 확인',
+};
 const SAVE_LABELS: Record<SaveStatus, string> = {
   loading: '세이브 확인 중',
   saving: '저장 중…',
@@ -54,6 +61,11 @@ function StatusLedger({ state }: { state: GameState }) {
           <dd>{state.world.npcs.protagonist.trust} / 7</dd>
         </div>
       </dl>
+      {state.world.multiday ? (
+        <div className="multiday-row" aria-label="일정 점유">
+          <span>승인 일정 진행 중 — 잔여 {state.world.multiday.daysLeft}일</span>
+        </div>
+      ) : null}
       <div className="menace-row" aria-label="위협 수치">
         <span>피로 <b>{menace.fatigue}</b></span>
         <span>주목 <b>{menace.scrutiny}</b></span>
@@ -78,8 +90,8 @@ function MorningDocument({ disabled, onAction }: Pick<GameViewProps, 'disabled' 
       <p className="eyebrow">MORNING BRIEF</p>
       <h2>업무 개시 보고</h2>
       <p className="document-copy">
-        야간 관측 기록을 취합했습니다. 세 구역의 지시서를 발부하면 오늘 처리할 두 건을 선택하십시오.
-        미처리 건은 해당 구역의 노후도에 반영됩니다.
+        야간 관측 기록을 취합했습니다. 담당 구역의 지시서를 발부하면 오늘 처리할 건을 선택하십시오.
+        미처리 건은 익일 재발부됩니다.
       </p>
       <button className="primary-action" disabled={disabled} onClick={() => onAction({ type: 'START_DAY' })}>
         오늘 업무 시작
@@ -102,10 +114,13 @@ function FieldDocuments({ state, disabled, onAction }: Pick<GameViewProps, 'stat
         {state.world.pendingOrders.map((order, orderIndex) => (
           <article className={`document order-card${order.resolved ? ' is-resolved' : ''}`} key={`${order.templateId}-${order.zone}`}>
             <header className="document-header">
-              <span>지시서 {String(orderIndex + 1).padStart(2, '0')}</span>
+              <span>{FACE_LABELS[order.face]} {String(orderIndex + 1).padStart(2, '0')}</span>
               <span>{ZONE_LABELS[order.zone]}</span>
             </header>
-            <p className="order-code">{order.templateId} · 난이도 보정 +{order.difficultyBonus}</p>
+            <p className="order-code">
+              {order.templateId} · 난이도 보정 +{order.difficultyBonus}
+              {order.reissueCount > 0 ? ` · 재발부 ${order.reissueCount}차` : ''}
+            </p>
             <h3>{order.title}</h3>
             <p className="document-copy">{selectVariant(state, order.body)}</p>
             <div className="choices">
@@ -154,7 +169,7 @@ function EventDocument({ state, content, disabled, onAction }: Pick<GameViewProp
             onClick={() => onAction({ type: 'CHOOSE_STORYLET', storyletId: storylet.id, choiceIndex })}
           >
             <span>{choice.label}</span>
-            <small>선택</small>
+            <small>{choice.startsMultiday ? `${choice.startsMultiday.days}일 일정` : '선택'}</small>
           </button>
         ))}
       </div>

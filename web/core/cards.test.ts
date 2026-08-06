@@ -12,6 +12,7 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
     self: {
       stats: { repair: 40, insight: 35, procedure: 30, nerve: 25 },
       skills: { inscription: 1, flowsense: 1 },
+      skillXp: { inscription: 0, flowsense: 0 },
       memory: 0,
       rank: 0,
     },
@@ -40,7 +41,8 @@ const AUTO_T: WorkOrderTemplate = {
   minDecay: 0,
   weight: 2,
   face: 'inspection',
-  title: '점검',
+  siteId: 'test-site',
+  title: [{ text: '점검' }],
   body: [{ text: '본문' }],
   options: [
     { label: '처리', check: { kind: 'auto' }, timeCost: 1, onSuccess: { effects: [], text: '처리 완료' } },
@@ -51,7 +53,8 @@ const CONTENT: ContentBundle = {
   bundleId: 'cards-test',
   encounters: [],
   version: '0',
-  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: '자재 수령' }],
+  zoneMaps: [],
+  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: [{ text: '자재 수령' }] }],
   storylets: [
     {
       id: 'EV-MD',
@@ -77,8 +80,9 @@ function card(templateId: string, resolved: boolean, outcome?: WorkOrder['outcom
     difficultyBonus: 0,
     weight: 2,
     face: 'inspection',
+    siteId: 'test-site',
     reissueCount: 0,
-    title: '점검',
+    title: [{ text: '점검' }],
     body: [{ text: '본문' }],
     options: [],
     resolved,
@@ -108,6 +112,14 @@ describe('방치 장부 — 미시 피드백의 근거 (v3 §2)', () => {
     expect(state.world.pendingOrders[0].reissueCount).toBe(1);
     expect(state.world.pendingOrders[0].difficultyBonus).toBe(1 + 4); // 방치 1 + decay 초과분 4
     expect(log.join(' ')).not.toContain('재발부');
+  });
+  it('START_DAY 로그는 건수만 말하고 제목을 나열하지 않는다 (UI 층위 §5)', () => {
+    const { state, log } = reduce(baseState(), { type: 'START_DAY' }, CONTENT);
+    expect(log).toEqual([`지시서 ${state.world.pendingOrders.length}건 발부.`]);
+    // 로그가 먼저 읽어 주면 카드를 열 이유가 준다 — v3 §4가 노린 지점이 무너진다
+    for (const order of state.world.pendingOrders) {
+      expect(log.join(' ')).not.toContain(order.title);
+    }
   });
 });
 
@@ -217,5 +229,22 @@ describe('RESOLVE_ENCOUNTER — 조우 결과 반입 (v3 §6)', () => {
         CONTENT,
       ),
     ).toThrow();
+  });
+});
+
+describe('SKIP_EVENT — 빈 저녁 (v3 §4 정정 이후)', () => {
+  it('조건 맞는 스토리렛이 없으면 event → closing', () => {
+    // CONTENT의 EV-MD는 requirements가 비어 항상 열린다 — 닫힌 버전으로 검사
+    const noEvening: ContentBundle = {
+      ...CONTENT,
+      storylets: [{ ...CONTENT.storylets[0], requirements: [{ path: 'world.calendar.day', gte: 99 }] }],
+    };
+    const { state, log } = reduce(baseState({ phase: 'event' }), { type: 'SKIP_EVENT' }, noEvening);
+    expect(state.world.phase).toBe('closing');
+    expect(log.join(' ')).toContain('아무도 없었다');
+  });
+
+  it('열린 스토리렛이 있으면 거부한다 — 관계 이벤트를 건너뛰는 문이 아니다', () => {
+    expect(() => reduce(baseState({ phase: 'event' }), { type: 'SKIP_EVENT' }, CONTENT)).toThrow(/건너뛸 수 없음/);
   });
 });

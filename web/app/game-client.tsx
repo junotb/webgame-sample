@@ -8,11 +8,14 @@ import {
   type EncounterState,
 } from '../core/encounter';
 import { reduce } from '../core/reducer';
-import type { Action, ContentBundle, EncounterActionId, EncounterDef, GameState } from '../core/schema';
+import type { Action, ContentBundle, EncounterActionId, EncounterDef, GameState, MenaceId } from '../core/schema';
 import { EncounterView } from './encounter-view';
 import { createInitialState } from './game-state';
-import { GameView, type SaveStatus } from './game-view';
+import { GameView } from './game-view';
+import { NoticeOverlay } from './notice-overlay';
 import { loadGame, saveGame } from './save';
+import { TitleScreen } from './title-screen';
+import type { SaveStatus } from './ui-labels';
 
 interface GameClientProps {
   content: ContentBundle;
@@ -31,6 +34,10 @@ export function GameClient({ content }: GameClientProps) {
   const [log, setLog] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('loading');
   const [ready, setReady] = useState(false);
+  /** L0 게이트 — 타이틀을 지나야 근무가 시작된다 (UI 층위 사양 §2) */
+  const [started, setStarted] = useState(false);
+  const [saved, setSaved] = useState<GameState | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const stateRef = useRef(state);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const saveVersion = useRef(0);
@@ -38,19 +45,16 @@ export function GameClient({ content }: GameClientProps) {
   useEffect(() => {
     let active = true;
     void loadGame()
-      .then((saved) => {
+      .then((restored) => {
         if (!active) return;
-        if (saved) {
-          stateRef.current = saved;
-          setState(saved);
-          setLog([`Day ${saved.world.calendar.day} 저장 기록을 복원했습니다.`]);
-        }
+        // 복원은 하되 화면은 넘기지 않는다 — 이어할지 새로 할지는 타이틀에서 고른다
+        setSaved(restored);
         setSaveStatus('saved');
         setReady(true);
       })
       .catch((error: unknown) => {
         if (!active) return;
-        setLog([error instanceof Error ? error.message : '세이브를 불러오지 못했습니다.']);
+        setLoadError(error instanceof Error ? error.message : '세이브를 불러오지 못했습니다.');
         setSaveStatus('error');
         setReady(true);
       });
@@ -78,7 +82,27 @@ export function GameClient({ content }: GameClientProps) {
       });
   }, []);
 
+  const onContinue = useCallback(() => {
+    if (!saved) return;
+    stateRef.current = saved;
+    setState(saved);
+    setLog([`Day ${saved.world.calendar.day} 저장 기록을 복원했습니다.`]);
+    setStarted(true);
+  }, [saved]);
+
+  const onNewGame = useCallback(() => {
+    const fresh = createInitialState();
+    stateRef.current = fresh;
+    setState(fresh);
+    setLog([]);
+    setStarted(true);
+    persist(fresh); // 기존 세이브를 즉시 덮는다 — 타이틀에서 이미 확인을 받았다
+  }, [persist]);
+
   const [encounter, setEncounter] = useState<EncounterSession | null>(null);
+
+  /** L4 대기열 — 동시에 둘이 상한에 닿을 수 있으므로 하나씩 확인시킨다 */
+  const [notices, setNotices] = useState<MenaceId[]>([]);
 
   const onAction = useCallback((action: Action) => {
     try {
@@ -86,6 +110,7 @@ export function GameClient({ content }: GameClientProps) {
       stateRef.current = result.state;
       setState(result.state);
       setLog(result.log);
+      if (result.notices?.length) setNotices((queue) => [...queue, ...result.notices!]);
       persist(result.state);
     } catch (error) {
       setLog([error instanceof Error ? error.message : '처리할 수 없는 요청입니다.']);
@@ -135,28 +160,47 @@ export function GameClient({ content }: GameClientProps) {
     });
   }, [onAction]);
 
+  if (!started) {
+    return (
+      <TitleScreen
+        saved={saved}
+        loading={!ready}
+        error={loadError}
+        onContinue={onContinue}
+        onNewGame={onNewGame}
+      />
+    );
+  }
+
   return (
-    <GameView
-      state={state}
-      content={content}
-      log={log}
-      saveStatus={saveStatus}
-      onAction={onAction}
-      onStartEncounter={onStartEncounter}
-      disabled={!ready}
-      overlay={
-        encounter ? (
-          <EncounterView
-            def={encounter.def}
-            encounter={encounter.state}
-            gameState={state}
-            log={encounter.log}
-            onEncounterAction={onEncounterAction}
-            onSubmit={onEncounterSubmit}
-            disabled={!ready}
-          />
-        ) : null
-      }
-    />
+    <>
+      <GameView
+        state={state}
+        content={content}
+        log={log}
+        saveStatus={saveStatus}
+        onAction={onAction}
+        onStartEncounter={onStartEncounter}
+        disabled={!ready}
+        overlay={
+          encounter ? (
+            <EncounterView
+              def={encounter.def}
+              encounter={encounter.state}
+              gameState={state}
+              log={encounter.log}
+              onEncounterAction={onEncounterAction}
+              onSubmit={onEncounterSubmit}
+              disabled={!ready}
+            />
+          ) : null
+        }
+      />
+      {/* L4 — 유일하게 L3 위에 뜬다. 드물기 때문에 겹쳐도 혼란이 없고,
+          겹쳐야 "끼어들었다"는 성격이 산다 (UI 층위 사양 §1) */}
+      {notices.length > 0 ? (
+        <NoticeOverlay menace={notices[0]} onDismiss={() => setNotices((queue) => queue.slice(1))} />
+      ) : null}
+    </>
   );
 }

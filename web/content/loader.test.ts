@@ -29,7 +29,8 @@ const minimalBundle = {
       minDecay: 0,
       weight: 1,
       face: 'inspection',
-      title: '지시서',
+      siteId: 'm-site',
+      title: [{ text: '지시서' }],
       body: [{ text: '본문' }],
       options: [
         {
@@ -42,6 +43,9 @@ const minimalBundle = {
     },
   ],
   storylets: [],
+  zoneMaps: [
+    { zone: 'd5', title: '시험 배치도', sites: [{ id: 'm-site', label: '시험 지점', x: 50, y: 50 }] },
+  ],
 };
 
 describe('loadContent — 매니페스트 경유 로딩', () => {

@@ -5,10 +5,40 @@
  */
 import { describe, expect, it } from 'vitest';
 import { generateCards } from '../core/generate';
-import type { TemplateEffect, WorkOption, WorkOrderTemplate } from '../core/schema';
+import type { GameState, TemplateEffect, WorkOption, WorkOrderTemplate } from '../core/schema';
 import { loadContent } from './loader';
 
 const [bundle] = loadContent();
+
+function stateAt(decay: number): GameState {
+  return {
+    account: { ownedEpisodes: ['ep1'] },
+    self: {
+      stats: { repair: 40, insight: 35, procedure: 30, nerve: 25 },
+      skills: { inscription: 1, flowsense: 1 },
+      skillXp: { inscription: 0, flowsense: 0 },
+      memory: 0,
+      rank: 0,
+    },
+    world: {
+      calendar: { day: 1, weekday: 1 },
+      assignment: { zone: 'd5' },
+      weekRatings: {},
+      cardNeglect: {},
+      multiday: null,
+      archive: [],
+      phase: 'morning',
+      zones: { d2: { decay: 3 }, d5: { decay }, d7: { decay: 5 } },
+      menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
+      npcs: { protagonist: { trust: 0 } },
+      flags: {},
+      shiftLeft: 2,
+      pendingOrders: [],
+      seed: 42,
+    },
+  };
+}
+
 
 function template(id: string): WorkOrderTemplate {
   const t = bundle.orderTemplates.find((t) => t.id === id);
@@ -36,13 +66,9 @@ describe('가중치 — minDecay가 깊을수록 무겁다 (v3 §3: 하루 4장 
     expect(template('WO-T4').weight).toBe(2);
     expect(template('WO-T5').weight).toBe(3);
   });
-  it('노후도 5에서 제시되는 4장의 가중치 합이 8이다', () => {
-    const world = {
-      assignment: { zone: 'd5' as const },
-      zones: { d2: { decay: 3 }, d5: { decay: 5 }, d7: { decay: 5 } },
-      cardNeglect: {},
-    };
-    const cards = generateCards(world, bundle.orderTemplates, () => 0);
+  it('노후도 5, day 1(서사 카드 등장 전)에서 제시 4장의 가중치 합이 8이다', () => {
+    // 서사 카드(WO-T6~T8)는 day 2+에 등장한다 — §3 강제값은 일상 덱 기준
+    const cards = generateCards(stateAt(5), bundle.orderTemplates, () => 0);
     expect(cards.reduce((s, c) => s + c.weight, 0)).toBe(8);
   });
 });
@@ -77,6 +103,20 @@ describe.each(['WO-T1', 'WO-T2', 'WO-T3', 'WO-T4'])('%s — v3 정산 규칙 정
   it('실패 분기가 있는 옵션은 피로 +2', () => {
     for (const opt of t.options) {
       if (opt.onFailure) expect(fatigueOnFailure(opt)).toBe(2);
+    }
+  });
+});
+
+describe('선택지 라벨 — 판정 메타와 중복 금지', () => {
+  const SKILL_STAT_NAMES = ['각인학', '감류학', '정비', '진단', '절차', '담력'];
+  it('라벨 끝의 괄호가 판정 기술·스탯명을 반복하지 않는다 (메타 줄이 이미 말한다)', () => {
+    const labels = [
+      ...bundle.orderTemplates.flatMap((t) => t.options.map((o) => o.label)),
+      ...bundle.encounters.flatMap((e) => Object.values(e.actions).map((a) => a.label)),
+    ];
+    for (const label of labels) {
+      const paren = label.match(/\(([^)]+)\)$/);
+      if (paren) expect(SKILL_STAT_NAMES).not.toContain(paren[1]);
     }
   });
 });

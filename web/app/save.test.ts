@@ -92,4 +92,23 @@ describe('IndexedDB save', () => {
     });
     await expect(loadGame(factory)).resolves.toBeNull();
   });
+
+  it('구 스키마 번호의 봉투 세이브도 버린다 — 스키마 4의 문자열 제목 사고 재발 방지', async () => {
+    // WorkOrder.title이 string → TextVariant[]로 바뀌었을 때 스키마를 안 올려서,
+    // pendingOrders에 문자열 제목이 남은 세이브가 복원돼 selectVariant에서 터졌다.
+    const factory = new MemoryIndexedDB() as unknown as IDBFactory;
+    const stale = createInitialState(1) as unknown as { world: { pendingOrders: unknown[] } };
+    stale.world.pendingOrders = [{ templateId: 'WO-T1', title: '문자열 제목' }];
+    await new Promise<void>((resolve) => {
+      const req = factory.open('still-here-tomorrow', 1);
+      req.onsuccess = () => {
+        const tx = req.result.transaction('game-state', 'readwrite');
+        tx.objectStore('game-state').put({ schema: 4, state: stale }, 'phase0');
+        tx.oncomplete = () => resolve();
+        queueMicrotask(() => tx.oncomplete?.({} as Event));
+      };
+      req.onupgradeneeded = () => req.result.createObjectStore('game-state');
+    });
+    await expect(loadGame(factory)).resolves.toBeNull();
+  });
 });

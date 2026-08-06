@@ -8,6 +8,7 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
     self: {
       stats: { repair: 40, insight: 35, procedure: 30, nerve: 25 },
       skills: { inscription: 1, flowsense: 1 },
+      skillXp: { inscription: 0, flowsense: 0 },
       memory: 0,
       rank: 0,
     },
@@ -38,7 +39,8 @@ const AUTO_T: WorkOrderTemplate = {
   minDecay: 0,
   weight: 2,
   face: 'inspection',
-  title: '점검',
+  siteId: 'test-site',
+  title: [{ text: '점검' }],
   body: [{ text: '본문' }],
   options: [
     {
@@ -57,7 +59,8 @@ const CONTENT: ContentBundle = {
   bundleId: 'test',
   encounters: [],
   version: '0',
-  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: '자재 수령' }],
+  zoneMaps: [],
+  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: [{ text: '자재 수령' }] }],
   storylets: [
     {
       id: 'EV-001',
@@ -98,8 +101,9 @@ function makeOrder(
     difficultyBonus: 0,
     weight,
     face: 'inspection',
+    siteId: 'test-site',
     reissueCount: 0,
-    title: '점검',
+    title: [{ text: '점검' }],
     body: [{ text: '본문' }],
     options: [],
     resolved,

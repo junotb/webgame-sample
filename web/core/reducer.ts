@@ -4,11 +4,15 @@
  * 트리아지 장치: shiftLeft(근무 시간 2)로 3건 중 2건만 처리 가능.
  */
 import { bandOf, RATING_LABELS, ratingOfBand, weekOf, WORKDAYS_PER_WEEK } from './calendar';
+import { evalConditions } from './conditions';
 import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
 import { generateCards } from './generate';
 import { resolveOption } from './resolve';
-import type { ArchiveEntry, Condition, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult, TextVariant } from './schema';
+import type { ArchiveEntry, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult } from './schema';
+
+// 조건 평가는 core/conditions로 옮겼다 (생성기와의 순환 참조 회피). 기존 import 경로는 유지한다.
+export { evalConditions, getValueAtPath, selectVariant } from './conditions';
 
 export const SHIFT_PER_DAY = 2;
 /** 다일 이벤트 점유 중의 근무 슬롯 (v3 §5) — 처리 1장/방치 3장, 노후도 급등의 근원 */
@@ -26,29 +30,6 @@ function clampDecay(value: number): number {
 export function altitude(zones: Record<ZoneId, { decay: number }>): number {
   const total = Object.values(zones).reduce((sum, d) => sum + d.decay, 0);
   return BASE_ALTITUDE - ALTITUDE_PER_DECAY * total;
-}
-
-/** 조건·변형 평가용 상태 경로 읽기. 없는 flag 등 미정의 숫자는 0. */
-export function getValueAtPath(state: GameState, path: string): number {
-  let node: unknown = state;
-  for (const seg of path.split('.')) {
-    if (typeof node !== 'object' || node === null) return 0;
-    node = (node as Record<string, unknown>)[seg];
-  }
-  return typeof node === 'number' ? node : 0;
-}
-
-export function evalConditions(state: GameState, conditions: Condition[]): boolean {
-  return conditions.every((c) => {
-    const v = getValueAtPath(state, c.path);
-    return (c.gte === undefined || v >= c.gte) && (c.lte === undefined || v <= c.lte);
-  });
-}
-
-/** 완곡어 변형 선택 — 첫 매치 우선, 조건 없는 변형이 기본값 (스키마 TextVariant 계약) */
-export function selectVariant(state: GameState, variants: TextVariant[]): string {
-  const match = variants.find((v) => !v.if || evalConditions(state, v.if));
-  return match?.text ?? '';
 }
 
 const MENACE_LABELS: Record<MenaceId, string> = { fatigue: '피로', scrutiny: '주목', unrest: '동요' };
@@ -78,20 +59,33 @@ export function growthNotes(prev: GameState, next: GameState): string[] {
   return notes;
 }
 
-/** 서류함 기록 — 중복 없이 뒤에 쌓는다 (본문은 렌더 시점에 콘텐츠에서 다시 뽑는다) */
+/**
+ * 서류함 기록 — 중복 없이 뒤에 쌓는다 (본문은 렌더 시점에 콘텐츠에서 다시 뽑는다).
+ * 동일성 판정에서 `day`는 뺀다: 같은 문서를 다른 날 다시 겪어도 항목은 하나이고,
+ * 남는 일차는 **처음 겪은 날**이다.
+ */
+function archiveKey(entry: ArchiveEntry): string {
+  if (entry.kind === 'order') return `order:${entry.templateId}:${entry.zone}`;
+  if (entry.kind === 'storylet') return `storylet:${entry.id}`;
+  return `encounter:${entry.id}:${entry.zone}`;
+}
+
 function archiveAdd(archive: ArchiveEntry[], entry: ArchiveEntry): void {
-  const key = JSON.stringify(entry);
-  if (!archive.some((e) => JSON.stringify(e) === key)) archive.push(entry);
+  const key = archiveKey(entry);
+  if (!archive.some((e) => archiveKey(e) === key)) archive.push(entry);
 }
 
 /**
- * 메나스 상한 경고 (스펙 4장) — 도달 시 텍스트 경고만, 강제 이동 콘텐츠 없음.
- * 이번 스텝에 새로 상한에 닿은 메나스만 경고한다 (이미 상한이면 침묵).
+ * 메나스 상한 도달 감지 (스펙 4장) — 강제 이동 콘텐츠는 없다.
+ * 이번 스텝에 **새로** 닿은 것만 돌려준다 (이미 상한이면 침묵).
+ *
+ * 예전에는 여기서 `⚠ 주목이 한계에 달했다` 같은 로그 한 줄을 만들어 흘려보냈다.
+ * 그래서 존재감이 없었고, 정작 "경고"라는 이름은 사무소 장면이 달고 있었다.
+ * 이제 무엇이 닿았는지만 알리고 통지의 서식은 UI가 쓴다 (UI 층위 사양 §6).
  */
-export function menaceWarnings(prev: GameState, next: GameState): string[] {
+export function cappedMenaces(prev: GameState, next: GameState): MenaceId[] {
   return (Object.keys(MENACE_LABELS) as MenaceId[])
-    .filter((m) => prev.world.menace[m] < MENACE_CAP && next.world.menace[m] >= MENACE_CAP)
-    .map((m) => `⚠ ${MENACE_LABELS[m]}이(가) 한계에 달했다 (${MENACE_CAP}/${MENACE_CAP}).`);
+    .filter((m) => prev.world.menace[m] < MENACE_CAP && next.world.menace[m] >= MENACE_CAP);
 }
 
 function advanceSeed(rng: () => number): number {
@@ -109,13 +103,16 @@ export const reduce: Reducer = (state, action, content): StepResult => {
     case 'START_DAY': {
       assertPhase(state, 'morning', 'START_DAY');
       const rng = mulberry32(state.world.seed);
-      const orders = generateCards(state.world, content.orderTemplates, rng);
+      const orders = generateCards(state, content.orderTemplates, rng);
       const next = structuredClone(state);
       next.world.pendingOrders = orders;
       next.world.phase = 'field';
       next.world.seed = advanceSeed(rng);
-      for (const o of orders) archiveAdd(next.world.archive, { kind: 'order', templateId: o.templateId, zone: o.zone });
-      const log = [`지시서 ${orders.length}건 발부.`, ...orders.map((o) => `— ${o.title}`)];
+      const today = next.world.calendar.day;
+      for (const o of orders) archiveAdd(next.world.archive, { kind: 'order', day: today, templateId: o.templateId, zone: o.zone });
+      // 제목을 나열하지 않는다 (UI 층위 사양 §5): 로그가 먼저 읽어 주면 무대를 열 이유가 준다.
+      // 무엇이 왔는지는 지시서를 열어서 안다 — v3 §4가 카드 이중 구조로 노린 그 지점이다.
+      const log = [`지시서 ${orders.length}건 발부.`];
       // 다일 이벤트 점유 (v3 §5): 오늘 하루를 소모하고 근무 슬롯이 줄어든다
       if (next.world.multiday) {
         next.world.multiday.daysLeft -= 1;
@@ -148,8 +145,8 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.seed = advanceSeed(rng);
       const log = [result.success ? '처리 완료.' : '처리 실패.'];
       if (result.text) log.push(result.text);
-      log.push(...growthNotes(state, next), ...menaceWarnings(state, next));
-      return { state: next, log };
+      log.push(...growthNotes(state, next));
+      return { state: next, log, notices: cappedMenaces(state, next) };
     }
 
     case 'RESOLVE_ENCOUNTER': {
@@ -169,10 +166,10 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.pendingOrders[action.orderIndex].outcome = success ? 'success' : 'failure';
       next.world.shiftLeft -= entry.timeCost;
       if (next.world.shiftLeft <= 0) next.world.phase = 'event';
-      archiveAdd(next.world.archive, { kind: 'encounter', id: entry.startsEncounter!, zone: order.zone });
+      archiveAdd(next.world.archive, { kind: 'encounter', day: next.world.calendar.day, id: entry.startsEncounter!, zone: order.zone });
       const log = [action.text, '보고서 제출: 설비 이상 점검 완료.'];
-      log.push(...growthNotes(state, next), ...menaceWarnings(state, next));
-      return { state: next, log };
+      log.push(...growthNotes(state, next));
+      return { state: next, log, notices: cappedMenaces(state, next) };
     }
 
     case 'SKIP_TO_EVENT': {
@@ -181,6 +178,17 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.shiftLeft = 0;
       next.world.phase = 'event';
       return { state: next, log: ['남은 근무 시간을 접고 사무소로 돌아간다.'] };
+    }
+
+    case 'SKIP_EVENT': {
+      assertPhase(state, 'event', 'SKIP_EVENT');
+      const open = content.storylets.find((s) => evalConditions(state, s.requirements));
+      if (open) {
+        throw new Error(`저녁 장면이 남아 있어 건너뛸 수 없음: ${open.id}`);
+      }
+      const next = structuredClone(state);
+      next.world.phase = 'closing';
+      return { state: next, log: ['사무소에는 아무도 없었다. 불을 끄고 정산 서류를 꺼낸다.'] };
     }
 
     case 'CHOOSE_STORYLET': {
@@ -204,12 +212,12 @@ export const reduce: Reducer = (state, action, content): StepResult => {
         next.world.multiday = { id: choice.startsMultiday.id, daysLeft: choice.startsMultiday.days };
         next.world.flags[`md_${choice.startsMultiday.id}_started`] = 1;
       }
-      archiveAdd(next.world.archive, { kind: 'storylet', id: storylet.id });
+      archiveAdd(next.world.archive, { kind: 'storylet', day: next.world.calendar.day, id: storylet.id });
       next.world.phase = 'closing';
       next.world.seed = advanceSeed(rng);
       const log = branch?.text ? [branch.text] : [];
-      log.push(...growthNotes(state, next), ...menaceWarnings(state, next));
-      return { state: next, log };
+      log.push(...growthNotes(state, next));
+      return { state: next, log, notices: cappedMenaces(state, next) };
     }
 
     case 'CLOSE_DAY': {

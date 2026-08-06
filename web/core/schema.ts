@@ -23,7 +23,10 @@ export interface AccountSheet {
 
 export interface CharacterSheet {
   stats: Record<StatId, number>;    // 0~100
-  skills: Record<SkillId, number>;  // 0~7
+  /** 기술 등급 0~7 — **파생 캐시.** skillXp에서 승격되며 직접 쓰는 효과 경로는 없다 */
+  skills: Record<SkillId, number>;
+  /** 기술 경험치 — 원본. 비가역 (core/skills.ts). 콘텐츠 효과는 여기에만 쓴다 */
+  skillXp: Record<SkillId, number>;
   memory: number;                   // 기억 0~7, 비가역 (감소 이펙트 금지 — 빌드 검증 대상)
   rank: number;                     // 직위 (슬라이스: 0 고정)
 }
@@ -31,11 +34,16 @@ export interface CharacterSheet {
 /** 주간 평가 등급 (v3 §2) — 금요일 종료 시점의 배치 구역 밴드가 곧 등급 */
 export type WeeklyRating = 'perfect' | 'good' | 'concern' | 'warning';
 
-/** 재열람 항목 — 구역 바인딩이 필요한 문서는 구역을 함께 기억한다 */
+/**
+ * 재열람 항목 — 구역 바인딩이 필요한 문서는 구역을 함께 기억한다.
+ * `day`는 **처음 겪은 일차**다. 같은 문서가 재발부되어도 항목은 늘지 않으므로
+ * (v3 §7 "중복도 없다") 나중 일차로 덮어쓰지 않는다.
+ * 일차는 상태값이지 렌더된 문장이 아니라서 "렌더 문장 미저장" 제약에 걸리지 않는다.
+ */
 export type ArchiveEntry =
-  | { kind: 'order'; templateId: string; zone: ZoneId }
-  | { kind: 'storylet'; id: string }
-  | { kind: 'encounter'; id: string; zone: ZoneId };
+  | { kind: 'order'; day: number; templateId: string; zone: ZoneId }
+  | { kind: 'storylet'; day: number; id: string }
+  | { kind: 'encounter'; day: number; id: string; zone: ZoneId };
 
 export interface WorldSheet {
   calendar: {
@@ -85,7 +93,7 @@ export type Check =
 // ─────────────────────────────────────────────
 export type EffectPath =
   | `self.stats.${StatId}`
-  | `self.skills.${SkillId}`
+  | `self.skillXp.${SkillId}`   // 등급(self.skills.*)에 직접 쓰는 경로는 없다 — 승격은 적용기의 몫
   | 'self.memory'
   | `world.zones.${ZoneId}.decay`
   | `world.menace.${MenaceId}`
@@ -123,7 +131,8 @@ export interface TemplateEffect {
  * 스토리렛에서의 사용은 빌드 검증이 거부한다.
  */
 export interface Condition {
-  path: EffectPath | 'world.calendar.day' | 'world.zones.{zone}.decay';
+  /** 조건은 등급(`self.skills.*`)을 읽을 수 있다 — 쓰기만 경험치 경유다 */
+  path: EffectPath | `self.skills.${SkillId}` | 'world.calendar.day' | 'world.zones.{zone}.decay';
   gte?: number;
   lte?: number;
 }
@@ -148,12 +157,50 @@ export type CardFace =
   | 'supply'       // 자재 수령
   | 'survey';      // 미확인 구간 확인
 
+/**
+ * 구역 도면의 한 지점 (UI 층위 사양 §7) — 지도 마커가 놓이는 자리.
+ * 좌표를 지시서 템플릿에 직접 박으면 도면이 바뀔 때 템플릿이 전부 깨진다.
+ * 도면이 지점 목록을 소유하고, 템플릿은 `siteId`만 참조한다.
+ */
+export interface ZoneSite {
+  id: string;      // 'd5-w7'
+  label: string;   // '7호 지선 하부' — 표면 층이므로 조직의 언어
+  x: number;       // 0~100 (도면 상대 좌표)
+  y: number;
+}
+
+export interface ZoneMap {
+  zone: ZoneId;
+  title: string;   // '제5구역 · 시설 배치도'
+  sites: ZoneSite[];
+}
+
 export interface WorkOrderTemplate {
   id: string;                       // 'WO-T1' ...
   minDecay: number;                 // 이 노후도 이상 구역에서 생성됨
   weight: number;                   // 1~3 — CLOSE_DAY 노후도 정산 폭 (v3 §3, 빌드 검증 대상)
   face: CardFace;                   // 카드 얼굴 (표면 층)
-  title: string;                    // 공식 완곡어 제목
+  siteId: string;                   // ZoneSite.id — 배치 구역 도면에서 이 지점에 놓인다
+  /**
+   * 서사 전제 (v3 §4 정정) — minDecay 외의 등장 조건.
+   * 도시의 비밀은 저녁 장면이 아니라 **일과 중에 고른 카드**에서 알게 되므로,
+   * 진실의 뼈대를 이루는 카드는 플래그·기억·일차로 걸린다.
+   * 1회성은 별도 필드 없이 "성공 시 플래그 세팅 + 여기서 그 플래그 배제"로 닫는다.
+   */
+  requirements?: Condition[];
+  /**
+   * 진실의 뼈대인가 (v3 §5). 표면에 드러나지 않는 **내부** 표시다 —
+   * 렌더링되지 않으므로 "표면은 실제를 예고하지 않는다"에 걸리지 않는다.
+   * 등장 우선순위에만 쓴다: 조건이 맞는 날 방치 정렬에 밀려 사라지면 진실이 멈춘다.
+   */
+  thread?: boolean;
+  /**
+   * 공식 완곡어 제목 — **단서가 실리는 자리**다 (v3 §4 「단서」).
+   * 조건 없는 변형 하나면 단서 '없음'(문구 자체가 튄다),
+   * `self.memory` 조건이면 기억 축, `self.skills.*` 조건이면 기술 축.
+   * 카드 하나는 한 축만 쓴다 — §7의 조합 폭발 방지 원칙.
+   */
+  title: TextVariant[];
   body: TextVariant[];              // 완곡어 시스템 적용 지점
   options: WorkOption[];
 }
@@ -189,13 +236,16 @@ export interface BoundWorkOption {
 export interface WorkOrder {
   templateId: string;
   zone: ZoneId;
+  /** 템플릿에서 복사 — 지도는 이 값만 보고 마커를 놓는다 (템플릿 재조회 없음) */
+  siteId: string;
   /** 난이도 보정: 구역 노후도의 minDecay 초과분 (방치의 대가, 튜닝 대상) */
   difficultyBonus: number;
   weight: number;                   // 템플릿에서 복사 — 정산은 리듀서가 이 값만 본다
   face: CardFace;
   /** 재발부 차수 = 생성 시점의 방치 누적. 0이면 신규 발부 */
   reissueCount: number;
-  title: string;
+  /** 변형 선택은 렌더 시점 — 단서가 지금의 기억·기술로 다시 판정된다 (v3 §7) */
+  title: TextVariant[];
   body: TextVariant[];              // 변형 선택은 렌더 시점 (완곡어 시스템)
   options: BoundWorkOption[];
   resolved: boolean;
@@ -260,6 +310,8 @@ export interface ContentBundle {
   orderTemplates: WorkOrderTemplate[];
   storylets: Storylet[];
   encounters: EncounterDef[];
+  /** 구역 도면 (UI 층위 사양 §7) — 배치 구역의 지도가 여기서 온다 */
+  zoneMaps: ZoneMap[];
 }
 
 // ─────────────────────────────────────────────
@@ -271,6 +323,11 @@ export type Action =
   | { type: 'SKIP_TO_EVENT' }
   | { type: 'CHOOSE_STORYLET'; storyletId: string; choiceIndex: number }
   /**
+   * 저녁에 아무도 없을 때만 (v3 §4 정정 이후 서사가 카드로 가면서 생긴 빈 저녁).
+   * 조건 맞는 스토리렛이 있으면 거부한다 — 관계 이벤트를 건너뛰는 문이 되면 안 된다.
+   */
+  | { type: 'SKIP_EVENT' }
+  /**
    * 조우 종료 결과 반입 (v3 §6) — 조우 리듀서가 만든 완성된 효과만 받는다.
    * burned/soothed는 카드 처리 성공, withdrawn/expired는 처리 실패로 정산된다.
    */
@@ -280,6 +337,12 @@ export type Action =
 export interface StepResult {
   state: GameState;
   log: string[];                    // 이번 스텝의 서술 텍스트 (UI가 그대로 출력)
+  /**
+   * 이번 스텝에 새로 상한에 닿은 메나스 (UI 층위 사양 §6).
+   * 리듀서는 "무엇이 닿았는가"만 알리고 문안은 UI가 쓴다 — 통지의 서식은
+   * 메나스마다 다르고(주목·피로는 본부 공문, 동요는 아님) 그 판단은 코어의 몫이 아니다.
+   */
+  notices?: MenaceId[];
 }
 
 export type Reducer = (state: GameState, action: Action, content: ContentBundle) => StepResult;

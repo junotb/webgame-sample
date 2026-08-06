@@ -22,7 +22,8 @@ function isValidEffectPath(path: string): boolean {
   if (segs[0] === 'self') {
     if (segs.length === 2) return segs[1] === 'memory';
     if (segs.length === 3 && segs[1] === 'stats') return STAT_IDS.includes(segs[2]);
-    if (segs.length === 3 && segs[1] === 'skills') return SKILL_IDS.includes(segs[2]);
+    // 등급(self.skills.*)은 효과 대상이 아니다 — 쓰기는 경험치(skillXp) 경유 (core/skills.ts)
+    if (segs.length === 3 && segs[1] === 'skillXp') return SKILL_IDS.includes(segs[2]);
     return false;
   }
   if (segs[0] === 'world') {
@@ -59,6 +60,9 @@ function checkEffect(effect: TemplateEffect, allowZonePlaceholder: boolean, wher
   if (path === 'self.memory' && (op === 'set' || (op === 'add' && value < 0))) {
     errors.push(`${where}: 기억(self.memory)은 비가역 — 감소 가능 효과(${op} ${value}) 거부`);
   }
+  if (path.startsWith('self.skillXp.') && (op === 'set' || (op === 'add' && value < 0))) {
+    errors.push(`${where}: 경험치(${path})는 비가역 — 감소 가능 효과(${op} ${value}) 거부`);
+  }
 }
 
 function checkCheck(check: Check, where: string, errors: string[]): void {
@@ -78,7 +82,9 @@ function checkConditions(conditions: Condition[], where: string, errors: string[
       continue;
     }
     const concrete = cond.path.replaceAll('{zone}', ZONE_IDS[0]);
-    if (concrete !== 'world.calendar.day' && !isValidEffectPath(concrete)) {
+    const segs = concrete.split('.');
+    const isSkillLevel = segs.length === 3 && segs[0] === 'self' && segs[1] === 'skills' && SKILL_IDS.includes(segs[2]);
+    if (concrete !== 'world.calendar.day' && !isSkillLevel && !isValidEffectPath(concrete)) {
       errors.push(`${where}: 스키마에 없는 조건 경로 '${cond.path}'`);
     }
     if (cond.gte === undefined && cond.lte === undefined) {
@@ -104,6 +110,51 @@ function checkVariants(body: TextVariant[], where: string, errors: string[], all
   const last = body[body.length - 1];
   if (last.if && last.if.length > 0) {
     errors.push(`${where}: 무조건 기본 변형이 없음 — 모든 조건 불일치 시 본문이 사라진다`);
+  }
+}
+
+/**
+ * 구역 도면 (UI 층위 사양 §7).
+ *
+ * 핵심 규칙: **모든 지시서 템플릿의 siteId가 모든 도면에 존재해야 한다.**
+ * 템플릿은 배치 구역에 따라 어느 도면에든 바인딩될 수 있으므로, 도면 하나라도
+ * 지점이 빠지면 그 구역에 배치되는 순간 마커 없는 지시서가 생긴다.
+ * 나중에 d2/d7 도면을 추가할 때 조용히 비는 대신 검증에서 터진다.
+ */
+function checkZoneMaps(bundle: ContentBundle, errors: string[]): void {
+  const maps = bundle.zoneMaps ?? [];
+  if (maps.length === 0) {
+    errors.push('구역 도면이 하나도 없음 — 배치 구역의 지도를 그릴 수 없다');
+    return;
+  }
+
+  const seenZones = new Set<string>();
+  for (const map of maps) {
+    const where = `구역 도면 ${map.zone}`;
+    if (!ZONE_IDS.includes(map.zone)) errors.push(`${where}: 알 수 없는 구역 id`);
+    if (seenZones.has(map.zone)) errors.push(`중복 구역 도면: ${map.zone}`);
+    seenZones.add(map.zone);
+    if (!map.title) errors.push(`${where}: title이 비어 있음`);
+
+    const seenSites = new Set<string>();
+    for (const site of map.sites) {
+      const siteWhere = `${where} 지점 ${site.id}`;
+      if (!site.id) errors.push(`${where}: 지점 id가 비어 있음`);
+      if (seenSites.has(site.id)) errors.push(`${where}: 중복 지점 id '${site.id}'`);
+      seenSites.add(site.id);
+      if (!site.label) errors.push(`${siteWhere}: label이 비어 있음 — 지점명은 표면 층이다`);
+      for (const [axis, value] of [['x', site.x], ['y', site.y]] as const) {
+        if (typeof value !== 'number' || Number.isNaN(value) || value < 0 || value > 100) {
+          errors.push(`${siteWhere}: ${axis}는 0~100이어야 함 (현재: ${value})`);
+        }
+      }
+    }
+
+    for (const t of bundle.orderTemplates) {
+      if (!seenSites.has(t.siteId)) {
+        errors.push(`${where}: 지시서 템플릿 ${t.id}의 지점 '${t.siteId}'이(가) 이 도면에 없음`);
+      }
+    }
   }
 }
 
@@ -155,6 +206,23 @@ export function validateBundle(bundle: ContentBundle): string[] {
     if (!CARD_FACES.includes(t.face)) {
       errors.push(`${where}: 알 수 없는 카드 얼굴 '${t.face}' — 표면 층은 조직의 언어만 허용 (${CARD_FACES.join('/')})`);
     }
+    if (!t.siteId) errors.push(`${where}: siteId가 비어 있음 — 지도에 놓일 자리가 없다`);
+
+    // 서사 전제 (v3 §4 정정) — 생성 시점(구역 바인딩 전)에 평가되므로 {zone} 불가
+    if (t.requirements) checkConditions(t.requirements, `${where} requirements`, errors);
+
+    // 제목 = 단서가 실리는 자리. 본문과 같은 변형 계약을 따른다
+    checkVariants(t.title, `${where} 제목`, errors, true);
+    // 단서는 한 축만 (v3 §4·§7): 제목 변형 조건에 기억과 기술을 섞지 않는다
+    const clueAxes = new Set(
+      (t.title ?? [])
+        .flatMap((v) => v.if ?? [])
+        .map((c) => (c.path === 'self.memory' ? 'memory' : c.path.startsWith('self.skills.') ? 'skill' : 'other')),
+    );
+    clueAxes.delete('other');
+    if (clueAxes.size > 1) {
+      errors.push(`${where}: 제목 단서에 기억·기술 축이 섞임 — 카드 하나는 한 축만 쓴다 (v3 §4)`);
+    }
 
     checkVariants(t.body, where, errors, true);
     t.options.forEach((opt, i) => {
@@ -190,6 +258,8 @@ export function validateBundle(bundle: ContentBundle): string[] {
       c.onFailure?.effects.forEach((e) => checkEffect(e, false, `${choiceWhere} onFailure`, errors));
     });
   }
+
+  checkZoneMaps(bundle, errors);
 
   return errors;
 }

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { SKILL_XP_MAX, XP_PER_LEVEL } from './skills';
 import { applyEffect, applyEffects } from './effects';
 import type { GameState } from './schema';
 
@@ -8,6 +9,7 @@ function baseState(): GameState {
     self: {
       stats: { repair: 40, insight: 35, procedure: 30, nerve: 25 },
       skills: { inscription: 1, flowsense: 1 },
+      skillXp: { inscription: 0, flowsense: 0 },
       memory: 2,
       rank: 0,
     },
@@ -59,14 +61,33 @@ describe('applyEffect — 범위 클램프 (스키마 주석 범위)', () => {
       applyEffect(baseState(), { path: 'world.zones.d2.decay', op: 'add', value: 99 }).world.zones.d2.decay,
     ).toBe(10);
   });
-  it('menace는 0~8, stats는 0~100, skills·memory·trust는 0~7', () => {
+  it('menace는 0~8, stats는 0~100, memory·trust는 0~7', () => {
     expect(applyEffect(baseState(), { path: 'world.menace.fatigue', op: 'add', value: 99 }).world.menace.fatigue).toBe(8);
     expect(applyEffect(baseState(), { path: 'self.stats.repair', op: 'add', value: 999 }).self.stats.repair).toBe(100);
-    expect(applyEffect(baseState(), { path: 'self.skills.inscription', op: 'set', value: 9 }).self.skills.inscription).toBe(7);
     expect(applyEffect(baseState(), { path: 'self.memory', op: 'add', value: 99 }).self.memory).toBe(7);
     expect(
       applyEffect(baseState(), { path: 'world.npcs.protagonist.trust', op: 'add', value: 9 }).world.npcs.protagonist.trust,
     ).toBe(7);
+  });
+});
+
+describe('applyEffect — 기술 경험치 (경험치가 원본, 등급은 파생)', () => {
+  it('경험치가 등급 임계를 넘으면 등급이 승격된다', () => {
+    const next = applyEffect(baseState(), { path: 'self.skillXp.flowsense', op: 'add', value: XP_PER_LEVEL });
+    expect(next.self.skillXp.flowsense).toBe(XP_PER_LEVEL);
+    expect(next.self.skills.flowsense).toBe(2);
+  });
+  it('임계 미만이면 등급은 그대로', () => {
+    const next = applyEffect(baseState(), { path: 'self.skillXp.inscription', op: 'add', value: 3 });
+    expect(next.self.skills.inscription).toBe(1);
+  });
+  it('경험치는 상한에서 클램프되고 등급은 7을 넘지 않는다', () => {
+    const next = applyEffect(baseState(), { path: 'self.skillXp.inscription', op: 'add', value: 9999 });
+    expect(next.self.skillXp.inscription).toBe(SKILL_XP_MAX);
+    expect(next.self.skills.inscription).toBe(7);
+  });
+  it('경험치 감소는 throw — 경험은 비가역', () => {
+    expect(() => applyEffect(baseState(), { path: 'self.skillXp.flowsense', op: 'add', value: -1 })).toThrow(/비가역/);
   });
 });
 

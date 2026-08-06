@@ -1,6 +1,8 @@
 import type { GameState } from '../core/schema';
 
-const DATABASE_NAME = 'shattered-realm';
+// 구 프로젝트명('shattered-realm') 잔재였다. 스키마 4로 어차피 기존 세이브가
+// 버려지는 김에 정리한다 — 이 이름으로는 남은 DB를 알아볼 수 없다.
+const DATABASE_NAME = 'still-here-tomorrow';
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'game-state';
 const SAVE_KEY = 'phase0';
@@ -8,8 +10,15 @@ const SAVE_KEY = 'phase0';
 /**
  * 세이브 스키마 버전 — GameState 구조가 바뀔 때마다 올린다.
  * 불일치 세이브는 복원하지 않고 버린다 (Phase 0: 마이그레이션 없이 새 게임).
+ *
+ * 4: ArchiveEntry에 `day` 추가 (서류함 일기화).
+ * 5: WorkOrder.title이 string → TextVariant[] (v3 §4 단서 축).
+ *    pendingOrders가 세이브에 들어가므로 구 세이브의 문자열 제목이
+ *    selectVariant에 도달해 터졌다 — 스키마를 올려 새 게임으로 보낸다.
+ *    v3 §8 제약 재확인: title 변형 목록은 조건+원문이지 렌더된 문장이 아니다.
+ * 6: CharacterSheet.skillXp 추가 (기술 경험치 — open-questions B 결정).
  */
-export const SAVE_SCHEMA = 3;
+export const SAVE_SCHEMA = 6;
 
 interface SaveEnvelope {
   schema: number;

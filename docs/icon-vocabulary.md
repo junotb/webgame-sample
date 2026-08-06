@@ -20,13 +20,28 @@
 
 ## 등록부
 
-### 지도 마커
+### 지도 마커 = 표면 분류 5종
 
-| 의미 ID | 용도 | 파일 | 검색 키워드 후보 | 작가 |
-|---|---|---|---|---|
-| `marker-main` | 메인 (손제작 스토리렛 EV) | (미정) | star, waypoint, exclamation | |
-| `marker-sub` | 서브 (작업 지시서 WO) | (미정) | gear, wrench, hammer | |
-| `marker-daily` | 일상 (구역 배경 이벤트) | (미정) | chat, coffee, town-sign | |
+어휘 크기는 **표면 분류(`CardFace`) 5개와 일대일**이고, 대응 대상은 분류 **필드**이지
+얼굴 문구가 아니다 (CLAUDE.md 아이콘 규칙, v3 §4).
+
+> 이전 판은 `marker-main` / `marker-sub` / `marker-daily`라는 **메인·서브·일상** 체계였다.
+> 그것은 실제 층(무엇이 벌어지는가)의 분류라 표면 층에 둘 수 없고, 규칙이 확정되기 전의
+> 잔재였다. 2026-08-06 교체.
+
+| 의미 ID | 대응 `CardFace` | 용도 | 파일 | 검색 키워드 후보 | 작가 |
+|---|---|---|---|---|---|
+| `face-inspection` | `inspection` | 점검 | (절차적 폴백) | magnifying-glass, check-mark, inspection | |
+| `face-patrol` | `patrol` | 순찰 | (절차적 폴백) | footprints, cycle, route | |
+| `face-liaison` | `liaison` | 보고 | (절차적 폴백) | scroll, document, stamp | |
+| `face-supply` | `supply` | 자재 | (절차적 폴백) | crate, box, cube | |
+| `face-survey` | `survey` | 탐사 | (절차적 폴백) | compass, waypoint, survey-marker | |
+
+- 코드 매핑은 `web/app/face-icons.tsx`의 `FACE_ICON_IDS` (전수 매핑 — 분류가 늘면 타입이 막는다)
+- **마커는 상태에 반응해 변하지 않는다.** 노후도가 오르든 재발부든 같은 그림이다.
+  처리 완료 표식만이 유일한 상태 표현이며 그것은 아이콘이 아니라 겹쳐지는 도장이다
+- 파일은 미정이고 현재는 절차적 SVG 폴백이다. game-icons.net 임포트는 별도 라인 —
+  확정 시 `face-icons.tsx`만 교체하면 되고 참조하는 쪽은 무변경이다
 
 ### 메나스
 

@@ -150,6 +150,12 @@ export interface WorkOption {
   label: string;
   check: Check;
   timeCost: number;                 // 근무 시간 소모 (슬라이스: 1)
+  /**
+   * 조우 진입 (v3 §6) — 이 옵션은 판정 대신 격리된 조우 리듀서로 넘어간다.
+   * 표면은 실제를 예고하지 않으므로 라벨은 반드시 조직의 언어여야 한다.
+   * check/onSuccess는 무시된다 (진입 자체는 판정 없음).
+   */
+  startsEncounter?: string;         // EncounterDef.id
   onSuccess: { effects: TemplateEffect[]; text: string };
   onFailure?: { effects: TemplateEffect[]; text: string };
 }
@@ -159,6 +165,7 @@ export interface BoundWorkOption {
   label: string;
   check: Check;                     // difficultyBonus 가산 완료
   timeCost: number;
+  startsEncounter?: string;
   onSuccess: { effects: Effect[]; text: string };
   onFailure?: { effects: Effect[]; text: string };
 }
@@ -207,6 +214,32 @@ export interface StoryletChoice {
 }
 
 // ─────────────────────────────────────────────
+// 조우 — 설비 이상 (v3 §6)
+// 조우 상태는 GameState에 저장되지 않는다. 격리된 리듀서(core/encounter.ts)의
+// 로컬 상태이며, 종료 시 outcome별 효과만 하루 루프로 돌아온다.
+// ─────────────────────────────────────────────
+export type EncounterActionId = 'observe' | 'soothe' | 'burn' | 'withdraw';
+export type EncounterOutcome = 'burned' | 'soothed' | 'withdrawn' | 'expired';
+
+export interface EncounterDef {
+  id: string;                       // 'ENC-001' ...
+  /** 고장 신고서 양식 제목 — 문서상 이것은 생물이 아니다 */
+  title: string;
+  maxTurns: number;                 // 3~5 (빌드 검증)
+  /** soothe 성공 누적이 이 값에 닿으면 잠든다 (1~3) */
+  calmToSleep: number;
+  intro: TextVariant[];
+  actions: Record<EncounterActionId, {
+    label: string;
+    check: Check;                   // withdraw는 auto
+    successText: string;
+    failureText?: string;
+  }>;
+  /** outcome 효과는 기존 자원만 (피로·동요·기억·플래그·노후도). {zone} 허용 */
+  outcomes: Record<EncounterOutcome, { effects: TemplateEffect[]; text: string }>;
+}
+
+// ─────────────────────────────────────────────
 // 콘텐츠 번들 (D4: 코드가 콘텐츠를 직접 import하지 않는다)
 // ─────────────────────────────────────────────
 export interface ContentBundle {
@@ -214,6 +247,7 @@ export interface ContentBundle {
   version: string;
   orderTemplates: WorkOrderTemplate[];
   storylets: Storylet[];
+  encounters: EncounterDef[];
 }
 
 // ─────────────────────────────────────────────
@@ -224,6 +258,11 @@ export type Action =
   | { type: 'RESOLVE_ORDER'; orderIndex: number; optionIndex: number }
   | { type: 'SKIP_TO_EVENT' }
   | { type: 'CHOOSE_STORYLET'; storyletId: string; choiceIndex: number }
+  /**
+   * 조우 종료 결과 반입 (v3 §6) — 조우 리듀서가 만든 완성된 효과만 받는다.
+   * burned/soothed는 카드 처리 성공, withdrawn/expired는 처리 실패로 정산된다.
+   */
+  | { type: 'RESOLVE_ENCOUNTER'; orderIndex: number; outcome: EncounterOutcome; effects: Effect[]; text: string }
   | { type: 'CLOSE_DAY' };
 
 export interface StepResult {

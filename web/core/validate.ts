@@ -13,6 +13,8 @@ const SKILL_IDS = ['inscription', 'flowsense'];
 const MENACE_IDS = ['fatigue', 'scrutiny', 'unrest'];
 const CARD_FACES = ['inspection', 'patrol', 'liaison', 'supply', 'survey'];
 const MULTIDAY_MAX_DAYS = 3;
+const ENCOUNTER_ACTIONS = ['observe', 'soothe', 'burn', 'withdraw'];
+const ENCOUNTER_OUTCOMES = ['burned', 'soothed', 'withdrawn', 'expired'];
 
 /** 스키마의 EffectPath와 1:1 — 스키마 타입이 바뀌면 여기도 갱신해야 한다 */
 function isValidEffectPath(path: string): boolean {
@@ -110,6 +112,37 @@ export function validateBundle(bundle: ContentBundle): string[] {
 
   if (!bundle.bundleId) errors.push('bundleId가 비어 있음');
 
+  const encounterIds = new Set<string>();
+  for (const e of bundle.encounters) {
+    const where = `조우 ${e.id}`;
+    if (encounterIds.has(e.id)) errors.push(`중복 조우 id: ${e.id}`);
+    encounterIds.add(e.id);
+
+    if (!Number.isInteger(e.maxTurns) || e.maxTurns < 3 || e.maxTurns > 5) {
+      errors.push(`${where}: maxTurns는 3~5 정수여야 함 (현재: ${e.maxTurns})`);
+    }
+    if (!Number.isInteger(e.calmToSleep) || e.calmToSleep < 1 || e.calmToSleep > 3) {
+      errors.push(`${where}: calmToSleep은 1~3 정수여야 함 (현재: ${e.calmToSleep})`);
+    }
+    checkVariants(e.intro, `${where} intro`, errors, true);
+    for (const actionId of ENCOUNTER_ACTIONS) {
+      const action = e.actions?.[actionId as keyof typeof e.actions];
+      if (!action) {
+        errors.push(`${where}: 행동 '${actionId}' 누락 — 4행동 전부 필요`);
+        continue;
+      }
+      checkCheck(action.check, `${where} 행동 ${actionId}`, errors);
+    }
+    for (const outcomeId of ENCOUNTER_OUTCOMES) {
+      const outcome = e.outcomes?.[outcomeId as keyof typeof e.outcomes];
+      if (!outcome) {
+        errors.push(`${where}: outcome '${outcomeId}' 누락 — 4결말 전부 필요`);
+        continue;
+      }
+      outcome.effects.forEach((ef) => checkEffect(ef, true, `${where} outcome ${outcomeId}`, errors));
+    }
+  }
+
   const seenTemplateIds = new Set<string>();
   for (const t of bundle.orderTemplates) {
     const where = `지시서 템플릿 ${t.id}`;
@@ -127,6 +160,9 @@ export function validateBundle(bundle: ContentBundle): string[] {
     t.options.forEach((opt, i) => {
       const optWhere = `${where} 옵션[${i}]`;
       checkCheck(opt.check, optWhere, errors);
+      if (opt.startsEncounter && !encounterIds.has(opt.startsEncounter)) {
+        errors.push(`${optWhere}: 존재하지 않는 조우 참조 '${opt.startsEncounter}'`);
+      }
       opt.onSuccess.effects.forEach((e) => checkEffect(e, true, `${optWhere} onSuccess`, errors));
       opt.onFailure?.effects.forEach((e) => checkEffect(e, true, `${optWhere} onFailure`, errors));
     });

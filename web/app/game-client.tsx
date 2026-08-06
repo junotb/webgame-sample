@@ -1,14 +1,29 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  encounterReduce,
+  finishEncounter,
+  startEncounter,
+  type EncounterState,
+} from '../core/encounter';
 import { reduce } from '../core/reducer';
-import type { Action, ContentBundle, GameState } from '../core/schema';
+import type { Action, ContentBundle, EncounterActionId, EncounterDef, GameState } from '../core/schema';
+import { EncounterView } from './encounter-view';
 import { createInitialState } from './game-state';
 import { GameView, type SaveStatus } from './game-view';
 import { loadGame, saveGame } from './save';
 
 interface GameClientProps {
   content: ContentBundle;
+}
+
+/** 조우 세션 — GameState에 저장되지 않는 로컬 상태 (v3 §6 격리 원칙) */
+interface EncounterSession {
+  def: EncounterDef;
+  state: EncounterState;
+  orderIndex: number;
+  log: string[];
 }
 
 export function GameClient({ content }: GameClientProps) {
@@ -63,6 +78,8 @@ export function GameClient({ content }: GameClientProps) {
       });
   }, []);
 
+  const [encounter, setEncounter] = useState<EncounterSession | null>(null);
+
   const onAction = useCallback((action: Action) => {
     try {
       const result = reduce(stateRef.current, action, content);
@@ -75,6 +92,49 @@ export function GameClient({ content }: GameClientProps) {
     }
   }, [content, persist]);
 
+  const onStartEncounter = useCallback((orderIndex: number, encounterId: string) => {
+    const def = content.encounters.find((e) => e.id === encounterId);
+    const order = stateRef.current.world.pendingOrders[orderIndex];
+    if (!def || !order) {
+      setLog([`조우 정의 없음: ${encounterId}`]);
+      return;
+    }
+    setEncounter({
+      def,
+      state: startEncounter(def, order.zone, stateRef.current.world.seed),
+      orderIndex,
+      log: [],
+    });
+  }, [content]);
+
+  const onEncounterAction = useCallback((actionId: EncounterActionId) => {
+    setEncounter((current) => {
+      if (!current) return current;
+      try {
+        const step = encounterReduce(current.state, current.def, actionId, stateRef.current.self);
+        return { ...current, state: step.state, log: step.log };
+      } catch (error) {
+        setLog([error instanceof Error ? error.message : '조우를 진행할 수 없습니다.']);
+        return current;
+      }
+    });
+  }, []);
+
+  const onEncounterSubmit = useCallback(() => {
+    setEncounter((current) => {
+      if (!current) return current;
+      const result = finishEncounter(current.def, current.state);
+      onAction({
+        type: 'RESOLVE_ENCOUNTER',
+        orderIndex: current.orderIndex,
+        outcome: result.outcome,
+        effects: result.effects,
+        text: result.text,
+      });
+      return null;
+    });
+  }, [onAction]);
+
   return (
     <GameView
       state={state}
@@ -82,7 +142,21 @@ export function GameClient({ content }: GameClientProps) {
       log={log}
       saveStatus={saveStatus}
       onAction={onAction}
+      onStartEncounter={onStartEncounter}
       disabled={!ready}
+      overlay={
+        encounter ? (
+          <EncounterView
+            def={encounter.def}
+            encounter={encounter.state}
+            gameState={state}
+            log={encounter.log}
+            onEncounterAction={onEncounterAction}
+            onSubmit={onEncounterSubmit}
+            disabled={!ready}
+          />
+        ) : null
+      }
     />
   );
 }

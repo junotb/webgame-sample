@@ -273,6 +273,61 @@
           }
         }
       ]
+    },
+    {
+      "id": "WO-T5",
+      "minDecay": 6,
+      "weight": 3,
+      "face": "survey",
+      "title": "미확인 구간 확인 — 7호 지선 하부",
+      "body": [
+        {
+          "text": "7호 지선 하부 관로에서 도면과 실측이 일치하지 않는 구간이 보고되었습니다. 현장 확인 후 도면 정정 사유를 기입하십시오. 야간 조명이 미비한 구간이므로 주간 방문을 권장합니다."
+        }
+      ],
+      "options": [
+        {
+          "label": "구간에 진입해 확인한다",
+          "check": {
+            "kind": "auto"
+          },
+          "timeCost": 1,
+          "startsEncounter": "ENC-001",
+          "onSuccess": {
+            "effects": [],
+            "text": ""
+          }
+        },
+        {
+          "label": "입구에 접근 제한 표지를 세우고 돌아온다 (절차)",
+          "check": {
+            "kind": "broad",
+            "stat": "procedure",
+            "difficulty": 40
+          },
+          "timeCost": 1,
+          "onSuccess": {
+            "effects": [
+              {
+                "path": "world.flags.patched_{zone}",
+                "op": "add",
+                "value": 1
+              }
+            ],
+            "text": "표준 표지 3종을 규정 간격으로 세웠다. '통행 제한 — 도면 정정 대기'. 서류상 이 구간은 이제 존재하지 않는 것과 같다. 표지 너머의 어둠이 조금 깊어진 것 같았지만, 조도계는 정상 범위를 가리켰다."
+          },
+          "onFailure": {
+            "effects": [
+              {
+                "path": "world.menace.fatigue",
+                "op": "add",
+                "value": 2
+              }
+            ],
+            "text": "표지 설치 규격이 맞지 않아 두 번을 다시 세웠다. 해가 기울고 나서야 알았다 — 처음 세운 표지가 사라져 있었다. 바람이었을 것이다."
+          }
+        }
+      ]
     }
   ],
   "storylets": [
@@ -410,6 +465,129 @@
           }
         }
       ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "ENC-001",
+      "title": "설비 이상 확인 보고 — 7호 지선 하부",
+      "maxTurns": 4,
+      "calmToSleep": 2,
+      "intro": [
+        {
+          "if": [
+            {
+              "path": "self.memory",
+              "gte": 1
+            }
+          ],
+          "text": "관로가 숨을 쉬고 있다. 표면이 부풀었다 가라앉는 간격은 4초. 당신은 이 간격을 어디선가 읽은 적이 있다. 보고서에는 무엇이라 적어도, 지금 이 앞에 서 있는 것은 당신이고, 그것은 당신이 온 것을 알고 있다."
+        },
+        {
+          "text": "관로 표면이 규칙적으로 부풀었다 가라앉는다. 내압 변동일 것이다. 도면에 없는 분기부가 어둠 속으로 이어져 있고, 그 안쪽에서 낮고 고른 소리가 난다. 설비 이상. 보고서 양식 제4호가 이 경우를 위해 존재한다."
+        }
+      ],
+      "actions": {
+        "observe": {
+          "label": "간격을 기록하며 관찰한다 (감류학)",
+          "check": {
+            "kind": "narrow",
+            "skill": "flowsense",
+            "difficulty": 2
+          },
+          "successText": "수첩에 간격을 옮겨 적는다. 4초. 4초. 흐름이 읽히기 시작한다 — 어디가 시작이고 어디가 끝인지.",
+          "failureText": "어둠 속에서 간격이 자꾸 어긋난다. 아니, 어긋나는 것은 당신의 호흡이다."
+        },
+        "soothe": {
+          "label": "낮은 소리로 진동을 고른다 (담력)",
+          "check": {
+            "kind": "broad",
+            "stat": "nerve",
+            "difficulty": 45
+          },
+          "successText": "벽면에 손을 대고 호흡을 맞춘다. 부풀던 간격이 조금 느려진다. 무언가가 당신의 손바닥 아래에서 귀를 기울이고 있다.",
+          "failureText": "손이 떨렸다. 간격이 빨라진다. 소리가 커진 것은 아닌데, 가까워졌다."
+        },
+        "burn": {
+          "label": "각인을 그려 연소시킨다 (각인학)",
+          "check": {
+            "kind": "narrow",
+            "skill": "inscription",
+            "difficulty": 4
+          },
+          "successText": "각인이 완성되는 순간 푸른 불길이 분기부를 훑고 지나갔다. 소리가 멎었다.",
+          "failureText": "획이 마지막에서 흔들렸다. 각인이 불발한다. 어둠 속의 간격은 여전히 4초. 기다리고 있다."
+        },
+        "withdraw": {
+          "label": "철수하고 구간을 봉쇄한다",
+          "check": {
+            "kind": "auto"
+          },
+          "successText": "뒷걸음으로 분기부를 벗어나 입구에 임시 봉쇄 표지를 걸었다. 소리는 따라오지 않았다."
+        }
+      },
+      "outcomes": {
+        "burned": {
+          "effects": [
+            {
+              "path": "world.zones.{zone}.decay",
+              "op": "add",
+              "value": -1
+            },
+            {
+              "path": "world.menace.fatigue",
+              "op": "add",
+              "value": 1
+            },
+            {
+              "path": "world.flags.enc_burned_{zone}",
+              "op": "set",
+              "value": 1
+            }
+          ],
+          "text": "연소 후 잔류 열이 관로를 타고 흘렀다. 그날 저녁 구역의 가로등이 유난히 밝았다고, 민원 대신 감사 편지가 한 통 들어왔다. 보고서에는 이렇게 적었다: '과증식 조직 절제 완료. 연료 재생률 정상화.'"
+        },
+        "soothed": {
+          "effects": [
+            {
+              "path": "world.menace.unrest",
+              "op": "add",
+              "value": 1
+            },
+            {
+              "path": "world.flags.enc_soothed_{zone}",
+              "op": "set",
+              "value": 1
+            }
+          ],
+          "text": "간격이 길어지다가, 이윽고 들리지 않게 되었다. 잠든 것이다. 회수된 동력은 없다. 보고서의 '조치 결과' 칸 앞에서 펜이 오래 멈춰 있었다. 결국 이렇게 적었다: '경과 관찰.'"
+        },
+        "withdrawn": {
+          "effects": [
+            {
+              "path": "world.menace.scrutiny",
+              "op": "add",
+              "value": 1
+            },
+            {
+              "path": "world.flags.enc_withdrawn_{zone}",
+              "op": "set",
+              "value": 1
+            }
+          ],
+          "text": "봉쇄 보고서는 수리되었지만, 미결 구간이 남았다는 사실도 함께 기록되었다. 다음 주 순시 일정에 이 구간이 추가되었다는 회람이 돌았다. 담당자 란은 비어 있다. 아직은."
+        },
+        "expired": {
+          "effects": [
+            {
+              "path": "world.menace.fatigue",
+              "op": "add",
+              "value": 2
+            }
+          ],
+          "text": "조명이 다해 가고 있었다. 더 머무를 수 없어 물러났다. 기록은 반쪽짜리다. 어둠 속의 간격은, 나올 때까지 한 번도 흐트러지지 않았다."
+        }
+      }
     }
   ]
 }

@@ -29,6 +29,7 @@ const ORDER: WorkOrder = {
 
 const CONTENT: ContentBundle = {
   bundleId: 'ui-test',
+  encounters: [],
   version: '1',
   orderTemplates: [],
   storylets: [

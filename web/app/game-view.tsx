@@ -9,7 +9,11 @@ interface GameViewProps {
   log: string[];
   saveStatus: SaveStatus;
   onAction: (action: Action) => void;
+  /** 조우 진입 옵션 클릭 — RESOLVE_ORDER 대신 조우 리듀서로 (v3 §6) */
+  onStartEncounter?: (orderIndex: number, encounterId: string) => void;
   disabled?: boolean;
+  /** 조우 화면이 workspace를 대신할 때 (GameClient가 주입) */
+  overlay?: React.ReactNode;
 }
 
 const PHASE_LABELS: Record<DayPhase, string> = {
@@ -100,7 +104,7 @@ function MorningDocument({ disabled, onAction }: Pick<GameViewProps, 'disabled' 
   );
 }
 
-function FieldDocuments({ state, disabled, onAction }: Pick<GameViewProps, 'state' | 'disabled' | 'onAction'>) {
+function FieldDocuments({ state, disabled, onAction, onStartEncounter }: Pick<GameViewProps, 'state' | 'disabled' | 'onAction' | 'onStartEncounter'>) {
   return (
     <section className="document-stack" aria-label="오늘의 지시서">
       <div className="section-title">
@@ -128,7 +132,11 @@ function FieldDocuments({ state, disabled, onAction }: Pick<GameViewProps, 'stat
                 <button
                   disabled={disabled || order.resolved || option.timeCost > state.world.shiftLeft}
                   key={`${option.label}-${optionIndex}`}
-                  onClick={() => onAction({ type: 'RESOLVE_ORDER', orderIndex, optionIndex })}
+                  onClick={() =>
+                    option.startsEncounter
+                      ? onStartEncounter?.(orderIndex, option.startsEncounter)
+                      : onAction({ type: 'RESOLVE_ORDER', orderIndex, optionIndex })
+                  }
                 >
                   <span>{option.label}</span>
                   <small>근무 {option.timeCost}</small>
@@ -201,7 +209,7 @@ function ClosingDocument({ state, log, disabled, onAction }: Pick<GameViewProps,
   );
 }
 
-export function GameView({ state, content, log, saveStatus, onAction, disabled = false }: GameViewProps) {
+export function GameView({ state, content, log, saveStatus, onAction, onStartEncounter, disabled = false, overlay }: GameViewProps) {
   return (
     <main className="game-shell">
       <header className="topbar">
@@ -218,10 +226,14 @@ export function GameView({ state, content, log, saveStatus, onAction, disabled =
       <StatusLedger state={state} />
 
       <div className="workspace">
-        {state.world.phase === 'morning' ? <MorningDocument disabled={disabled} onAction={onAction} /> : null}
-        {state.world.phase === 'field' ? <FieldDocuments state={state} disabled={disabled} onAction={onAction} /> : null}
-        {state.world.phase === 'event' ? <EventDocument state={state} content={content} disabled={disabled} onAction={onAction} /> : null}
-        {state.world.phase === 'closing' ? <ClosingDocument state={state} log={log} disabled={disabled} onAction={onAction} /> : null}
+        {overlay ?? (
+          <>
+            {state.world.phase === 'morning' ? <MorningDocument disabled={disabled} onAction={onAction} /> : null}
+            {state.world.phase === 'field' ? <FieldDocuments state={state} disabled={disabled} onAction={onAction} onStartEncounter={onStartEncounter} /> : null}
+            {state.world.phase === 'event' ? <EventDocument state={state} content={content} disabled={disabled} onAction={onAction} /> : null}
+            {state.world.phase === 'closing' ? <ClosingDocument state={state} log={log} disabled={disabled} onAction={onAction} /> : null}
+          </>
+        )}
       </div>
 
       {state.world.phase !== 'closing' && log.length > 0 ? (

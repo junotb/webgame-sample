@@ -6,6 +6,7 @@ import { validateBundle } from './validate';
 function validBundle(): ContentBundle {
   return {
     bundleId: 'test-bundle',
+    encounters: [],
     version: '0.0.1',
     orderTemplates: [
       {

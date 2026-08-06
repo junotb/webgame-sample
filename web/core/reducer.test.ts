@@ -54,6 +54,7 @@ const AUTO_T: WorkOrderTemplate = {
 
 const CONTENT: ContentBundle = {
   bundleId: 'test',
+  encounters: [],
   version: '0',
   orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: '자재 수령' }],
   storylets: [

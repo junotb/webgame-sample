@@ -28,6 +28,7 @@ function bindOption(option: WorkOption, zone: ZoneId, bonus: number): BoundWorkO
     label: option.label,
     check: applyDifficultyBonus(option.check, bonus),
     timeCost: option.timeCost,
+    ...(option.startsEncounter ? { startsEncounter: option.startsEncounter } : {}),
     onSuccess: { effects: bindEffects(option.onSuccess.effects, zone), text: option.onSuccess.text },
     ...(option.onFailure
       ? { onFailure: { effects: bindEffects(option.onFailure.effects, zone), text: option.onFailure.text } }

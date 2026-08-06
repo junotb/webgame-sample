@@ -4,6 +4,7 @@
  * 템플릿에 zone decay 효과가 남아 있으면 이중 계산이므로 여기서 잡는다.
  */
 import { describe, expect, it } from 'vitest';
+import { generateCards } from '../core/generate';
 import type { TemplateEffect, WorkOption, WorkOrderTemplate } from '../core/schema';
 import { loadContent } from './loader';
 
@@ -28,12 +29,21 @@ function fatigueOnFailure(opt: WorkOption): number | undefined {
 }
 
 describe('가중치 — minDecay가 깊을수록 무겁다 (v3 §3: 하루 4장 합 8 전후)', () => {
-  it('WO-T1=1, WO-T2=2, WO-T3=3, WO-T4=2 — 합 8', () => {
+  it('WO-T1=1, WO-T2=2, WO-T3=3, WO-T4=2, WO-T5=3', () => {
     expect(template('WO-T1').weight).toBe(1);
     expect(template('WO-T2').weight).toBe(2);
     expect(template('WO-T3').weight).toBe(3);
     expect(template('WO-T4').weight).toBe(2);
-    expect(bundle.orderTemplates.reduce((s, t) => s + t.weight, 0)).toBe(8);
+    expect(template('WO-T5').weight).toBe(3);
+  });
+  it('노후도 5에서 제시되는 4장의 가중치 합이 8이다', () => {
+    const world = {
+      assignment: { zone: 'd5' as const },
+      zones: { d2: { decay: 3 }, d5: { decay: 5 }, d7: { decay: 5 } },
+      cardNeglect: {},
+    };
+    const cards = generateCards(world, bundle.orderTemplates, () => 0);
+    expect(cards.reduce((s, c) => s + c.weight, 0)).toBe(8);
   });
 });
 

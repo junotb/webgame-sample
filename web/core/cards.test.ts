@@ -48,6 +48,7 @@ const AUTO_T: WorkOrderTemplate = {
 
 const CONTENT: ContentBundle = {
   bundleId: 'cards-test',
+  encounters: [],
   version: '0',
   orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: '자재 수령' }],
   storylets: [
@@ -143,5 +144,77 @@ describe('다일 이벤트 — 3일 점유의 수명 주기 (v3 §5)', () => {
   it('거절 선택은 점유를 만들지 않는다', () => {
     const { state } = choose(baseState({ phase: 'event' }), 1);
     expect(state.world.multiday).toBeNull();
+  });
+});
+
+describe('RESOLVE_ENCOUNTER — 조우 결과 반입 (v3 §6)', () => {
+  function encounterCard(): WorkOrder {
+    return {
+      ...card('AUTO', false),
+      options: [
+        {
+          label: '구간을 확인한다',
+          check: { kind: 'auto' },
+          timeCost: 1,
+          startsEncounter: 'ENC-001',
+          onSuccess: { effects: [], text: '' },
+        },
+      ],
+    };
+  }
+  function fieldState(): GameState {
+    return baseState({ phase: 'field', pendingOrders: [encounterCard()] });
+  }
+  it('burned/soothed는 처리 성공으로 정산된다 — 효과 적용 + shiftLeft 차감', () => {
+    const { state, log } = reduce(
+      fieldState(),
+      {
+        type: 'RESOLVE_ENCOUNTER',
+        orderIndex: 0,
+        outcome: 'burned',
+        effects: [{ path: 'world.menace.fatigue', op: 'add', value: 1 }],
+        text: '동력이 회수되었다.',
+      },
+      CONTENT,
+    );
+    expect(state.world.pendingOrders[0].resolved).toBe(true);
+    expect(state.world.pendingOrders[0].outcome).toBe('success');
+    expect(state.world.menace.fatigue).toBe(1);
+    expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY - 1);
+    expect(log.join(' ')).toContain('동력이 회수되었다');
+  });
+  it('withdrawn/expired는 처리 실패 — 시간만 소모', () => {
+    const { state } = reduce(
+      fieldState(),
+      { type: 'RESOLVE_ENCOUNTER', orderIndex: 0, outcome: 'withdrawn', effects: [], text: '물러섰다.' },
+      CONTENT,
+    );
+    expect(state.world.pendingOrders[0].outcome).toBe('failure');
+  });
+  it('조우 진입 옵션은 RESOLVE_ORDER로 처리할 수 없다', () => {
+    expect(() =>
+      reduce(fieldState(), { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT),
+    ).toThrow(/조우/);
+  });
+  it('조우 진입 옵션이 없는 지시서에 반입하면 throw', () => {
+    const s = baseState({ phase: 'field', pendingOrders: [card('AUTO', false)] });
+    expect(() =>
+      reduce(s, { type: 'RESOLVE_ENCOUNTER', orderIndex: 0, outcome: 'burned', effects: [], text: '' }, CONTENT),
+    ).toThrow(/조우 진입/);
+  });
+  it('반입 효과도 기억 비가역 런타임 가드를 지난다', () => {
+    expect(() =>
+      reduce(
+        fieldState(),
+        {
+          type: 'RESOLVE_ENCOUNTER',
+          orderIndex: 0,
+          outcome: 'burned',
+          effects: [{ path: 'self.memory', op: 'add', value: -1 }],
+          text: '',
+        },
+        CONTENT,
+      ),
+    ).toThrow();
   });
 });

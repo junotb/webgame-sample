@@ -91,6 +91,7 @@ const FATIGUE_ORDER: WorkOrder = {
 
 const CONTENT: ContentBundle = {
   bundleId: 'test',
+  encounters: [],
   version: '0',
   orderTemplates: [],
   storylets: [

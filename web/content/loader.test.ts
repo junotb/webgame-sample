@@ -21,6 +21,7 @@ afterEach(() => {
 
 const minimalBundle = {
   bundleId: 'ep-test',
+  encounters: [],
   version: '0.0.1',
   orderTemplates: [
     {

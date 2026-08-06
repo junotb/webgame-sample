@@ -100,6 +100,9 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       if (order.resolved) throw new Error(`이미 처리한 지시서: ${order.templateId} (${order.zone})`);
       const option = order.options[action.optionIndex];
       if (!option) throw new Error(`옵션 없음: index ${action.optionIndex}`);
+      if (option.startsEncounter) {
+        throw new Error(`조우 진입 옵션은 조우 리듀서를 거쳐야 함: ${option.startsEncounter} (RESOLVE_ENCOUNTER로 반입)`);
+      }
       if (state.world.shiftLeft < option.timeCost) {
         throw new Error(`근무 시간 부족: 잔여 ${state.world.shiftLeft}, 필요 ${option.timeCost}`);
       }
@@ -113,6 +116,28 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.seed = advanceSeed(rng);
       const log = [result.success ? '처리 완료.' : '처리 실패.'];
       if (result.text) log.push(result.text);
+      log.push(...menaceWarnings(state, next));
+      return { state: next, log };
+    }
+
+    case 'RESOLVE_ENCOUNTER': {
+      assertPhase(state, 'field', 'RESOLVE_ENCOUNTER');
+      const order = state.world.pendingOrders[action.orderIndex];
+      if (!order) throw new Error(`지시서 없음: index ${action.orderIndex}`);
+      if (order.resolved) throw new Error(`이미 처리한 지시서: ${order.templateId} (${order.zone})`);
+      const entry = order.options.find((o) => o.startsEncounter);
+      if (!entry) throw new Error(`조우 진입 옵션이 없는 지시서: ${order.templateId}`);
+      if (state.world.shiftLeft < entry.timeCost) {
+        throw new Error(`근무 시간 부족: 잔여 ${state.world.shiftLeft}, 필요 ${entry.timeCost}`);
+      }
+      const next = applyEffects(state, action.effects);
+      // burned/soothed = 처리 성공 (−w 정산), withdrawn/expired = 처리 실패 (시간만 소모)
+      const success = action.outcome === 'burned' || action.outcome === 'soothed';
+      next.world.pendingOrders[action.orderIndex].resolved = true;
+      next.world.pendingOrders[action.orderIndex].outcome = success ? 'success' : 'failure';
+      next.world.shiftLeft -= entry.timeCost;
+      if (next.world.shiftLeft <= 0) next.world.phase = 'event';
+      const log = [action.text, '보고서 제출: 설비 이상 점검 완료.'];
       log.push(...menaceWarnings(state, next));
       return { state: next, log };
     }

@@ -44,12 +44,18 @@ describe('WO-T3 — 결정적 등장 (도시 상태가 곧 무작위성)', () =>
     }
   });
 
-  it('노후도 5부터 rng와 무관하게 맨 앞에 온다 (변형 확인 지점)', () => {
+  it('노후도 5부터 rng와 무관하게 반드시 온다 (변형 확인 지점)', () => {
     for (const decay of [5, 7, 10]) {
       for (const r of [0, 0.5, 0.999]) {
         const cards = generateCards(worldAt(decay), bundle.orderTemplates, () => r);
-        expect(cards[0].templateId).toBe('WO-T3');
+        expect(cards.some((c) => c.templateId === 'WO-T3')).toBe(true);
       }
     }
+  });
+
+  it('노후도 6(임계)부터 미확인 구간 카드(조우 입구)가 맨 앞에 온다', () => {
+    const cards = generateCards(worldAt(6), bundle.orderTemplates, () => 0);
+    expect(cards[0].templateId).toBe('WO-T5');
+    expect(cards[0].options[0].startsEncounter).toBe('ENC-001');
   });
 });

@@ -95,13 +95,16 @@ function archiveAdd(archive: ArchiveEntry[], entry: ArchiveEntry): void {
 }
 
 /**
- * 메나스 상한 경고 (스펙 4장) — 도달 시 텍스트 경고만, 강제 이동 콘텐츠 없음.
- * 이번 스텝에 새로 상한에 닿은 메나스만 경고한다 (이미 상한이면 침묵).
+ * 메나스 상한 도달 감지 (스펙 4장) — 강제 이동 콘텐츠는 없다.
+ * 이번 스텝에 **새로** 닿은 것만 돌려준다 (이미 상한이면 침묵).
+ *
+ * 예전에는 여기서 `⚠ 주목이 한계에 달했다` 같은 로그 한 줄을 만들어 흘려보냈다.
+ * 그래서 존재감이 없었고, 정작 "경고"라는 이름은 사무소 장면이 달고 있었다.
+ * 이제 무엇이 닿았는지만 알리고 통지의 서식은 UI가 쓴다 (UI 층위 사양 §6).
  */
-export function menaceWarnings(prev: GameState, next: GameState): string[] {
+export function cappedMenaces(prev: GameState, next: GameState): MenaceId[] {
   return (Object.keys(MENACE_LABELS) as MenaceId[])
-    .filter((m) => prev.world.menace[m] < MENACE_CAP && next.world.menace[m] >= MENACE_CAP)
-    .map((m) => `⚠ ${MENACE_LABELS[m]}이(가) 한계에 달했다 (${MENACE_CAP}/${MENACE_CAP}).`);
+    .filter((m) => prev.world.menace[m] < MENACE_CAP && next.world.menace[m] >= MENACE_CAP);
 }
 
 function advanceSeed(rng: () => number): number {
@@ -161,8 +164,8 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.seed = advanceSeed(rng);
       const log = [result.success ? '처리 완료.' : '처리 실패.'];
       if (result.text) log.push(result.text);
-      log.push(...growthNotes(state, next), ...menaceWarnings(state, next));
-      return { state: next, log };
+      log.push(...growthNotes(state, next));
+      return { state: next, log, notices: cappedMenaces(state, next) };
     }
 
     case 'RESOLVE_ENCOUNTER': {
@@ -184,8 +187,8 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       if (next.world.shiftLeft <= 0) next.world.phase = 'event';
       archiveAdd(next.world.archive, { kind: 'encounter', day: next.world.calendar.day, id: entry.startsEncounter!, zone: order.zone });
       const log = [action.text, '보고서 제출: 설비 이상 점검 완료.'];
-      log.push(...growthNotes(state, next), ...menaceWarnings(state, next));
-      return { state: next, log };
+      log.push(...growthNotes(state, next));
+      return { state: next, log, notices: cappedMenaces(state, next) };
     }
 
     case 'SKIP_TO_EVENT': {
@@ -221,8 +224,8 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.phase = 'closing';
       next.world.seed = advanceSeed(rng);
       const log = branch?.text ? [branch.text] : [];
-      log.push(...growthNotes(state, next), ...menaceWarnings(state, next));
-      return { state: next, log };
+      log.push(...growthNotes(state, next));
+      return { state: next, log, notices: cappedMenaces(state, next) };
     }
 
     case 'CLOSE_DAY': {

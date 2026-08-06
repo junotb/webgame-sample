@@ -367,6 +367,43 @@ button {
   line-height: 1.7;
 }
 
+/* ── L4 통지 — 유일하게 L3 위에 뜬다 (UI 층위 §6).
+      붉은 색도 느낌표도 쓰지 않는다: 조직이 보내는 것은 공문이다 ── */
+.notice-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: clamp(20px, 5vh, 64px) 16px;
+  background: rgba(8, 9, 8, 0.88);
+}
+
+.notice-document {
+  width: min(520px, 100%);
+  padding: 30px;
+}
+
+.notice-document .document-header {
+  margin: -30px -30px 26px;
+  background: var(--rust-dark);
+}
+
+.notice-document h2 {
+  font-size: 1.5rem;
+}
+
+.notice-document .primary-action {
+  margin-top: 26px;
+}
+
+/* 동요는 공문이 아니다 — 발신처 자리가 비어 있는 것이 이 통지의 내용이다 */
+.is-unsigned .document-header {
+  color: #8c8471;
+  background: #2f2e28;
+}
+
 .layer-dismiss {
   cursor: pointer;
   display: block;

@@ -285,6 +285,12 @@ export type Action =
 export interface StepResult {
   state: GameState;
   log: string[];                    // 이번 스텝의 서술 텍스트 (UI가 그대로 출력)
+  /**
+   * 이번 스텝에 새로 상한에 닿은 메나스 (UI 층위 사양 §6).
+   * 리듀서는 "무엇이 닿았는가"만 알리고 문안은 UI가 쓴다 — 통지의 서식은
+   * 메나스마다 다르고(주목·피로는 본부 공문, 동요는 아님) 그 판단은 코어의 몫이 아니다.
+   */
+  notices?: MenaceId[];
 }
 
 export type Reducer = (state: GameState, action: Action, content: ContentBundle) => StepResult;

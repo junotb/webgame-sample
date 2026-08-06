@@ -17,10 +17,11 @@ import type { Action, ContentBundle, GameState } from '../core/schema';
 import { ArchivePanel } from './archive-panel';
 import { ClosingOverlay, EventOverlay, MorningOverlay } from './day-overlays';
 import { FieldStage } from './field-stage';
-import { LedgerPanel } from './ledger-panel';
+import { CityPanel } from './city-panel';
+import { SelfPanel } from './self-panel';
 import { SAVE_LABELS, WEEKDAY_LABELS, ZONE_LABELS, type SaveStatus } from './ui-labels';
 
-type PanelId = 'ledger' | 'archive';
+type PanelId = 'self' | 'city' | 'archive';
 
 interface GameViewProps {
   state: GameState;
@@ -67,13 +68,22 @@ function TopBar({
         ))}
       </div>
       <nav className="topbar-actions">
+        {/* "원장"은 조직 문서의 이름이지 메뉴명이 아니었다 — 무엇이 나오는지 이름이 말해야 한다 */}
         <button
           className="chip-action"
-          aria-pressed={panel === 'ledger'}
+          aria-pressed={panel === 'self'}
           disabled={panelsLocked}
-          onClick={() => onTogglePanel('ledger')}
+          onClick={() => onTogglePanel('self')}
         >
-          원장
+          내 능력치
+        </button>
+        <button
+          className="chip-action"
+          aria-pressed={panel === 'city'}
+          disabled={panelsLocked}
+          onClick={() => onTogglePanel('city')}
+        >
+          도시 상태
         </button>
         <button
           className="chip-action"
@@ -159,7 +169,9 @@ export function GameView({
           <button className="layer-dismiss" onClick={() => setPanel(null)}>
             ← 업무로 돌아가기
           </button>
-          {panel === 'ledger' ? <LedgerPanel state={state} /> : <ArchivePanel state={state} content={content} />}
+          {panel === 'self' ? <SelfPanel state={state} /> : null}
+          {panel === 'city' ? <CityPanel state={state} /> : null}
+          {panel === 'archive' ? <ArchivePanel state={state} content={content} /> : null}
         </div>
       ) : null}
 

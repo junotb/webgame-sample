@@ -26,40 +26,62 @@ function view(state: GameState, log: string[] = []) {
 }
 
 describe('L2 참조 패널', () => {
-  it('원장 버튼으로 열고 닫는다', async () => {
+  it('내 능력치 버튼으로 열고 닫는다', async () => {
     const { user } = view(fieldState());
-    expect(screen.queryByRole('region', { name: '도시 운용 원장' })).toBeNull();
+    expect(screen.queryByRole('region', { name: '내 능력치' })).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: '원장' }));
-    expect(screen.getByRole('region', { name: '도시 운용 원장' })).toBeDefined();
+    await user.click(screen.getByRole('button', { name: '내 능력치' }));
+    expect(screen.getByRole('region', { name: '내 능력치' })).toBeDefined();
 
-    await user.click(screen.getByRole('button', { name: '원장' }));
-    expect(screen.queryByRole('region', { name: '도시 운용 원장' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: '내 능력치' }));
+    expect(screen.queryByRole('region', { name: '내 능력치' })).toBeNull();
   });
 
-  it('원장과 서류함은 서로를 밀어낸다 — 한 번에 하나만 열린다', async () => {
+  it('패널은 서로를 밀어낸다 — 한 번에 하나만 열린다', async () => {
     const { user } = view(fieldState());
 
-    await user.click(screen.getByRole('button', { name: '원장' }));
+    await user.click(screen.getByRole('button', { name: '내 능력치' }));
+    await user.click(screen.getByRole('button', { name: '도시 상태' }));
+    expect(screen.getByRole('region', { name: '도시 상태' })).toBeDefined();
+    expect(screen.queryByRole('region', { name: '내 능력치' })).toBeNull();
+
     await user.click(screen.getByRole('button', { name: /서류함/ }));
-
     expect(screen.getByRole('region', { name: '서류함' })).toBeDefined();
-    expect(screen.queryByRole('region', { name: '도시 운용 원장' })).toBeNull();
+    expect(screen.queryByRole('region', { name: '도시 상태' })).toBeNull();
   });
 
-  it('원장은 노후도 수치가 아니라 밴드 이름을 보인다 (v3 §9)', async () => {
+  it('도시 상태는 노후도 수치가 아니라 밴드 이름을 보인다 (v3 §9)', async () => {
     const state = fieldState();
     state.world.zones.d5.decay = 7; // 3밴드 = 이상
     const { user } = view(state);
 
-    await user.click(screen.getByRole('button', { name: '원장' }));
+    await user.click(screen.getByRole('button', { name: '도시 상태' }));
     const zones = screen.getByLabelText('구역 상태');
 
-    expect(zones.textContent).toContain('제5구역 이상');
-    // 각 줄은 "구역명 + 밴드"가 전부다 — 노후도 수치가 어떤 형태로도 새지 않는다
-    for (const row of zones.querySelectorAll('span')) {
-      expect(row.textContent).toMatch(/^제\d구역 (정상|삐걱임|이상|한계)$/);
+    expect(zones.textContent).toContain('제5구역');
+    expect(zones.textContent).toContain('이상');
+    // 노후도 수치가 어떤 형태로도 새지 않는다 — dd에는 밴드 이름만 온다
+    for (const dd of zones.querySelectorAll('dd')) {
+      expect(dd.textContent).toMatch(/^(정상|삐걱임|이상|한계)$/);
     }
+  });
+
+  it('내 능력치에는 나의 것만, 도시 상태에는 도시의 것만 온다', async () => {
+    const { user } = view(fieldState());
+
+    await user.click(screen.getByRole('button', { name: '내 능력치' }));
+    const self = screen.getByRole('region', { name: '내 능력치' });
+    expect(self.textContent).toContain('기억');
+    expect(self.textContent).toContain('피로');
+    expect(self.textContent).not.toContain('주목');
+    expect(self.textContent).not.toContain('제5구역');
+
+    await user.click(screen.getByRole('button', { name: '도시 상태' }));
+    const city = screen.getByRole('region', { name: '도시 상태' });
+    expect(city.textContent).toContain('주목');
+    expect(city.textContent).toContain('동요');
+    expect(city.textContent).toContain('신뢰');
+    expect(city.textContent).not.toContain('각인학');
   });
 });
 
@@ -67,7 +89,8 @@ describe('L2와 L3는 동시에 열리지 않는다', () => {
   it('오버레이가 있는 단계에서는 패널 버튼이 잠긴다', () => {
     view(createInitialState()); // morning = 개시 오버레이
 
-    expect(screen.getByRole('button', { name: '원장' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: '내 능력치' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: '도시 상태' })).toHaveProperty('disabled', true);
     expect(screen.getByRole('button', { name: /서류함/ })).toHaveProperty('disabled', true);
   });
 
@@ -75,15 +98,15 @@ describe('L2와 L3는 동시에 열리지 않는다', () => {
     const state = fieldState();
     const { user, rerender } = view(state);
 
-    await user.click(screen.getByRole('button', { name: '원장' }));
-    expect(screen.getByRole('region', { name: '도시 운용 원장' })).toBeDefined();
+    await user.click(screen.getByRole('button', { name: '내 능력치' }));
+    expect(screen.getByRole('region', { name: '내 능력치' })).toBeDefined();
 
     const closing = { ...state, world: { ...state.world, phase: 'closing' as const } };
     rerender(
       <GameView state={closing} content={CONTENT} log={[]} saveStatus="saved" onAction={vi.fn()} />,
     );
 
-    expect(screen.queryByRole('region', { name: '도시 운용 원장' })).toBeNull();
+    expect(screen.queryByRole('region', { name: '내 능력치' })).toBeNull();
     expect(screen.getByText('하루 정산 보고')).toBeDefined();
   });
 });
@@ -97,11 +120,11 @@ describe('L2는 무대를 대신한다', () => {
     await user.hover(screen.getByRole('button', { name: /제3중계실/ }));
     await waitFor(() => expect(screen.getByText('이상 없음으로 처리하십시오.')).toBeDefined());
 
-    await user.click(screen.getByRole('button', { name: '원장' }));
+    await user.click(screen.getByRole('button', { name: '내 능력치' }));
     expect(stage()?.className).toContain('is-covered');
     expect(stage()?.hasAttribute('inert')).toBe(true);
 
-    await user.click(screen.getByRole('button', { name: '원장' }));
+    await user.click(screen.getByRole('button', { name: '내 능력치' }));
     expect(stage()?.className).not.toContain('is-covered');
     // 언마운트했다면 열람 패널이 초기화되어 있을 것이다
     expect(screen.getByText('이상 없음으로 처리하십시오.')).toBeDefined();

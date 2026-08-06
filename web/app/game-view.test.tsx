@@ -24,7 +24,8 @@ describe('상단 띠 (L1)', () => {
     expect(html).toContain('DAY 01');
     expect(html).toContain('제5구역');
     expect(html).toContain('잔여 근무 2 / 2');
-    expect(html).toContain('원장');
+    expect(html).toContain('내 능력치');
+    expect(html).toContain('도시 상태');
     expect(html).toContain('서류함');
     // 제목은 L0(타이틀 화면)의 것이다 — 근무 중에는 표시하지 않는다
     expect(html).not.toContain('내일도 난 여기에');
@@ -35,14 +36,13 @@ describe('상단 띠 (L1)', () => {
 });
 
 describe('층위 렌더 (L1/L2/L3)', () => {
-  it('morning은 일일 개시로 덮고 원장은 열지 않은 채 둔다', () => {
+  it('morning은 일일 개시로 덮고 패널은 열지 않은 채 둔다', () => {
     const html = render(createInitialState());
 
     expect(html).toContain('DAY 01');
     expect(html).toContain('월요일');
     expect(html).toContain('업무 개시');
-    // 원장은 L2 — 버튼을 눌러야 열린다 (상시 노출이 집중을 흩뜨렸다)
-    expect(html).not.toContain('도시 운용 원장');
+    // 패널은 L2 — 버튼을 눌러야 열린다 (상시 노출이 집중을 흩뜨렸다)
     expect(html).not.toContain('정비 <b>40</b>');
     expect(html).toContain('저장됨');
   });

@@ -2,8 +2,9 @@
  * 조우 화면 (v3 §6) — 고장 신고서 양식 위에서 벌어지는 다단 조우.
  * 조우 상태는 GameClient의 로컬 상태다. GameState에는 결과만 반입된다.
  */
+import { effectiveCheck, type EncounterState } from '../core/encounter';
 import { selectVariant } from '../core/reducer';
-import type { EncounterState } from '../core/encounter';
+import { checkLabel } from './game-view';
 import type { EncounterActionId, EncounterDef, GameState } from '../core/schema';
 
 const ACTION_ORDER: EncounterActionId[] = ['observe', 'soothe', 'burn', 'withdraw'];
@@ -44,7 +45,11 @@ export function EncounterView({ def, encounter, gameState, log, onEncounterActio
             {ACTION_ORDER.map((actionId) => (
               <button key={actionId} disabled={disabled} onClick={() => onEncounterAction(actionId)}>
                 <span>{def.actions[actionId].label}</span>
-                <small>{actionId === 'withdraw' ? '이탈' : '행동'}</small>
+                <small>
+                  {actionId === 'withdraw'
+                    ? '이탈'
+                    : checkLabel(effectiveCheck(def, encounter, actionId), gameState.self)}
+                </small>
               </button>
             ))}
           </div>

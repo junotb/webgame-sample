@@ -67,8 +67,9 @@ describe('GameView document UI', () => {
     expect(html).toContain('DAY 01');
     expect(html).toContain('업무 개시 보고');
     expect(html).toContain('오늘 업무 시작');
-    expect(html).toContain('도시 고도');
-    expect(html).toContain('6,560 m');
+    expect(html).not.toContain('도시 고도'); // 고도는 실패 상태가 아니다 — 원장에서 제외 (2026-08-06)
+    expect(html).toContain('정비 <b>40</b>');
+    expect(html).toContain('각인학 <b>1등급</b>');
     expect(html).toContain('저장됨');
   });
 

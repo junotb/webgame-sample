@@ -55,6 +55,12 @@ function eased(check: Check, observed: number): Check {
   return { ...check, difficulty: Math.max(0, check.difficulty - observed * OBSERVE_BONUS) };
 }
 
+/** 현재 조우 상태 기준의 실효 판정 — UI 성공률 표시용 (관찰 보정 반영) */
+export function effectiveCheck(def: EncounterDef, state: EncounterState, actionId: EncounterActionId): Check {
+  const check = def.actions[actionId].check;
+  return actionId === 'burn' || actionId === 'soothe' ? eased(check, state.observed) : { ...check };
+}
+
 export const encounterReduce = (
   state: EncounterState,
   def: EncounterDef,

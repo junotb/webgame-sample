@@ -73,4 +73,23 @@ describe('IndexedDB save', () => {
   it('IndexedDB가 없는 환경은 명확한 오류를 낸다', async () => {
     await expect(loadGame(undefined)).rejects.toThrow(/IndexedDB/);
   });
+
+  it('구 스키마 세이브(래핑 없는 GameState)는 버리고 null을 반환한다', async () => {
+    const factory = new MemoryIndexedDB() as unknown as IDBFactory;
+    const legacy = createInitialState(1) as unknown as Record<string, unknown>;
+    // v1 세이브 흉내: 래핑 없이 저장돼 있었고 calendar 대신 day를 썼다
+    delete (legacy.world as Record<string, unknown>).calendar;
+    (legacy.world as Record<string, unknown>).day = 3;
+    await new Promise<void>((resolve) => {
+      const req = factory.open('shattered-realm', 1);
+      req.onsuccess = () => {
+        const tx = req.result.transaction('game-state', 'readwrite');
+        tx.objectStore('game-state').put(legacy, 'phase0');
+        tx.oncomplete = () => resolve();
+        queueMicrotask(() => tx.oncomplete?.({} as Event));
+      };
+      req.onupgradeneeded = () => req.result.createObjectStore('game-state');
+    });
+    await expect(loadGame(factory)).resolves.toBeNull();
+  });
 });

@@ -1,5 +1,14 @@
-import { altitude, evalConditions, selectVariant, SHIFT_PER_DAY } from '../core/reducer';
-import type { Action, CardFace, ContentBundle, DayPhase, GameState } from '../core/schema';
+import { checkProbability } from '../core/checks';
+import { evalConditions, selectVariant, SHIFT_PER_DAY, SKILL_LABELS, STAT_LABELS } from '../core/reducer';
+import type { Action, CardFace, Check, ContentBundle, DayPhase, GameState } from '../core/schema';
+
+/** 판정 표기: "각인학 · 72%" — 트리아지 고민의 재료 (v1 실패 처방) */
+export function checkLabel(check: Check, self: GameState['self']): string {
+  if (check.kind === 'auto') return '판정 없음';
+  const name = check.kind === 'narrow' ? SKILL_LABELS[check.skill] : STAT_LABELS[check.stat];
+  const p = Math.round(checkProbability(check, self.stats, self.skills) * 100);
+  return `${name} · ${p}%`;
+}
 
 export type SaveStatus = 'loading' | 'saving' | 'saved' | 'error';
 
@@ -49,10 +58,6 @@ function StatusLedger({ state }: { state: GameState }) {
       </div>
       <dl className="ledger-grid">
         <div>
-          <dt>도시 고도</dt>
-          <dd>{altitude(state.world.zones).toLocaleString('ko-KR')} m</dd>
-        </div>
-        <div>
           <dt>잔여 근무</dt>
           <dd>{state.world.shiftLeft} / {SHIFT_PER_DAY}</dd>
         </div>
@@ -65,6 +70,16 @@ function StatusLedger({ state }: { state: GameState }) {
           <dd>{state.world.npcs.protagonist.trust} / 7</dd>
         </div>
       </dl>
+      <div className="stat-row" aria-label="주 스탯">
+        {(Object.keys(STAT_LABELS) as (keyof typeof STAT_LABELS)[]).map((stat) => (
+          <span key={stat}>{STAT_LABELS[stat]} <b>{state.self.stats[stat]}</b></span>
+        ))}
+      </div>
+      <div className="stat-row" aria-label="전문 기술">
+        {(Object.keys(SKILL_LABELS) as (keyof typeof SKILL_LABELS)[]).map((skill) => (
+          <span key={skill}>{SKILL_LABELS[skill]} <b>{state.self.skills[skill]}등급</b></span>
+        ))}
+      </div>
       {state.world.multiday ? (
         <div className="multiday-row" aria-label="일정 점유">
           <span>승인 일정 진행 중 — 잔여 {state.world.multiday.daysLeft}일</span>
@@ -139,7 +154,7 @@ function FieldDocuments({ state, disabled, onAction, onStartEncounter }: Pick<Ga
                   }
                 >
                   <span>{option.label}</span>
-                  <small>근무 {option.timeCost}</small>
+                  <small>{option.startsEncounter ? '현장 확인' : checkLabel(option.check, state.self)} · 근무 {option.timeCost}</small>
                 </button>
               ))}
             </div>
@@ -177,7 +192,7 @@ function EventDocument({ state, content, disabled, onAction }: Pick<GameViewProp
             onClick={() => onAction({ type: 'CHOOSE_STORYLET', storyletId: storylet.id, choiceIndex })}
           >
             <span>{choice.label}</span>
-            <small>{choice.startsMultiday ? `${choice.startsMultiday.days}일 일정` : '선택'}</small>
+            <small>{choice.startsMultiday ? `${choice.startsMultiday.days}일 일정` : checkLabel(choice.check, state.self)}</small>
           </button>
         ))}
       </div>
@@ -199,9 +214,8 @@ function ClosingDocument({ state, log, disabled, onAction }: Pick<GameViewProps,
       <dl className="report-lines">
         <div><dt>처리 완료</dt><dd>{state.world.pendingOrders.length - unresolved.length}건</dd></div>
         <div><dt>미처리 이월</dt><dd>{unresolved.length}건</dd></div>
-        <div><dt>현재 고도</dt><dd>{altitude(state.world.zones).toLocaleString('ko-KR')} m</dd></div>
       </dl>
-      <p className="document-note">확정 시 미처리 구역의 방치 페널티와 전 구역 자연 노후가 반영됩니다.</p>
+      <p className="document-note">확정 시 미처리 건의 방치와 자연 노후가 구역에 반영됩니다.</p>
       <button className="primary-action" disabled={disabled} onClick={() => onAction({ type: 'CLOSE_DAY' })}>
         정산 확정 및 저장
       </button>

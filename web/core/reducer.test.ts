@@ -229,10 +229,10 @@ describe('CLOSE_DAY — 가중치 정산 (v3 §3: 처리 −w / 방치 +w / 틱 
     expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY);
     expect(state.world.pendingOrders).toEqual([]);
   });
-  it('하루 요약에 고도(8000 − 120×Σ노후도)가 표기된다', () => {
+  it('하루 요약에 고도를 표기하지 않는다 (고도는 실패 상태가 아니다 — 2026-08-06 확정)', () => {
     const { log } = reduce(closingState(), { type: 'CLOSE_DAY' }, CONTENT);
-    // 정산 후 2+7+8=17 → 8000 − 2040 = 5960
-    expect(log.join(' ')).toContain('5960');
+    expect(log.join(' ')).toContain('Day 1 종료');
+    expect(log.join(' ')).not.toContain('고도');
   });
   it('closing이 아니면 throw', () => {
     expect(() => reduce(baseState(), { type: 'CLOSE_DAY' }, CONTENT)).toThrow(/closing/);

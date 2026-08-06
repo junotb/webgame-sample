@@ -8,7 +8,7 @@ import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
 import { generateCards } from './generate';
 import { resolveOption } from './resolve';
-import type { Condition, ZoneId, GameState, MenaceId, Reducer, StepResult, TextVariant } from './schema';
+import type { Condition, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult, TextVariant } from './schema';
 
 export const SHIFT_PER_DAY = 2;
 /** 다일 이벤트 점유 중의 근무 슬롯 (v3 §5) — 처리 1장/방치 3장, 노후도 급등의 근원 */
@@ -52,6 +52,27 @@ export function selectVariant(state: GameState, variants: TextVariant[]): string
 }
 
 const MENACE_LABELS: Record<MenaceId, string> = { fatigue: '피로', scrutiny: '주목', unrest: '동요' };
+export const SKILL_LABELS: Record<SkillId, string> = { inscription: '각인학', flowsense: '감류학' };
+export const STAT_LABELS: Record<StatId, string> = { repair: '정비', insight: '진단', procedure: '절차', nerve: '담력' };
+
+/**
+ * 기술·스탯 상승 노티 (경험치 수치 노출 없음 — 등급이 오른 순간만 알린다).
+ * 성장 시스템 자체는 콘텐츠 효과의 몫이고, 여기는 통보만 한다.
+ */
+export function growthNotes(prev: GameState, next: GameState): string[] {
+  const notes: string[] = [];
+  for (const skill of Object.keys(SKILL_LABELS) as SkillId[]) {
+    if (next.self.skills[skill] > prev.self.skills[skill]) {
+      notes.push(`「${SKILL_LABELS[skill]}」 ${next.self.skills[skill]}등급이 되었다.`);
+    }
+  }
+  for (const stat of Object.keys(STAT_LABELS) as StatId[]) {
+    if (next.self.stats[stat] > prev.self.stats[stat]) {
+      notes.push(`${STAT_LABELS[stat]}이(가) ${next.self.stats[stat]}에 이르렀다.`);
+    }
+  }
+  return notes;
+}
 
 /**
  * 메나스 상한 경고 (스펙 4장) — 도달 시 텍스트 경고만, 강제 이동 콘텐츠 없음.
@@ -116,7 +137,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.seed = advanceSeed(rng);
       const log = [result.success ? '처리 완료.' : '처리 실패.'];
       if (result.text) log.push(result.text);
-      log.push(...menaceWarnings(state, next));
+      log.push(...growthNotes(state, next), ...menaceWarnings(state, next));
       return { state: next, log };
     }
 
@@ -138,7 +159,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.shiftLeft -= entry.timeCost;
       if (next.world.shiftLeft <= 0) next.world.phase = 'event';
       const log = [action.text, '보고서 제출: 설비 이상 점검 완료.'];
-      log.push(...menaceWarnings(state, next));
+      log.push(...growthNotes(state, next), ...menaceWarnings(state, next));
       return { state: next, log };
     }
 
@@ -174,7 +195,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.phase = 'closing';
       next.world.seed = advanceSeed(rng);
       const log = branch?.text ? [branch.text] : [];
-      log.push(...menaceWarnings(state, next));
+      log.push(...growthNotes(state, next), ...menaceWarnings(state, next));
       return { state: next, log };
     }
 
@@ -197,9 +218,10 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       for (const [zoneId, z] of Object.entries(next.world.zones) as [ZoneId, { decay: number }][]) {
         z.decay = clampDecay(z.decay + (delta[zoneId] ?? 0) + 1);
       }
-      const alt = altitude(next.world.zones);
+      // 고도는 실패 상태로 쓰지 않는다 (2026-08-06 Juno): 일과 결과의 압박은
+      // 주간 평가(조직 인사)가 담당하고, 고도는 에피소드 스케일 장치로 남긴다
       const { day, weekday } = next.world.calendar;
-      const log = [`Day ${day} 종료. 도시 고도 ${alt}m.`];
+      const log = [`Day ${day} 종료.`];
       // 다일 이벤트 종료 판정 — 마지막 점유일의 저녁에 끝난다
       if (next.world.multiday && next.world.multiday.daysLeft <= 0) {
         next.world.flags[`md_${next.world.multiday.id}_done`] = 1;

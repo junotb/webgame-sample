@@ -8,7 +8,7 @@ import type { GameState } from '../core/schema';
 import { GameView } from './game-view';
 import { createInitialState } from './game-state';
 import { CONTENT, ORDER } from './test-fixtures';
-import { renderUI, screen } from './test-utils';
+import { renderUI, screen, waitFor } from './test-utils';
 
 /** field 단계 = 오버레이가 없는 유일한 단계. 패널 조작은 여기서만 가능하다 */
 function fieldState(): GameState {
@@ -88,7 +88,27 @@ describe('L2와 L3는 동시에 열리지 않는다', () => {
   });
 });
 
-describe('L1은 사라지지 않는다', () => {
+describe('L2는 무대를 대신한다', () => {
+  it('패널을 열면 무대가 자리를 비우고, 닫으면 읽던 지시서가 그대로 남는다', async () => {
+    const { user, container } = view(fieldState());
+    const stage = () => container.querySelector('.stage');
+
+    // 지시서를 하나 열어 둔 상태를 만든다
+    await user.hover(screen.getByRole('button', { name: /제3중계실/ }));
+    await waitFor(() => expect(screen.getByText('이상 없음으로 처리하십시오.')).toBeDefined());
+
+    await user.click(screen.getByRole('button', { name: '원장' }));
+    expect(stage()?.className).toContain('is-covered');
+    expect(stage()?.hasAttribute('inert')).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: '원장' }));
+    expect(stage()?.className).not.toContain('is-covered');
+    // 언마운트했다면 열람 패널이 초기화되어 있을 것이다
+    expect(screen.getByText('이상 없음으로 처리하십시오.')).toBeDefined();
+  });
+});
+
+describe('L1은 L3 아래에 남는다', () => {
   it('오버레이가 덮여도 무대는 남아 있고, 다만 조작할 수 없다', () => {
     const state = fieldState();
     state.world.phase = 'closing';

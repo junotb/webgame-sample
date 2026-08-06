@@ -230,8 +230,13 @@ button {
   padding-top: 26px;
 }
 
+/* L2가 열리면 무대는 자리를 비운다 — 언마운트가 아니라 숨김이라 열어 둔 지시서가 남는다 */
+.stage.is-covered {
+  display: none;
+}
+
 .panel-layer {
-  padding-top: 22px;
+  padding-top: 26px;
 }
 
 /* L3 — 무대를 덮되 지우지 않는다 */

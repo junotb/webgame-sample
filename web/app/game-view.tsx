@@ -131,9 +131,12 @@ export function GameView({
     <main className="game-shell">
       <TopBar state={state} panel={panel} onTogglePanel={togglePanel} panelsLocked={hasOverlay} />
 
-      {/* L1 — 절대 사라지지 않는다. 오버레이는 이 위를 덮을 뿐이다.
-          덮인 동안은 inert: 뒤에 남아 있되 포커스도 낭독도 되지 않는다 */}
-      <div className="stage" inert={hasOverlay || panel !== null}>
+      {/* L1 — L3 오버레이는 이 위를 덮을 뿐 지우지 않는다 (뒤에 지도가 남는다).
+          반면 L2 패널은 무대를 **대신한다**: 아래에 덧붙이면 스크롤해야 보이고
+          지도와 패널이 한 화면에 함께 남아 다시 평면이 된다.
+          단 언마운트하지는 않는다 — 원장을 잠깐 보고 돌아왔을 때
+          읽고 있던 지시서가 그대로 열려 있어야 한다. */}
+      <div className={`stage${panel !== null && !hasOverlay ? ' is-covered' : ''}`} inert={hasOverlay || panel !== null}>
         <FieldStage
           state={state}
           zoneMap={content.zoneMaps.find((m) => m.zone === state.world.assignment.zone) ?? null}

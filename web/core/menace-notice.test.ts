@@ -67,6 +67,7 @@ const FATIGUE_ORDER: WorkOrder = {
   zone: 'd2',
   difficultyBonus: 0,
   face: 'inspection' as const,
+  siteId: 'test-site',
   reissueCount: 0,
   weight: 1,
   title: '소모적인 작업',
@@ -89,6 +90,7 @@ const CONTENT: ContentBundle = {
   bundleId: 'test',
   encounters: [],
   version: '0',
+  zoneMaps: [],
   orderTemplates: [],
   storylets: [
     {

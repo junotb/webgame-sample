@@ -7,6 +7,7 @@ const T1: WorkOrderTemplate = {
   minDecay: 0,
   weight: 1,
   face: 'inspection',
+  siteId: 'test-site',
   title: '정기 점검',
   body: [
     { if: [{ path: 'world.zones.{zone}.decay', gte: 6 }], text: '악화 본문' },
@@ -40,6 +41,7 @@ const T2: WorkOrderTemplate = {
   minDecay: 4,
   weight: 2,
   face: 'patrol',
+  siteId: 'test-site',
   title: '압력 시정',
   body: [{ text: '본문' }],
   options: [

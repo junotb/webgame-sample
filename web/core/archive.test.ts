@@ -41,6 +41,7 @@ const T: WorkOrderTemplate = {
   minDecay: 0,
   weight: 1,
   face: 'inspection',
+  siteId: 'test-site',
   title: '점검',
   body: [
     { if: [{ path: 'self.memory', gte: 1 }], text: '기억 변형' },
@@ -54,6 +55,7 @@ const T: WorkOrderTemplate = {
 const CONTENT: ContentBundle = {
   bundleId: 'archive-test',
   version: '0',
+  zoneMaps: [],
   encounters: [],
   orderTemplates: [T],
   storylets: [

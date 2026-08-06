@@ -65,7 +65,8 @@
           }
         }
       ],
-      "face": "inspection"
+      "face": "inspection",
+      "siteId": "d5-lamp"
     },
     {
       "id": "WO-T2",
@@ -130,7 +131,8 @@
           }
         }
       ],
-      "face": "patrol"
+      "face": "patrol",
+      "siteId": "d5-trunk"
     },
     {
       "id": "WO-T3",
@@ -216,13 +218,15 @@
           }
         }
       ],
-      "face": "inspection"
+      "face": "inspection",
+      "siteId": "d5-relay"
     },
     {
       "id": "WO-T4",
       "minDecay": 0,
       "weight": 2,
       "face": "supply",
+      "siteId": "d5-depot",
       "title": "정기 자재 수령 — 각인 잉크·봉인지",
       "body": [
         {
@@ -279,6 +283,7 @@
       "minDecay": 6,
       "weight": 3,
       "face": "survey",
+      "siteId": "d5-w7",
       "title": "미확인 구간 확인 — 7호 지선 하부",
       "body": [
         {
@@ -588,6 +593,44 @@
           "text": "조명이 다해 가고 있었다. 더 머무를 수 없어 물러났다. 기록은 반쪽짜리다. 어둠 속의 간격은, 나올 때까지 한 번도 흐트러지지 않았다."
         }
       }
+    }
+  ],
+  "zoneMaps": [
+    {
+      "zone": "d5",
+      "title": "제5구역 · 시설 배치도",
+      "sites": [
+        {
+          "id": "d5-w7",
+          "label": "7호 지선 하부",
+          "x": 33,
+          "y": 22
+        },
+        {
+          "id": "d5-relay",
+          "label": "제3중계실",
+          "x": 69,
+          "y": 31
+        },
+        {
+          "id": "d5-trunk",
+          "label": "중앙 관로 분기",
+          "x": 48,
+          "y": 52
+        },
+        {
+          "id": "d5-depot",
+          "label": "자재 수령소",
+          "x": 79,
+          "y": 66
+        },
+        {
+          "id": "d5-lamp",
+          "label": "서편 가로등 열",
+          "x": 21,
+          "y": 72
+        }
+      ]
     }
   ]
 }

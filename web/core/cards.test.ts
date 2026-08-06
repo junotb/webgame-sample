@@ -40,6 +40,7 @@ const AUTO_T: WorkOrderTemplate = {
   minDecay: 0,
   weight: 2,
   face: 'inspection',
+  siteId: 'test-site',
   title: '점검',
   body: [{ text: '본문' }],
   options: [
@@ -51,6 +52,7 @@ const CONTENT: ContentBundle = {
   bundleId: 'cards-test',
   encounters: [],
   version: '0',
+  zoneMaps: [],
   orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: '자재 수령' }],
   storylets: [
     {
@@ -77,6 +79,7 @@ function card(templateId: string, resolved: boolean, outcome?: WorkOrder['outcom
     difficultyBonus: 0,
     weight: 2,
     face: 'inspection',
+    siteId: 'test-site',
     reissueCount: 0,
     title: '점검',
     body: [{ text: '본문' }],

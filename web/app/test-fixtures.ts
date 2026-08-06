@@ -10,6 +10,7 @@ export const ORDER: WorkOrder = {
   difficultyBonus: 0,
   weight: 1,
   face: 'inspection',
+  siteId: 'test-site',
   reissueCount: 0,
   title: '간헐 명멸 현상 점검',
   body: [
@@ -31,12 +32,14 @@ export const CONTENT: ContentBundle = {
   bundleId: 'ui-test',
   encounters: [],
   version: '1',
+  zoneMaps: [],
   orderTemplates: [
     {
       id: 'WO-TEST',
       minDecay: 0,
       weight: 1,
       face: 'inspection',
+      siteId: 'test-site',
       title: '간헐 명멸 현상 점검',
       body: ORDER.body,
       options: [

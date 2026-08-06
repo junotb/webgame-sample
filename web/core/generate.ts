@@ -50,6 +50,7 @@ export function instantiateCard(
   return {
     templateId: template.id,
     zone,
+    siteId: template.siteId,
     difficultyBonus,
     weight: template.weight,
     face: template.face,

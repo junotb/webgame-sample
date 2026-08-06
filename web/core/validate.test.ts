@@ -14,6 +14,7 @@ function validBundle(): ContentBundle {
         minDecay: 0,
         weight: 1,
         face: 'inspection',
+        siteId: 'x-site',
         title: '테스트 지시서',
         body: [
           { if: [{ path: 'self.memory', gte: 1 }], text: '변형 본문' },
@@ -68,6 +69,13 @@ function validBundle(): ContentBundle {
             onSuccess: { effects: [], text: '지나쳤다' },
           },
         ],
+      },
+    ],
+    zoneMaps: [
+      {
+        zone: 'd5',
+        title: '테스트 배치도',
+        sites: [{ id: 'x-site', label: '시험 지점', x: 50, y: 50 }],
       },
     ],
   };
@@ -241,5 +249,39 @@ describe('validateBundle — 조건·텍스트 변형', () => {
       mutate((b) => (b.orderTemplates[0].body = [{ text: '기본' }, { if: [{ path: 'self.memory', gte: 1 }], text: '도달 불가' }])),
     );
     expect(errs.length).toBeGreaterThan(0);
+  });
+});
+
+describe('validateBundle — 구역 도면 (UI 층위 사양 §7)', () => {
+  it('도면이 하나도 없으면 거부한다', () => {
+    expect(validateBundle(mutate((b) => (b.zoneMaps = []))).join(' ')).toContain('구역 도면이 하나도 없음');
+  });
+
+  it('템플릿의 지점이 도면에 없으면 거부한다', () => {
+    const errs = validateBundle(mutate((b) => (b.orderTemplates[0].siteId = 'nowhere')));
+    expect(errs.join(' ')).toContain("지점 'nowhere'");
+  });
+
+  it('도면이 여럿이면 모든 도면이 모든 템플릿의 지점을 가져야 한다', () => {
+    // 배치 구역이 바뀌면 같은 템플릿이 그 도면으로 바인딩된다 —
+    // 한 도면이라도 비면 마커 없는 지시서가 조용히 생긴다
+    const errs = validateBundle(
+      mutate((b) => b.zoneMaps.push({ zone: 'd2', title: '제2구역 배치도', sites: [] })),
+    );
+    expect(errs.join(' ')).toContain('구역 도면 d2');
+  });
+
+  it('중복 지점 id와 범위 밖 좌표를 거부한다', () => {
+    expect(
+      validateBundle(
+        mutate((b) => b.zoneMaps[0].sites.push({ id: 'x-site', label: '중복', x: 10, y: 10 })),
+      ).join(' '),
+    ).toContain('중복 지점 id');
+    expect(validateBundle(mutate((b) => (b.zoneMaps[0].sites[0].x = 140))).join(' ')).toContain('0~100');
+    expect(validateBundle(mutate((b) => (b.zoneMaps[0].sites[0].y = -1))).join(' ')).toContain('0~100');
+  });
+
+  it('지점명이 비면 거부한다 — 지점명은 표면 층이다', () => {
+    expect(validateBundle(mutate((b) => (b.zoneMaps[0].sites[0].label = ''))).join(' ')).toContain('label');
   });
 });

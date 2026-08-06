@@ -107,6 +107,51 @@ function checkVariants(body: TextVariant[], where: string, errors: string[], all
   }
 }
 
+/**
+ * 구역 도면 (UI 층위 사양 §7).
+ *
+ * 핵심 규칙: **모든 지시서 템플릿의 siteId가 모든 도면에 존재해야 한다.**
+ * 템플릿은 배치 구역에 따라 어느 도면에든 바인딩될 수 있으므로, 도면 하나라도
+ * 지점이 빠지면 그 구역에 배치되는 순간 마커 없는 지시서가 생긴다.
+ * 나중에 d2/d7 도면을 추가할 때 조용히 비는 대신 검증에서 터진다.
+ */
+function checkZoneMaps(bundle: ContentBundle, errors: string[]): void {
+  const maps = bundle.zoneMaps ?? [];
+  if (maps.length === 0) {
+    errors.push('구역 도면이 하나도 없음 — 배치 구역의 지도를 그릴 수 없다');
+    return;
+  }
+
+  const seenZones = new Set<string>();
+  for (const map of maps) {
+    const where = `구역 도면 ${map.zone}`;
+    if (!ZONE_IDS.includes(map.zone)) errors.push(`${where}: 알 수 없는 구역 id`);
+    if (seenZones.has(map.zone)) errors.push(`중복 구역 도면: ${map.zone}`);
+    seenZones.add(map.zone);
+    if (!map.title) errors.push(`${where}: title이 비어 있음`);
+
+    const seenSites = new Set<string>();
+    for (const site of map.sites) {
+      const siteWhere = `${where} 지점 ${site.id}`;
+      if (!site.id) errors.push(`${where}: 지점 id가 비어 있음`);
+      if (seenSites.has(site.id)) errors.push(`${where}: 중복 지점 id '${site.id}'`);
+      seenSites.add(site.id);
+      if (!site.label) errors.push(`${siteWhere}: label이 비어 있음 — 지점명은 표면 층이다`);
+      for (const [axis, value] of [['x', site.x], ['y', site.y]] as const) {
+        if (typeof value !== 'number' || Number.isNaN(value) || value < 0 || value > 100) {
+          errors.push(`${siteWhere}: ${axis}는 0~100이어야 함 (현재: ${value})`);
+        }
+      }
+    }
+
+    for (const t of bundle.orderTemplates) {
+      if (!seenSites.has(t.siteId)) {
+        errors.push(`${where}: 지시서 템플릿 ${t.id}의 지점 '${t.siteId}'이(가) 이 도면에 없음`);
+      }
+    }
+  }
+}
+
 export function validateBundle(bundle: ContentBundle): string[] {
   const errors: string[] = [];
 
@@ -155,6 +200,7 @@ export function validateBundle(bundle: ContentBundle): string[] {
     if (!CARD_FACES.includes(t.face)) {
       errors.push(`${where}: 알 수 없는 카드 얼굴 '${t.face}' — 표면 층은 조직의 언어만 허용 (${CARD_FACES.join('/')})`);
     }
+    if (!t.siteId) errors.push(`${where}: siteId가 비어 있음 — 지도에 놓일 자리가 없다`);
 
     checkVariants(t.body, where, errors, true);
     t.options.forEach((opt, i) => {
@@ -190,6 +236,8 @@ export function validateBundle(bundle: ContentBundle): string[] {
       c.onFailure?.effects.forEach((e) => checkEffect(e, false, `${choiceWhere} onFailure`, errors));
     });
   }
+
+  checkZoneMaps(bundle, errors);
 
   return errors;
 }

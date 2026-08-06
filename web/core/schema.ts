@@ -153,11 +153,30 @@ export type CardFace =
   | 'supply'       // 자재 수령
   | 'survey';      // 미확인 구간 확인
 
+/**
+ * 구역 도면의 한 지점 (UI 층위 사양 §7) — 지도 마커가 놓이는 자리.
+ * 좌표를 지시서 템플릿에 직접 박으면 도면이 바뀔 때 템플릿이 전부 깨진다.
+ * 도면이 지점 목록을 소유하고, 템플릿은 `siteId`만 참조한다.
+ */
+export interface ZoneSite {
+  id: string;      // 'd5-w7'
+  label: string;   // '7호 지선 하부' — 표면 층이므로 조직의 언어
+  x: number;       // 0~100 (도면 상대 좌표)
+  y: number;
+}
+
+export interface ZoneMap {
+  zone: ZoneId;
+  title: string;   // '제5구역 · 시설 배치도'
+  sites: ZoneSite[];
+}
+
 export interface WorkOrderTemplate {
   id: string;                       // 'WO-T1' ...
   minDecay: number;                 // 이 노후도 이상 구역에서 생성됨
   weight: number;                   // 1~3 — CLOSE_DAY 노후도 정산 폭 (v3 §3, 빌드 검증 대상)
   face: CardFace;                   // 카드 얼굴 (표면 층)
+  siteId: string;                   // ZoneSite.id — 배치 구역 도면에서 이 지점에 놓인다
   title: string;                    // 공식 완곡어 제목
   body: TextVariant[];              // 완곡어 시스템 적용 지점
   options: WorkOption[];
@@ -194,6 +213,8 @@ export interface BoundWorkOption {
 export interface WorkOrder {
   templateId: string;
   zone: ZoneId;
+  /** 템플릿에서 복사 — 지도는 이 값만 보고 마커를 놓는다 (템플릿 재조회 없음) */
+  siteId: string;
   /** 난이도 보정: 구역 노후도의 minDecay 초과분 (방치의 대가, 튜닝 대상) */
   difficultyBonus: number;
   weight: number;                   // 템플릿에서 복사 — 정산은 리듀서가 이 값만 본다
@@ -265,6 +286,8 @@ export interface ContentBundle {
   orderTemplates: WorkOrderTemplate[];
   storylets: Storylet[];
   encounters: EncounterDef[];
+  /** 구역 도면 (UI 층위 사양 §7) — 배치 구역의 지도가 여기서 온다 */
+  zoneMaps: ZoneMap[];
 }
 
 // ─────────────────────────────────────────────

@@ -51,7 +51,15 @@ export function MorningOverlay({ state, disabled, onAction }: OverlayProps) {
 export function EventOverlay({ state, content, disabled, onAction }: OverlayProps & { content: ContentBundle }) {
   const storylet = content.storylets.find((item) => evalConditions(state, item.requirements));
   if (!storylet) {
-    return <p className="empty-notice">오늘은 사무소에 아무도 남아 있지 않다.</p>;
+    // 서사가 카드로 가면서(v3 §4 정정) 빈 저녁이 생겼다 — 조용히 하루를 닫는다
+    return (
+      <section className="day-open" aria-label="저녁">
+        <p className="day-open-note">사무소에는 아무도 없었다.</p>
+        <button className="primary-action" disabled={disabled} onClick={() => onAction({ type: 'SKIP_EVENT' })}>
+          불을 끄고 정산으로
+        </button>
+      </section>
+    );
   }
 
   return (

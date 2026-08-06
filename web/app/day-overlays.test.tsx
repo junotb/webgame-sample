@@ -57,4 +57,19 @@ describe('사무소 장면', () => {
 
     expect(screen.getByRole('button', { name: /무엇이 문제인지 묻는다/ })).toBeDefined();
   });
+
+  it('빈 저녁은 소프트락 없이 닫힌다 — SKIP_EVENT (v3 §4 정정 이후 서사는 카드에 있다)', async () => {
+    const state = createInitialState();
+    state.world.phase = 'event';
+    const closed = {
+      ...CONTENT,
+      storylets: [{ ...CONTENT.storylets[0], requirements: [{ path: 'world.calendar.day' as const, gte: 99 }] }],
+    };
+    const onAction = vi.fn();
+    const { user } = renderUI(<EventOverlay state={state} content={closed} disabled={false} onAction={onAction} />);
+
+    expect(screen.getByText('사무소에는 아무도 없었다.')).toBeDefined();
+    await user.click(screen.getByRole('button', { name: /불을 끄고 정산으로/ }));
+    expect(onAction).toHaveBeenCalledWith({ type: 'SKIP_EVENT' });
+  });
 });

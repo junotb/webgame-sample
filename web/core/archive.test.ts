@@ -42,7 +42,7 @@ const T: WorkOrderTemplate = {
   weight: 1,
   face: 'inspection',
   siteId: 'test-site',
-  title: '점검',
+  title: [{ text: '점검' }],
   body: [
     { if: [{ path: 'self.memory', gte: 1 }], text: '기억 변형' },
     { text: '기본 본문' },

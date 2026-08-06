@@ -5,14 +5,15 @@
  * 생성 시점에 경로·본문 조건 바인딩과 난이도 보정을 전부 끝낸다.
  */
 import { bindEffects, bindVariants } from './bind';
+import { evalConditions } from './conditions';
 import type {
   BoundWorkOption,
   Check,
+  GameState,
   ZoneId,
   WorkOption,
   WorkOrder,
   WorkOrderTemplate,
-  WorldSheet,
 } from './schema';
 
 /** 제시 4장 / 처리 2장 (v3 §4) — 방치 2장이 미시 피드백의 재료가 된다 */
@@ -55,7 +56,7 @@ export function instantiateCard(
     weight: template.weight,
     face: template.face,
     reissueCount: neglect,
-    title: template.title,
+    title: bindVariants(template.title, zone),
     body: bindVariants(template.body, zone),
     options: template.options.map((o) => bindOption(o, zone, difficultyBonus)),
     resolved: false,
@@ -64,23 +65,34 @@ export function instantiateCard(
 
 /**
  * 배치 구역 하나에서 최대 4장 (v3 §9: 1주차 한 구역 고정).
- * 우선순위: 방치 누적 큰 순 → minDecay 깊은 순 → 완전 동률만 rng.
+ *
+ * 우선순위: **서사 카드 먼저** → 방치 누적 큰 순 → minDecay 깊은 순 → 완전 동률만 rng.
  * 방치한 카드가 다음 날 반드시 다시 올라오는 것이 미시 피드백의 전제다.
+ *
+ * 서사 카드를 맨 앞에 두는 이유: 조건이 맞는 날에 방치 정렬로 밀려 사라지면
+ * 진실의 뼈대가 운에 맡겨진다. `requirements`가 이미 희소성을 담당하므로
+ * (플래그·기억·일차로 걸린다) 우선순위까지 경쟁시킬 이유가 없다.
+ *
+ * 조건 평가에 `self.memory`·`self.skills.*`가 필요하므로 world가 아니라 전체 상태를 받는다.
  */
 export function generateCards(
-  world: Pick<WorldSheet, 'assignment' | 'zones' | 'cardNeglect'>,
+  state: GameState,
   templates: WorkOrderTemplate[],
   rng: () => number,
 ): WorkOrder[] {
+  const world = state.world;
   const zone = world.assignment.zone;
   const decay = world.zones[zone].decay;
-  const eligible = templates.filter((t) => t.minDecay <= decay);
+  const eligible = templates.filter(
+    (t) => t.minDecay <= decay && (!t.requirements || evalConditions(state, t.requirements)),
+  );
   if (eligible.length === 0) {
     throw new Error(`적격 템플릿 없음: 구역 ${zone} (노후도 ${decay})`);
   }
   const neglectOf = (t: WorkOrderTemplate) => world.cardNeglect[t.id] ?? 0;
   const jitter = new Map(eligible.map((t) => [t.id, rng()]));
   const sorted = [...eligible].sort((a, b) => {
+    if (!!a.thread !== !!b.thread) return a.thread ? -1 : 1;
     if (neglectOf(a) !== neglectOf(b)) return neglectOf(b) - neglectOf(a);
     if (a.minDecay !== b.minDecay) return b.minDecay - a.minDecay;
     return (jitter.get(a.id) ?? 0) - (jitter.get(b.id) ?? 0);

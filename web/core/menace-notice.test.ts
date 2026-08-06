@@ -70,7 +70,7 @@ const FATIGUE_ORDER: WorkOrder = {
   siteId: 'test-site',
   reissueCount: 0,
   weight: 1,
-  title: '소모적인 작업',
+  title: [{ text: '소모적인 작업' }],
   body: [{ text: '본문' }],
   options: [
     {

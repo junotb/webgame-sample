@@ -202,6 +202,22 @@ export function validateBundle(bundle: ContentBundle): string[] {
     }
     if (!t.siteId) errors.push(`${where}: siteId가 비어 있음 — 지도에 놓일 자리가 없다`);
 
+    // 서사 전제 (v3 §4 정정) — 생성 시점(구역 바인딩 전)에 평가되므로 {zone} 불가
+    if (t.requirements) checkConditions(t.requirements, `${where} requirements`, errors);
+
+    // 제목 = 단서가 실리는 자리. 본문과 같은 변형 계약을 따른다
+    checkVariants(t.title, `${where} 제목`, errors, true);
+    // 단서는 한 축만 (v3 §4·§7): 제목 변형 조건에 기억과 기술을 섞지 않는다
+    const clueAxes = new Set(
+      (t.title ?? [])
+        .flatMap((v) => v.if ?? [])
+        .map((c) => (c.path === 'self.memory' ? 'memory' : c.path.startsWith('self.skills.') ? 'skill' : 'other')),
+    );
+    clueAxes.delete('other');
+    if (clueAxes.size > 1) {
+      errors.push(`${where}: 제목 단서에 기억·기술 축이 섞임 — 카드 하나는 한 축만 쓴다 (v3 §4)`);
+    }
+
     checkVariants(t.body, where, errors, true);
     t.options.forEach((opt, i) => {
       const optWhere = `${where} 옵션[${i}]`;

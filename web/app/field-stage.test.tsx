@@ -15,7 +15,7 @@ const SECOND: WorkOrder = {
   templateId: 'WO-TEST2',
   siteId: 'site-b',
   face: 'supply',
-  title: '정기 자재 수령',
+  title: [{ text: '정기 자재 수령' }],
   body: [{ text: '수령 서명을 받으십시오.' }],
 };
 

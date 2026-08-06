@@ -30,7 +30,7 @@ const minimalBundle = {
       weight: 1,
       face: 'inspection',
       siteId: 'm-site',
-      title: '지시서',
+      title: [{ text: '지시서' }],
       body: [{ text: '본문' }],
       options: [
         {

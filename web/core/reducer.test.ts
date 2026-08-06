@@ -39,7 +39,7 @@ const AUTO_T: WorkOrderTemplate = {
   weight: 2,
   face: 'inspection',
   siteId: 'test-site',
-  title: '점검',
+  title: [{ text: '점검' }],
   body: [{ text: '본문' }],
   options: [
     {
@@ -59,7 +59,7 @@ const CONTENT: ContentBundle = {
   encounters: [],
   version: '0',
   zoneMaps: [],
-  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: '자재 수령' }],
+  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: [{ text: '자재 수령' }] }],
   storylets: [
     {
       id: 'EV-001',
@@ -102,7 +102,7 @@ function makeOrder(
     face: 'inspection',
     siteId: 'test-site',
     reissueCount: 0,
-    title: '점검',
+    title: [{ text: '점검' }],
     body: [{ text: '본문' }],
     options: [],
     resolved,

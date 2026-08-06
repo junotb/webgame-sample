@@ -12,7 +12,7 @@ export const ORDER: WorkOrder = {
   face: 'inspection',
   siteId: 'test-site',
   reissueCount: 0,
-  title: '간헐 명멸 현상 점검',
+  title: [{ text: '간헐 명멸 현상 점검' }],
   body: [
     { if: [{ path: 'self.memory', gte: 1 }], text: '당신은 이 문구가 무언가를 감추고 있음을 안다.' },
     { text: '이상 없음으로 처리하십시오.' },
@@ -46,7 +46,7 @@ export const CONTENT: ContentBundle = {
       weight: 1,
       face: 'inspection',
       siteId: 'test-site',
-      title: '간헐 명멸 현상 점검',
+      title: [{ text: '간헐 명멸 현상 점검' }],
       body: ORDER.body,
       options: [
         {

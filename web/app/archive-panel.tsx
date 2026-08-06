@@ -22,7 +22,8 @@ interface ArchiveDocument {
   day: number;
   /** 색인의 앵커 — 불변이다. 제목만 달라진 채 같은 표식이 세로로 반복된다 (v3 §7) */
   anchor: string;
-  title: string;
+  /** 제목도 변형을 갖는다 — 단서(v3 §4)가 지금의 기억·기술로 다시 판정된다 */
+  title: TextVariant[];
   body: TextVariant[];
 }
 
@@ -30,15 +31,22 @@ function resolveDocument(entry: ArchiveEntry, content: ContentBundle): ArchiveDo
   if (entry.kind === 'order') {
     const t = content.orderTemplates.find((t) => t.id === entry.templateId);
     return t
-      ? { day: entry.day, anchor: FACE_LABELS[t.face], title: t.title, body: bindVariants(t.body, entry.zone) }
+      ? {
+          day: entry.day,
+          anchor: FACE_LABELS[t.face],
+          title: bindVariants(t.title, entry.zone),
+          body: bindVariants(t.body, entry.zone),
+        }
       : null;
   }
   if (entry.kind === 'storylet') {
     const s = content.storylets.find((s) => s.id === entry.id);
-    return s ? { day: entry.day, anchor: '면담', title: `면담록 ${s.id}`, body: s.body } : null;
+    return s ? { day: entry.day, anchor: '면담', title: [{ text: `면담록 ${s.id}` }], body: s.body } : null;
   }
   const e = content.encounters.find((e) => e.id === entry.id);
-  return e ? { day: entry.day, anchor: '신고', title: e.title, body: bindVariants(e.intro, entry.zone) } : null;
+  return e
+    ? { day: entry.day, anchor: '신고', title: [{ text: e.title }], body: bindVariants(e.intro, entry.zone) }
+    : null;
 }
 
 export function ArchivePanel({ state, content }: { state: GameState; content: ContentBundle }) {
@@ -58,7 +66,7 @@ export function ArchivePanel({ state, content }: { state: GameState; content: Co
     <section className="archive" aria-label="서류함">
       <ol className="archive-index">
         {documents.map((doc, i) => (
-          <li key={`${doc.title}-${i}`}>
+          <li key={`${doc.day}-${i}`}>
             <button
               className="archive-entry"
               aria-current={i === selected}
@@ -66,7 +74,7 @@ export function ArchivePanel({ state, content }: { state: GameState; content: Co
             >
               <span className="archive-day">DAY {String(doc.day).padStart(2, '0')}</span>
               <span className="archive-anchor">{doc.anchor}</span>
-              <span className="archive-title">{doc.title}</span>
+              <span className="archive-title">{selectVariant(state, doc.title)}</span>
             </button>
           </li>
         ))}
@@ -77,7 +85,7 @@ export function ArchivePanel({ state, content }: { state: GameState; content: Co
           <span>보관 문서 {String(documents.indexOf(open) + 1).padStart(2, '0')}</span>
           <span>재열람</span>
         </header>
-        <h3>{open.title}</h3>
+        <h3>{selectVariant(state, open.title)}</h3>
         <p className="document-copy">{selectVariant(state, open.body)}</p>
       </article>
     </section>

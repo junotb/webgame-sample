@@ -41,7 +41,7 @@ const AUTO_T: WorkOrderTemplate = {
   weight: 2,
   face: 'inspection',
   siteId: 'test-site',
-  title: '점검',
+  title: [{ text: '점검' }],
   body: [{ text: '본문' }],
   options: [
     { label: '처리', check: { kind: 'auto' }, timeCost: 1, onSuccess: { effects: [], text: '처리 완료' } },
@@ -53,7 +53,7 @@ const CONTENT: ContentBundle = {
   encounters: [],
   version: '0',
   zoneMaps: [],
-  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: '자재 수령' }],
+  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: [{ text: '자재 수령' }] }],
   storylets: [
     {
       id: 'EV-MD',
@@ -81,7 +81,7 @@ function card(templateId: string, resolved: boolean, outcome?: WorkOrder['outcom
     face: 'inspection',
     siteId: 'test-site',
     reissueCount: 0,
-    title: '점검',
+    title: [{ text: '점검' }],
     body: [{ text: '본문' }],
     options: [],
     resolved,
@@ -228,5 +228,22 @@ describe('RESOLVE_ENCOUNTER — 조우 결과 반입 (v3 §6)', () => {
         CONTENT,
       ),
     ).toThrow();
+  });
+});
+
+describe('SKIP_EVENT — 빈 저녁 (v3 §4 정정 이후)', () => {
+  it('조건 맞는 스토리렛이 없으면 event → closing', () => {
+    // CONTENT의 EV-MD는 requirements가 비어 항상 열린다 — 닫힌 버전으로 검사
+    const noEvening: ContentBundle = {
+      ...CONTENT,
+      storylets: [{ ...CONTENT.storylets[0], requirements: [{ path: 'world.calendar.day', gte: 99 }] }],
+    };
+    const { state, log } = reduce(baseState({ phase: 'event' }), { type: 'SKIP_EVENT' }, noEvening);
+    expect(state.world.phase).toBe('closing');
+    expect(log.join(' ')).toContain('아무도 없었다');
+  });
+
+  it('열린 스토리렛이 있으면 거부한다 — 관계 이벤트를 건너뛰는 문이 아니다', () => {
+    expect(() => reduce(baseState({ phase: 'event' }), { type: 'SKIP_EVENT' }, CONTENT)).toThrow(/건너뛸 수 없음/);
   });
 });

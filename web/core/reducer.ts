@@ -4,11 +4,15 @@
  * 트리아지 장치: shiftLeft(근무 시간 2)로 3건 중 2건만 처리 가능.
  */
 import { bandOf, RATING_LABELS, ratingOfBand, weekOf, WORKDAYS_PER_WEEK } from './calendar';
+import { evalConditions } from './conditions';
 import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
 import { generateCards } from './generate';
 import { resolveOption } from './resolve';
-import type { ArchiveEntry, Condition, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult, TextVariant } from './schema';
+import type { ArchiveEntry, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult } from './schema';
+
+// 조건 평가는 core/conditions로 옮겼다 (생성기와의 순환 참조 회피). 기존 import 경로는 유지한다.
+export { evalConditions, getValueAtPath, selectVariant } from './conditions';
 
 export const SHIFT_PER_DAY = 2;
 /** 다일 이벤트 점유 중의 근무 슬롯 (v3 §5) — 처리 1장/방치 3장, 노후도 급등의 근원 */
@@ -26,29 +30,6 @@ function clampDecay(value: number): number {
 export function altitude(zones: Record<ZoneId, { decay: number }>): number {
   const total = Object.values(zones).reduce((sum, d) => sum + d.decay, 0);
   return BASE_ALTITUDE - ALTITUDE_PER_DECAY * total;
-}
-
-/** 조건·변형 평가용 상태 경로 읽기. 없는 flag 등 미정의 숫자는 0. */
-export function getValueAtPath(state: GameState, path: string): number {
-  let node: unknown = state;
-  for (const seg of path.split('.')) {
-    if (typeof node !== 'object' || node === null) return 0;
-    node = (node as Record<string, unknown>)[seg];
-  }
-  return typeof node === 'number' ? node : 0;
-}
-
-export function evalConditions(state: GameState, conditions: Condition[]): boolean {
-  return conditions.every((c) => {
-    const v = getValueAtPath(state, c.path);
-    return (c.gte === undefined || v >= c.gte) && (c.lte === undefined || v <= c.lte);
-  });
-}
-
-/** 완곡어 변형 선택 — 첫 매치 우선, 조건 없는 변형이 기본값 (스키마 TextVariant 계약) */
-export function selectVariant(state: GameState, variants: TextVariant[]): string {
-  const match = variants.find((v) => !v.if || evalConditions(state, v.if));
-  return match?.text ?? '';
 }
 
 const MENACE_LABELS: Record<MenaceId, string> = { fatigue: '피로', scrutiny: '주목', unrest: '동요' };
@@ -122,7 +103,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
     case 'START_DAY': {
       assertPhase(state, 'morning', 'START_DAY');
       const rng = mulberry32(state.world.seed);
-      const orders = generateCards(state.world, content.orderTemplates, rng);
+      const orders = generateCards(state, content.orderTemplates, rng);
       const next = structuredClone(state);
       next.world.pendingOrders = orders;
       next.world.phase = 'field';
@@ -197,6 +178,17 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.shiftLeft = 0;
       next.world.phase = 'event';
       return { state: next, log: ['남은 근무 시간을 접고 사무소로 돌아간다.'] };
+    }
+
+    case 'SKIP_EVENT': {
+      assertPhase(state, 'event', 'SKIP_EVENT');
+      const open = content.storylets.find((s) => evalConditions(state, s.requirements));
+      if (open) {
+        throw new Error(`저녁 장면이 남아 있어 건너뛸 수 없음: ${open.id}`);
+      }
+      const next = structuredClone(state);
+      next.world.phase = 'closing';
+      return { state: next, log: ['사무소에는 아무도 없었다. 불을 끄고 정산 서류를 꺼낸다.'] };
     }
 
     case 'CHOOSE_STORYLET': {

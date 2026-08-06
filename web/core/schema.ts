@@ -177,7 +177,26 @@ export interface WorkOrderTemplate {
   weight: number;                   // 1~3 — CLOSE_DAY 노후도 정산 폭 (v3 §3, 빌드 검증 대상)
   face: CardFace;                   // 카드 얼굴 (표면 층)
   siteId: string;                   // ZoneSite.id — 배치 구역 도면에서 이 지점에 놓인다
-  title: string;                    // 공식 완곡어 제목
+  /**
+   * 서사 전제 (v3 §4 정정) — minDecay 외의 등장 조건.
+   * 도시의 비밀은 저녁 장면이 아니라 **일과 중에 고른 카드**에서 알게 되므로,
+   * 진실의 뼈대를 이루는 카드는 플래그·기억·일차로 걸린다.
+   * 1회성은 별도 필드 없이 "성공 시 플래그 세팅 + 여기서 그 플래그 배제"로 닫는다.
+   */
+  requirements?: Condition[];
+  /**
+   * 진실의 뼈대인가 (v3 §5). 표면에 드러나지 않는 **내부** 표시다 —
+   * 렌더링되지 않으므로 "표면은 실제를 예고하지 않는다"에 걸리지 않는다.
+   * 등장 우선순위에만 쓴다: 조건이 맞는 날 방치 정렬에 밀려 사라지면 진실이 멈춘다.
+   */
+  thread?: boolean;
+  /**
+   * 공식 완곡어 제목 — **단서가 실리는 자리**다 (v3 §4 「단서」).
+   * 조건 없는 변형 하나면 단서 '없음'(문구 자체가 튄다),
+   * `self.memory` 조건이면 기억 축, `self.skills.*` 조건이면 기술 축.
+   * 카드 하나는 한 축만 쓴다 — §7의 조합 폭발 방지 원칙.
+   */
+  title: TextVariant[];
   body: TextVariant[];              // 완곡어 시스템 적용 지점
   options: WorkOption[];
 }
@@ -221,7 +240,8 @@ export interface WorkOrder {
   face: CardFace;
   /** 재발부 차수 = 생성 시점의 방치 누적. 0이면 신규 발부 */
   reissueCount: number;
-  title: string;
+  /** 변형 선택은 렌더 시점 — 단서가 지금의 기억·기술로 다시 판정된다 (v3 §7) */
+  title: TextVariant[];
   body: TextVariant[];              // 변형 선택은 렌더 시점 (완곡어 시스템)
   options: BoundWorkOption[];
   resolved: boolean;
@@ -298,6 +318,11 @@ export type Action =
   | { type: 'RESOLVE_ORDER'; orderIndex: number; optionIndex: number }
   | { type: 'SKIP_TO_EVENT' }
   | { type: 'CHOOSE_STORYLET'; storyletId: string; choiceIndex: number }
+  /**
+   * 저녁에 아무도 없을 때만 (v3 §4 정정 이후 서사가 카드로 가면서 생긴 빈 저녁).
+   * 조건 맞는 스토리렛이 있으면 거부한다 — 관계 이벤트를 건너뛰는 문이 되면 안 된다.
+   */
+  | { type: 'SKIP_EVENT' }
   /**
    * 조우 종료 결과 반입 (v3 §6) — 조우 리듀서가 만든 완성된 효과만 받는다.
    * burned/soothed는 카드 처리 성공, withdrawn/expired는 처리 실패로 정산된다.

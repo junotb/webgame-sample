@@ -57,7 +57,7 @@ function OrderPanel({
         <span>{siteLabel}</span>
       </header>
       <p className="order-code">{order.templateId}</p>
-      <h3>{order.title}</h3>
+      <h3>{selectVariant(state, order.title)}</h3>
       <p className="document-copy">{selectVariant(state, order.body)}</p>
       <div className="choices">
         {order.options.map((option, optionIndex) => (
@@ -106,7 +106,7 @@ export function FieldStage({ state, zoneMap, disabled, onAction, onStartEncounte
             <li key={order.templateId}>
               <button onClick={() => setOpenIndex(index)} onFocus={() => setOpenIndex(index)}>
                 <FaceIcon className="site-icon" face={order.face} />
-                {order.title}
+                {selectVariant(state, order.title)}
               </button>
             </li>
           ))}

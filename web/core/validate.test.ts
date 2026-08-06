@@ -15,7 +15,7 @@ function validBundle(): ContentBundle {
         weight: 1,
         face: 'inspection',
         siteId: 'x-site',
-        title: '테스트 지시서',
+        title: [{ text: '테스트 지시서' }],
         body: [
           { if: [{ path: 'self.memory', gte: 1 }], text: '변형 본문' },
           { text: '기본 본문' },

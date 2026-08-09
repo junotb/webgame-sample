@@ -3,7 +3,7 @@
  * 기억이 오르면 그 사실만 알린다. 강조는 답을 주고, 재열람은 질문을 준다.
  */
 import { describe, expect, it } from 'vitest';
-import { growthNotes, reduce, selectVariant } from './reducer';
+import { growthNotes, reduce, selectProse } from './reducer';
 import { bindVariants } from './bind';
 import type { ContentBundle, GameState, WorkOrderTemplate } from './schema';
 
@@ -45,8 +45,8 @@ const T: WorkOrderTemplate = {
   siteId: 'test-site',
   title: [{ text: '점검' }],
   body: [
-    { if: [{ path: 'self.memory', gte: 1 }], text: '기억 변형' },
-    { text: '기본 본문' },
+    { if: [{ path: 'self.memory', gte: 1 }], paragraphs: ['기억 변형'] },
+    { paragraphs: ['기본 본문'] },
   ],
   options: [
     { label: '처리', check: { kind: 'auto' }, timeCost: 1, onSuccess: { effects: [], text: '완료' } },
@@ -63,7 +63,7 @@ const CONTENT: ContentBundle = {
     {
       id: 'EV-001',
       requirements: [],
-      body: [{ text: '이벤트' }],
+      body: [{ paragraphs: ['이벤트'] }],
       choices: [
         {
           label: '묻는다',
@@ -112,9 +112,9 @@ describe('재열람 렌더링 — 같은 문서, 달라진 독자', () => {
   it('보관된 카드 본문이 현재 기억으로 다시 선택된다', () => {
     const bound = bindVariants(T.body, 'd5');
     const before = baseState();
-    expect(selectVariant(before, bound)).toBe('기본 본문');
+    expect(selectProse(before, bound)).toEqual(['기본 본문']);
     const after = baseState();
     after.self.memory = 1;
-    expect(selectVariant(after, bound)).toBe('기억 변형');
+    expect(selectProse(after, bound)).toEqual(['기억 변형']);
   });
 });

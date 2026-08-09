@@ -16,7 +16,7 @@ const SECOND: WorkOrder = {
   siteId: 'site-b',
   face: 'supply',
   title: [{ text: '정기 자재 수령' }],
-  body: [{ text: '수령 서명을 받으십시오.' }],
+  body: [{ paragraphs: ['수령 서명을 받으십시오.'] }],
 };
 
 const MAP = {

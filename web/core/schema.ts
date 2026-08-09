@@ -137,10 +137,20 @@ export interface Condition {
   lte?: number;
 }
 
-/** 첫 매치 우선. 조건 없는 변형이 기본값(맨 뒤에 배치). */
+/** 첫 매치 우선. 조건 없는 변형이 기본값(맨 뒤에 배치). 제목·라벨 등 한 줄 텍스트용. */
 export interface TextVariant {
   if?: Condition[];   // 예: [{ path: 'self.memory', gte: 1 }]
   text: string;
+}
+
+/**
+ * 본문 변형 — 문단 배열 (ui-screen-spec §4). 원소 하나 = 문단 하나 = 입력 한 번.
+ * 분절은 읽기의 박자를 정하는 콘텐츠의 명시적 결정이라 `\n\n` 관례로 표현하지 않는다.
+ * 변형 선택 규칙은 TextVariant와 같다 (첫 매치 우선, 무조건 변형이 기본값).
+ */
+export interface ProseVariant {
+  if?: Condition[];
+  paragraphs: string[];
 }
 
 // ─────────────────────────────────────────────
@@ -201,7 +211,7 @@ export interface WorkOrderTemplate {
    * 카드 하나는 한 축만 쓴다 — §7의 조합 폭발 방지 원칙.
    */
   title: TextVariant[];
-  body: TextVariant[];              // 완곡어 시스템 적용 지점
+  body: ProseVariant[];             // 완곡어 시스템 적용 지점 — 문단 배열 (ui-screen-spec §4)
   options: WorkOption[];
 }
 
@@ -246,7 +256,7 @@ export interface WorkOrder {
   reissueCount: number;
   /** 변형 선택은 렌더 시점 — 단서가 지금의 기억·기술로 다시 판정된다 (v3 §7) */
   title: TextVariant[];
-  body: TextVariant[];              // 변형 선택은 렌더 시점 (완곡어 시스템)
+  body: ProseVariant[];             // 변형 선택은 렌더 시점 (완곡어 시스템)
   options: BoundWorkOption[];
   resolved: boolean;
   /** 처리 결과 — CLOSE_DAY 정산 근거: 성공 −weight / 실패 0 / 방치(미기록) +weight */
@@ -259,7 +269,7 @@ export interface WorkOrder {
 export interface Storylet {
   id: string;                       // 'EV-001' ...
   requirements: Condition[];
-  body: TextVariant[];
+  body: ProseVariant[];
   choices: StoryletChoice[];
 }
 
@@ -290,7 +300,7 @@ export interface EncounterDef {
   maxTurns: number;                 // 3~5 (빌드 검증)
   /** soothe 성공 누적이 이 값에 닿으면 잠든다 (1~3) */
   calmToSleep: number;
-  intro: TextVariant[];
+  intro: ProseVariant[];
   actions: Record<EncounterActionId, {
     label: string;
     check: Check;                   // withdraw는 auto

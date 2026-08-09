@@ -17,8 +17,8 @@ function validBundle(): ContentBundle {
         siteId: 'x-site',
         title: [{ text: '테스트 지시서' }],
         body: [
-          { if: [{ path: 'self.memory', gte: 1 }], text: '변형 본문' },
-          { text: '기본 본문' },
+          { if: [{ path: 'self.memory', gte: 1 }], paragraphs: ['변형 본문'] },
+          { paragraphs: ['기본 본문'] },
         ],
         options: [
           {
@@ -53,7 +53,7 @@ function validBundle(): ContentBundle {
       {
         id: 'EV-X1',
         requirements: [{ path: 'world.calendar.day', gte: 1 }],
-        body: [{ text: '이벤트 본문' }],
+        body: [{ paragraphs: ['이벤트 본문'] }],
         choices: [
           {
             label: '묻는다',
@@ -239,16 +239,42 @@ describe('validateBundle — 조건·텍스트 변형', () => {
 
   it('무조건 기본 변형이 마지막에 없으면 잡는다 (첫 매치 우선 규칙)', () => {
     const errs = validateBundle(
-      mutate((b) => (b.orderTemplates[0].body = [{ if: [{ path: 'self.memory', gte: 1 }], text: '변형만' }])),
+      mutate((b) => (b.orderTemplates[0].body = [{ if: [{ path: 'self.memory', gte: 1 }], paragraphs: ['변형만'] }])),
     );
     expect(errs.length).toBeGreaterThan(0);
   });
 
   it('무조건 변형이 중간에 있으면 잡는다 (뒤 변형이 도달 불가)', () => {
     const errs = validateBundle(
-      mutate((b) => (b.orderTemplates[0].body = [{ text: '기본' }, { if: [{ path: 'self.memory', gte: 1 }], text: '도달 불가' }])),
+      mutate((b) => (b.orderTemplates[0].body = [{ paragraphs: ['기본'] }, { if: [{ path: 'self.memory', gte: 1 }], paragraphs: ['도달 불가'] }])),
     );
     expect(errs.length).toBeGreaterThan(0);
+  });
+});
+
+describe('validateBundle — 본문 문단 배열 (ui-screen-spec §4)', () => {
+  it('문단이 하나도 없는 본문 변형을 잡는다', () => {
+    const errs = validateBundle(mutate((b) => (b.orderTemplates[0].body[1].paragraphs = [])));
+    expect(errs.some((e) => e.includes('문단이 하나도 없음'))).toBe(true);
+  });
+
+  it('빈 문단을 잡는다', () => {
+    const errs = validateBundle(mutate((b) => (b.storylets[0].body[0].paragraphs = ['본문', '  '])));
+    expect(errs.some((e) => e.includes('빈 문단'))).toBe(true);
+  });
+
+  it('문단 안 빈 줄(\\n\\n 관례 잔재)을 잡는다', () => {
+    const errs = validateBundle(
+      mutate((b) => (b.storylets[0].body[0].paragraphs = ['첫 문단.\n\n둘째 문단.'])),
+    );
+    expect(errs.some((e) => e.includes('문단 안 빈 줄'))).toBe(true);
+  });
+
+  it('구 형식(text 문자열 본문)을 잡는다 — paragraphs 없는 변형', () => {
+    const errs = validateBundle(
+      mutate((b) => (b.storylets[0].body = [{ text: '구 형식 본문' }])),
+    );
+    expect(errs.some((e) => e.includes('문단이 하나도 없음'))).toBe(true);
   });
 });
 

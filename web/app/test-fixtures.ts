@@ -14,8 +14,8 @@ export const ORDER: WorkOrder = {
   reissueCount: 0,
   title: [{ text: '간헐 명멸 현상 점검' }],
   body: [
-    { if: [{ path: 'self.memory', gte: 1 }], text: '당신은 이 문구가 무언가를 감추고 있음을 안다.' },
-    { text: '이상 없음으로 처리하십시오.' },
+    { if: [{ path: 'self.memory', gte: 1 }], paragraphs: ['당신은 이 문구가 무언가를 감추고 있음을 안다.'] },
+    { paragraphs: ['이상 없음으로 처리하십시오.'] },
   ],
   options: [
     {
@@ -62,7 +62,7 @@ export const CONTENT: ContentBundle = {
     {
       id: 'EV-001',
       requirements: [{ path: 'world.calendar.day', gte: 1 }],
-      body: [{ text: '귀환자가 서류를 내려다본다.' }],
+      body: [{ paragraphs: ['귀환자가 서류를 내려다본다.'] }],
       choices: [
         {
           label: '무엇이 문제인지 묻는다',

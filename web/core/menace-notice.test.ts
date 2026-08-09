@@ -72,7 +72,7 @@ const FATIGUE_ORDER: WorkOrder = {
   reissueCount: 0,
   weight: 1,
   title: [{ text: '소모적인 작업' }],
-  body: [{ text: '본문' }],
+  body: [{ paragraphs: ['본문'] }],
   options: [
     {
       label: '무리해서 처리한다',
@@ -97,7 +97,7 @@ const CONTENT: ContentBundle = {
     {
       id: 'EV-UNREST',
       requirements: [],
-      body: [{ text: 'x' }],
+      body: [{ paragraphs: ['x'] }],
       choices: [
         {
           label: '소란을 일으킨다',

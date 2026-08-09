@@ -4,8 +4,9 @@
  * L3 진행 오버레이 — 게임(흐름)이 여는 층 (UI 층위 사양 §5).
  * 하루의 마디마다 무대를 덮고, 확정하면 물러난다. 뒤의 L1은 사라지지 않는다.
  */
-import { evalConditions, selectVariant } from '../core/reducer';
+import { evalConditions } from '../core/reducer';
 import type { Action, ContentBundle, GameState } from '../core/schema';
+import { PagedCopy } from './paged-copy';
 import { checkLabel, WEEKDAY_FULL, ZONE_LABELS } from './ui-labels';
 
 interface OverlayProps {
@@ -69,19 +70,20 @@ export function EventOverlay({ state, content, disabled, onAction }: OverlayProp
         <span>업무 종료 후</span>
       </header>
       <h2>일과 뒤</h2>
-      <p className="document-copy narrative">{selectVariant(state, storylet.body)}</p>
-      <div className="choices event-choices">
-        {storylet.choices.map((choice, choiceIndex) => (
-          <button
-            disabled={disabled}
-            key={`${choice.label}-${choiceIndex}`}
-            onClick={() => onAction({ type: 'CHOOSE_STORYLET', storyletId: storylet.id, choiceIndex })}
-          >
-            <span>{choice.label}</span>
-            <small>{choice.startsMultiday ? `${choice.startsMultiday.days}일 일정` : checkLabel(choice.check, state.self)}</small>
-          </button>
-        ))}
-      </div>
+      <PagedCopy state={state} body={storylet.body} className="document-copy narrative">
+        <div className="choices event-choices">
+          {storylet.choices.map((choice, choiceIndex) => (
+            <button
+              disabled={disabled}
+              key={`${choice.label}-${choiceIndex}`}
+              onClick={() => onAction({ type: 'CHOOSE_STORYLET', storyletId: storylet.id, choiceIndex })}
+            >
+              <span>{choice.label}</span>
+              <small>{choice.startsMultiday ? `${choice.startsMultiday.days}일 일정` : checkLabel(choice.check, state.self)}</small>
+            </button>
+          ))}
+        </div>
+      </PagedCopy>
     </article>
   );
 }

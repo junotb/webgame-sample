@@ -43,7 +43,7 @@ const AUTO_T: WorkOrderTemplate = {
   face: 'inspection',
   siteId: 'test-site',
   title: [{ text: '점검' }],
-  body: [{ text: '본문' }],
+  body: [{ paragraphs: ['본문'] }],
   options: [
     { label: '처리', check: { kind: 'auto' }, timeCost: 1, onSuccess: { effects: [], text: '처리 완료' } },
   ],
@@ -59,7 +59,7 @@ const CONTENT: ContentBundle = {
     {
       id: 'EV-MD',
       requirements: [],
-      body: [{ text: '동료의 부탁' }],
+      body: [{ paragraphs: ['동료의 부탁'] }],
       choices: [
         {
           label: '사흘을 내어준다',
@@ -83,7 +83,7 @@ function card(templateId: string, resolved: boolean, outcome?: WorkOrder['outcom
     siteId: 'test-site',
     reissueCount: 0,
     title: [{ text: '점검' }],
-    body: [{ text: '본문' }],
+    body: [{ paragraphs: ['본문'] }],
     options: [],
     resolved,
     ...(outcome ? { outcome } : {}),

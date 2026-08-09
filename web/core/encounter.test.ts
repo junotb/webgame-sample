@@ -30,7 +30,7 @@ function def(overrides?: Partial<EncounterDef>): EncounterDef {
     title: '설비 이상 점검 보고',
     maxTurns: 4,
     calmToSleep: 2,
-    intro: [{ text: '관로가 숨 쉬고 있다.' }],
+    intro: [{ paragraphs: ['관로가 숨 쉬고 있다.'] }],
     actions: {
       observe: { label: '관찰한다', check: SURE, successText: '주기를 읽었다', failureText: '읽히지 않는다' },
       soothe: { label: '진정시킨다', check: SURE, successText: '잦아들었다', failureText: '거세졌다' },

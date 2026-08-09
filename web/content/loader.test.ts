@@ -31,7 +31,7 @@ const minimalBundle = {
       face: 'inspection',
       siteId: 'm-site',
       title: [{ text: '지시서' }],
-      body: [{ text: '본문' }],
+      body: [{ paragraphs: ['본문'] }],
       options: [
         {
           label: '처리',
@@ -78,7 +78,7 @@ describe('loadContent — 매니페스트 경유 로딩', () => {
       {
         id: 'EV-BAD',
         requirements: [],
-        body: [{ text: 'x' }],
+        body: [{ paragraphs: ['x'] }],
         choices: [
           {
             label: 'x',

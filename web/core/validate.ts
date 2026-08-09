@@ -4,7 +4,7 @@
  * 판정 참조, 조건 경로, 텍스트 변형의 첫-매치 규칙.
  * 순수 함수 — 오류 문자열 배열을 반환하며, 비어 있으면 유효하다.
  */
-import type { Check, Condition, ContentBundle, TemplateEffect, TextVariant } from './schema';
+import type { Check, Condition, ContentBundle, ProseVariant, TemplateEffect, TextVariant } from './schema';
 
 const ZONE_IDS = ['d2', 'd5', 'd7'];
 const NPC_IDS = ['protagonist'];
@@ -93,24 +93,53 @@ function checkConditions(conditions: Condition[], where: string, errors: string[
   }
 }
 
-/** 첫-매치 규칙: 무조건 기본 변형이 정확히 마지막에 온다 */
-function checkVariants(body: TextVariant[], where: string, errors: string[], allowZonePlaceholder = false): void {
-  if (body.length === 0) {
-    errors.push(`${where}: 본문 변형이 비어 있음`);
+/** 첫-매치 규칙: 무조건 기본 변형이 정확히 마지막에 온다 — 제목·본문 공용 계약 */
+function checkFirstMatch(variants: Array<{ if?: Condition[] }>, where: string, errors: string[], allowZonePlaceholder: boolean): void {
+  if (variants.length === 0) {
+    errors.push(`${where}: 변형이 비어 있음`);
     return;
   }
-  body.forEach((v, i) => {
+  variants.forEach((v, i) => {
     const isDefault = !v.if || v.if.length === 0;
-    const isLast = i === body.length - 1;
+    const isLast = i === variants.length - 1;
     if (isDefault && !isLast) {
       errors.push(`${where}: 무조건 변형이 마지막이 아님 (index ${i}) — 뒤 변형이 도달 불가`);
     }
     if (!isDefault) checkConditions(v.if!, `${where} 변형[${i}]`, errors, allowZonePlaceholder);
   });
-  const last = body[body.length - 1];
+  const last = variants[variants.length - 1];
   if (last.if && last.if.length > 0) {
     errors.push(`${where}: 무조건 기본 변형이 없음 — 모든 조건 불일치 시 본문이 사라진다`);
   }
+}
+
+/** 제목 등 한 줄 변형 */
+function checkVariants(title: TextVariant[], where: string, errors: string[], allowZonePlaceholder = false): void {
+  checkFirstMatch(title, where, errors, allowZonePlaceholder);
+  title.forEach((v, i) => {
+    if (v.text !== undefined && !v.text.trim()) errors.push(`${where} 변형[${i}]: 텍스트가 비어 있음`);
+  });
+}
+
+/**
+ * 본문 변형 — 문단 배열 계약 (ui-screen-spec §4).
+ * 원소 하나 = 문단 하나 = 입력 한 번. `\n\n` 관례는 배열이 대체했으므로 잔재를 거부한다.
+ */
+function checkProse(body: ProseVariant[], where: string, errors: string[], allowZonePlaceholder = false): void {
+  checkFirstMatch(body, where, errors, allowZonePlaceholder);
+  body.forEach((v, i) => {
+    if (!Array.isArray(v.paragraphs) || v.paragraphs.length === 0) {
+      errors.push(`${where} 변형[${i}]: 문단이 하나도 없음 — 본문은 문단 배열이다 (ui-screen-spec §4)`);
+      return;
+    }
+    v.paragraphs.forEach((p, j) => {
+      if (typeof p !== 'string' || !p.trim()) {
+        errors.push(`${where} 변형[${i}] 문단[${j}]: 빈 문단`);
+      } else if (p.includes('\n\n')) {
+        errors.push(`${where} 변형[${i}] 문단[${j}]: 문단 안 빈 줄 — 분절은 배열 원소로만 표현한다 (ui-screen-spec §4)`);
+      }
+    });
+  });
 }
 
 /**
@@ -175,7 +204,7 @@ export function validateBundle(bundle: ContentBundle): string[] {
     if (!Number.isInteger(e.calmToSleep) || e.calmToSleep < 1 || e.calmToSleep > 3) {
       errors.push(`${where}: calmToSleep은 1~3 정수여야 함 (현재: ${e.calmToSleep})`);
     }
-    checkVariants(e.intro, `${where} intro`, errors, true);
+    checkProse(e.intro, `${where} intro`, errors, true);
     for (const actionId of ENCOUNTER_ACTIONS) {
       const action = e.actions?.[actionId as keyof typeof e.actions];
       if (!action) {
@@ -224,7 +253,7 @@ export function validateBundle(bundle: ContentBundle): string[] {
       errors.push(`${where}: 제목 단서에 기억·기술 축이 섞임 — 카드 하나는 한 축만 쓴다 (v3 §4)`);
     }
 
-    checkVariants(t.body, where, errors, true);
+    checkProse(t.body, where, errors, true);
     t.options.forEach((opt, i) => {
       const optWhere = `${where} 옵션[${i}]`;
       checkCheck(opt.check, optWhere, errors);
@@ -243,7 +272,7 @@ export function validateBundle(bundle: ContentBundle): string[] {
     seenStoryletIds.add(s.id);
 
     checkConditions(s.requirements, `${where} requirements`, errors);
-    checkVariants(s.body, where, errors);
+    checkProse(s.body, where, errors);
     s.choices.forEach((c, i) => {
       const choiceWhere = `${where} 선택지[${i}]`;
       checkCheck(c.check, choiceWhere, errors);

@@ -5,7 +5,7 @@
  * (v3 §4 정정 — 도시의 비밀은 일과 중의 카드에서 알게 된다) reducer가 생성기를 부르므로
  * 순환 참조가 된다. 둘 다 이 모듈에 의존하면 방향이 한쪽으로만 흐른다.
  */
-import type { Condition, GameState, TextVariant } from './schema';
+import type { Condition, GameState, ProseVariant, TextVariant } from './schema';
 
 /** 조건·변형 평가용 상태 경로 읽기. 없는 flag 등 미정의 숫자는 0. */
 export function getValueAtPath(state: GameState, path: string): number {
@@ -25,12 +25,20 @@ export function evalConditions(state: GameState, conditions: Condition[]): boole
 }
 
 /**
- * 첫 매치 우선, 조건 없는 변형이 기본값 (스키마 TextVariant 계약).
+ * 첫 매치 우선, 조건 없는 변형이 기본값 (스키마 TextVariant/ProseVariant 공통 계약).
  *
  * 카드 제목도 이것을 쓴다 — 단서(v3 §4)가 지금의 기억·기술로 **매번 다시** 판정되므로,
  * 어제 본 제목과 오늘 본 제목이 다를 수 있다. 렌더된 문장은 저장하지 않는다 (v3 §7).
  */
+function firstMatch<T extends { if?: Condition[] }>(state: GameState, variants: T[]): T | undefined {
+  return variants.find((v) => !v.if || evalConditions(state, v.if));
+}
+
 export function selectVariant(state: GameState, variants: TextVariant[]): string {
-  const match = variants.find((v) => !v.if || evalConditions(state, v.if));
-  return match?.text ?? '';
+  return firstMatch(state, variants)?.text ?? '';
+}
+
+/** 본문 변형 선택 — 문단 배열을 돌려준다 (ui-screen-spec §4). */
+export function selectProse(state: GameState, variants: ProseVariant[]): string[] {
+  return firstMatch(state, variants)?.paragraphs ?? [];
 }

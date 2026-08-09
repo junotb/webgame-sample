@@ -12,7 +12,7 @@ import { resolveOption } from './resolve';
 import type { ArchiveEntry, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult } from './schema';
 
 // 조건 평가는 core/conditions로 옮겼다 (생성기와의 순환 참조 회피). 기존 import 경로는 유지한다.
-export { evalConditions, getValueAtPath, selectVariant } from './conditions';
+export { evalConditions, getValueAtPath, selectProse, selectVariant } from './conditions';
 
 export const SHIFT_PER_DAY = 2;
 /** 다일 이벤트 점유 중의 근무 슬롯 (v3 §5) — 처리 1장/방치 3장, 노후도 급등의 근원 */

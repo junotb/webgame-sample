@@ -154,13 +154,8 @@ export function GameView({
           onAction={onAction}
           onStartEncounter={onStartEncounter}
           active={phase === 'field' && !hasOverlay && panel === null}
+          log={phase === 'field' && !hasOverlay ? log : []}
         />
-        {phase === 'field' && !hasOverlay && log.length > 0 ? (
-          <aside className="transmission" aria-live="polite">
-            <span>최근 기록</span>
-            <p>{log.join(' ')}</p>
-          </aside>
-        ) : null}
       </div>
 
       {/* L2 — 플레이어가 연다 */}

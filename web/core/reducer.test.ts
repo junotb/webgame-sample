@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { reduce, altitude, getValueAtPath, evalConditions, selectVariant, SHIFT_PER_DAY } from './reducer';
+import { reduce, altitude, getValueAtPath, evalConditions, selectProse, SHIFT_PER_DAY } from './reducer';
 import type { ContentBundle, GameState, WorkOrder, WorkOrderTemplate } from './schema';
 
 function baseState(overrides?: Partial<GameState['world']>): GameState {
@@ -41,7 +41,7 @@ const AUTO_T: WorkOrderTemplate = {
   face: 'inspection',
   siteId: 'test-site',
   title: [{ text: '점검' }],
-  body: [{ text: '본문' }],
+  body: [{ paragraphs: ['본문'] }],
   options: [
     {
       label: '처리',
@@ -66,8 +66,8 @@ const CONTENT: ContentBundle = {
       id: 'EV-001',
       requirements: [{ path: 'world.calendar.day', gte: 1 }],
       body: [
-        { if: [{ path: 'self.memory', gte: 1 }], text: '기억 변형 본문' },
-        { text: '기본 본문' },
+        { if: [{ path: 'self.memory', gte: 1 }], paragraphs: ['기억 변형 본문'] },
+        { paragraphs: ['기본 본문'] },
       ],
       choices: [
         {
@@ -83,7 +83,7 @@ const CONTENT: ContentBundle = {
     {
       id: 'EV-LOCKED',
       requirements: [{ path: 'world.calendar.day', gte: 99 }],
-      body: [{ text: 'x' }],
+      body: [{ paragraphs: ['x'] }],
       choices: [{ label: 'x', check: { kind: 'auto' }, onSuccess: { effects: [], text: 'x' } }],
     },
   ],
@@ -104,7 +104,7 @@ function makeOrder(
     siteId: 'test-site',
     reissueCount: 0,
     title: [{ text: '점검' }],
-    body: [{ text: '본문' }],
+    body: [{ paragraphs: ['본문'] }],
     options: [],
     resolved,
     ...(outcome ? { outcome } : {}),
@@ -300,11 +300,11 @@ describe('헬퍼 — altitude·조건·완곡어 변형', () => {
     expect(evalConditions(s, [{ path: 'world.calendar.day', gte: 2 }])).toBe(false);
     expect(evalConditions(s, [])).toBe(true);
   });
-  it('selectVariant: 첫 매치 우선, 조건 없는 변형이 기본값', () => {
+  it('selectProse: 첫 매치 우선, 조건 없는 변형이 기본값', () => {
     const body = CONTENT.storylets[0].body;
-    expect(selectVariant(baseState(), body)).toBe('기본 본문');
+    expect(selectProse(baseState(), body)).toEqual(['기본 본문']);
     const remembered = baseState();
     remembered.self.memory = 1;
-    expect(selectVariant(remembered, body)).toBe('기억 변형 본문');
+    expect(selectProse(remembered, body)).toEqual(['기억 변형 본문']);
   });
 });

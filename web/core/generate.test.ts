@@ -10,8 +10,8 @@ const T1: WorkOrderTemplate = {
   siteId: 'test-site',
   title: [{ text: '정기 점검' }],
   body: [
-    { if: [{ path: 'world.zones.{zone}.decay', gte: 6 }], text: '악화 본문' },
-    { text: '기본 본문' },
+    { if: [{ path: 'world.zones.{zone}.decay', gte: 6 }], paragraphs: ['악화 본문'] },
+    { paragraphs: ['기본 본문'] },
   ],
   options: [
     {
@@ -43,7 +43,7 @@ const T2: WorkOrderTemplate = {
   face: 'patrol',
   siteId: 'test-site',
   title: [{ text: '압력 시정' }],
-  body: [{ text: '본문' }],
+  body: [{ paragraphs: ['본문'] }],
   options: [
     {
       label: '자동 처리',

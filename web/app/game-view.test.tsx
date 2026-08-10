@@ -78,6 +78,6 @@ describe('층위 렌더 (L1/L2/L3)', () => {
     expect(html).toContain('overlay-layer');
     expect(html).toContain('하루 정산 보고');
     expect(html).toContain('기억이 새겨졌다.');
-    expect(html).toContain('정산 확정 및 저장');
+    expect(html).toContain('퇴근한다');
   });
 });

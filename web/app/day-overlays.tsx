@@ -103,9 +103,10 @@ export function ClosingOverlay({ state, log, disabled, onAction }: OverlayProps 
         <div><dt>처리 완료</dt><dd>{state.world.pendingOrders.length - unresolved.length}건</dd></div>
         <div><dt>미처리 이월</dt><dd>{unresolved.length}건</dd></div>
       </dl>
-      <p className="document-note">확정 시 미처리 건의 방치와 자연 노후가 구역에 반영됩니다.</p>
+      <p className="document-note">미처리 건의 방치와 자연 노후는 익일 구역에 반영됩니다.</p>
+      {/* Confirm이 아니라 하루를 끝내는 행위다 — "업무 개시"와 대칭 (아침 오버레이) */}
       <button className="primary-action" disabled={disabled} onClick={() => onAction({ type: 'CLOSE_DAY' })}>
-        정산 확정 및 저장
+        퇴근한다
       </button>
     </article>
   );

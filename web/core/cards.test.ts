@@ -192,6 +192,7 @@ describe('RESOLVE_ENCOUNTER — 조우 결과 반입 (v3 §6)', () => {
     );
     expect(state.world.pendingOrders[0].resolved).toBe(true);
     expect(state.world.pendingOrders[0].outcome).toBe('success');
+    expect(state.world.pendingOrders[0].chosenOption).toBe(0); // 조우 진입 옵션이 기록된다
     expect(state.world.menace.fatigue).toBe(1);
     expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY - 1);
     expect(log.join(' ')).toContain('동력이 회수되었다');

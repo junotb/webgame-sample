@@ -140,6 +140,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       const next = result.state === state ? structuredClone(state) : result.state;
       next.world.pendingOrders[action.orderIndex].resolved = true;
       next.world.pendingOrders[action.orderIndex].outcome = result.success ? 'success' : 'failure';
+      next.world.pendingOrders[action.orderIndex].chosenOption = action.optionIndex;
       next.world.shiftLeft -= option.timeCost;
       if (next.world.shiftLeft <= 0) next.world.phase = 'event';
       next.world.seed = advanceSeed(rng);
@@ -164,6 +165,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       const success = action.outcome === 'burned' || action.outcome === 'soothed';
       next.world.pendingOrders[action.orderIndex].resolved = true;
       next.world.pendingOrders[action.orderIndex].outcome = success ? 'success' : 'failure';
+      next.world.pendingOrders[action.orderIndex].chosenOption = order.options.indexOf(entry);
       next.world.shiftLeft -= entry.timeCost;
       if (next.world.shiftLeft <= 0) next.world.phase = 'event';
       archiveAdd(next.world.archive, { kind: 'encounter', day: next.world.calendar.day, id: entry.startsEncounter!, zone: order.zone });

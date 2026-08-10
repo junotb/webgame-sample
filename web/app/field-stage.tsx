@@ -64,7 +64,9 @@ function OrderPanel({
       {/* 처리 완료 문서는 이미 읽은 것 — 재열람에 분절 진행을 다시 시키지 않는다 */}
       <PagedCopy state={state} body={order.body} revealAll={order.resolved}>
         <div className="choices">
+          {/* 처리 완료 문서는 선택한 옵션만 남긴다 — 기록이지 선택지가 아니다 */}
           {order.options.map((option, optionIndex) => (
+            order.resolved && optionIndex !== order.chosenOption ? null : (
             <button
               disabled={locked || order.resolved || option.timeCost > state.world.shiftLeft}
               key={`${option.label}-${optionIndex}`}
@@ -79,6 +81,7 @@ function OrderPanel({
                 {option.startsEncounter ? '현장 확인' : checkLabel(option.check, state.self)} · {timeCostLabel(option.timeCost)}
               </small>
             </button>
+            )
           ))}
         </div>
       </PagedCopy>

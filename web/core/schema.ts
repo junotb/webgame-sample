@@ -259,6 +259,8 @@ export interface WorkOrder {
   body: ProseVariant[];             // 변형 선택은 렌더 시점 (완곡어 시스템)
   options: BoundWorkOption[];
   resolved: boolean;
+  /** 처리에 쓴 옵션 인덱스 — 재열람 시 선택한 것만 남기기 위한 기록 */
+  chosenOption?: number;
   /** 처리 결과 — CLOSE_DAY 정산 근거: 성공 −weight / 실패 0 / 방치(미기록) +weight */
   outcome?: 'success' | 'failure';
 }

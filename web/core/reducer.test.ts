@@ -138,6 +138,7 @@ describe('RESOLVE_ORDER — field: 판정·효과·트리아지', () => {
     expect(state.world.zones.d5.decay).toBe(4); // 증감은 CLOSE_DAY 가중치 정산의 몫
     expect(state.world.pendingOrders[0].resolved).toBe(true);
     expect(state.world.pendingOrders[0].outcome).toBe('success');
+    expect(state.world.pendingOrders[0].chosenOption).toBe(0);
     expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY - 1);
     expect(state.world.phase).toBe('field');
     expect(log.join(' ')).toContain('처리 완료');

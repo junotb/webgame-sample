@@ -61,7 +61,7 @@ describe('IndexedDB save', () => {
     const state = createInitialState(77);
     state.self.memory = 1;
     state.world.calendar.day = 2;
-    state.world.flags.saw_rhythm = 1;
+    state.world.flags.patched_d5 = 1;
 
     await saveGame(state, factory);
     const restored = await loadGame(factory);

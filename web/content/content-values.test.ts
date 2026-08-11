@@ -24,6 +24,8 @@ function stateAt(decay: number): GameState {
       calendar: { day: 1, weekday: 1 },
       assignment: { zone: 'd5' },
       weekRatings: {},
+      weekTally: { processed: 0, notPassed: 0, perfect: 0 },
+      ending: null,
       cardNeglect: {},
       multiday: null,
       archive: [],
@@ -59,15 +61,13 @@ function fatigueOnFailure(opt: WorkOption): number | undefined {
 }
 
 describe('가중치 — minDecay가 깊을수록 무겁다 (v3 §3: 하루 4장 합 8 전후)', () => {
-  it('WO-T1=1, WO-T2=2, WO-T3=3, WO-T4=2, WO-T5=3', () => {
+  it('WO-T1=1, WO-T2=2, WO-T3=3, WO-T4=2', () => {
     expect(template('WO-T1').weight).toBe(1);
     expect(template('WO-T2').weight).toBe(2);
     expect(template('WO-T3').weight).toBe(3);
     expect(template('WO-T4').weight).toBe(2);
-    expect(template('WO-T5').weight).toBe(3);
   });
-  it('노후도 5, day 1(서사 카드 등장 전)에서 제시 4장의 가중치 합이 8이다', () => {
-    // 서사 카드(WO-T6~T8)는 day 2+에 등장한다 — §3 강제값은 일상 덱 기준
+  it('노후도 5에서 제시 4장의 가중치 합이 8이다', () => {
     const cards = generateCards(stateAt(5), bundle.orderTemplates, () => 0);
     expect(cards.reduce((s, c) => s + c.weight, 0)).toBe(8);
   });

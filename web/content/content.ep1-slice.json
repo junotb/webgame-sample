@@ -239,14 +239,9 @@
                 "path": "world.menace.unrest",
                 "op": "add",
                 "value": 1
-              },
-              {
-                "path": "world.flags.saw_rhythm",
-                "op": "set",
-                "value": 1
               }
             ],
-            "text": "수첩에 명멸 간격을 옮겨 적다가 손이 멈춘다. 불규칙해야 할 변동이 규칙적이다. 4초. 4초. 4초. 기계의 리듬이라기엔 지나치게… 생물의 것 같은 간격."
+            "text": "수첩에 명멸 간격을 옮겨 적다가 손이 멈춘다. 불규칙해야 할 변동이 규칙적이다. 기계의 것이라기엔 지나치게… 생물의 숨 같은 규칙."
           },
           "onFailure": {
             "effects": [
@@ -293,7 +288,7 @@
           "timeCost": 1,
           "onSuccess": {
             "effects": [],
-            "text": "봉인 이상 없음, 수량 일치. 창고지기가 발광 안료 상자를 두드리며 웃는다. \"올해 축제는 유난히 밝을 거라더군.\" 돌아오는 길, 상자는 생각보다 무겁다."
+            "text": "봉인 이상 없음, 수량 일치. 인수 대장에 서명하자 창고지기가 상자를 손수레에 올려 준다. 돌아오는 길, 상자는 생각보다 무겁다."
           },
           "onFailure": {
             "effects": [
@@ -323,381 +318,6 @@
               }
             ],
             "text": "서명 한 줄로 끝났다. 확인하지 않은 상자들이 수레 위에서 조용히 흔들린다."
-          }
-        }
-      ]
-    },
-    {
-      "id": "WO-T5",
-      "minDecay": 6,
-      "weight": 3,
-      "face": "survey",
-      "siteId": "d5-w7",
-      "title": [
-        {
-          "text": "미확인 구간 확인 — 하수 7호 지선"
-        }
-      ],
-      "body": [
-        {
-          "paragraphs": [
-            "하수 7호 지선에서 도면과 실측이 일치하지 않는 구간이 보고되었습니다. 현장 확인 후 도면 정정 사유를 기입하십시오.",
-            "야간 조명이 미비한 구간이므로 주간 방문을 권장합니다."
-          ]
-        }
-      ],
-      "options": [
-        {
-          "label": "구간에 진입해 확인한다",
-          "check": {
-            "kind": "auto"
-          },
-          "timeCost": 1,
-          "startsEncounter": "ENC-001",
-          "onSuccess": {
-            "effects": [],
-            "text": ""
-          }
-        },
-        {
-          "label": "입구에 접근 제한 표지를 세우고 돌아온다",
-          "check": {
-            "kind": "broad",
-            "stat": "procedure",
-            "difficulty": 40
-          },
-          "timeCost": 1,
-          "onSuccess": {
-            "effects": [
-              {
-                "path": "world.flags.patched_{zone}",
-                "op": "add",
-                "value": 1
-              }
-            ],
-            "text": "표준 표지 3종을 규정 간격으로 세웠다. '통행 제한 — 도면 정정 대기'. 서류상 이 구간은 이제 존재하지 않는 것과 같다. 표지 너머의 어둠이 조금 깊어진 것 같았지만, 조도계는 정상 범위를 가리켰다."
-          },
-          "onFailure": {
-            "effects": [
-              {
-                "path": "world.menace.fatigue",
-                "op": "add",
-                "value": 2
-              }
-            ],
-            "text": "표지 설치 규격이 맞지 않아 두 번을 다시 세웠다. 해가 기울고 나서야 알았다 — 처음 세운 표지가 사라져 있었다. 바람이었을 것이다."
-          }
-        }
-      ]
-    },
-    {
-      "id": "WO-T6",
-      "minDecay": 0,
-      "weight": 1,
-      "face": "liaison",
-      "siteId": "d5-office",
-      "requirements": [
-        {
-          "path": "world.calendar.day",
-          "gte": 2
-        },
-        {
-          "path": "world.flags.ledger_checked",
-          "lte": 0
-        }
-      ],
-      "thread": true,
-      "title": [
-        {
-          "text": "미대조 항목 정정 — 재생률 변동분"
-        }
-      ],
-      "body": [
-        {
-          "paragraphs": [
-            "금주 승인분 대장에서 「연료 재생률 변동」 항목의 기재가 배정량과 맞지 않는다는 지적이 접수되었습니다. 해당 항목만 발췌해 대조하고 정정 여부를 회신하십시오.",
-            "대장을 펼치자 그 항목이 몇 장 건너 한 번씩, 같은 문구 같은 자릿수로 반복되어 있었다. 아무도 다시 세어본 적 없는 숫자다."
-          ]
-        }
-      ],
-      "options": [
-        {
-          "label": "항목을 하나씩 대조한다",
-          "check": {
-            "kind": "broad",
-            "stat": "procedure",
-            "difficulty": 30
-          },
-          "timeCost": 1,
-          "onSuccess": {
-            "effects": [
-              {
-                "path": "self.memory",
-                "op": "add",
-                "value": 1
-              },
-              {
-                "path": "world.flags.ledger_checked",
-                "op": "set",
-                "value": 1
-              },
-              {
-                "path": "world.menace.unrest",
-                "op": "add",
-                "value": 1
-              }
-            ],
-            "text": "숫자는 맞았다. 배정량도, 재생률도, 전부 규정 안에 있었다. 다만 재생이라는 말이 무엇을 원래대로 돌린다는 뜻인지, 대장 어디에도 적혀 있지 않았다."
-          },
-          "onFailure": {
-            "effects": [
-              {
-                "path": "self.memory",
-                "op": "add",
-                "value": 1
-              },
-              {
-                "path": "world.flags.ledger_checked",
-                "op": "set",
-                "value": 1
-              }
-            ],
-            "text": "중간에 자릿수를 놓쳐 처음부터 다시 세다가 시간이 다 갔다. 세는 내내 같은 문구가 눈에 밟혔다."
-          }
-        },
-        {
-          "label": "지적 사항 없음으로 회신한다",
-          "check": {
-            "kind": "auto"
-          },
-          "timeCost": 1,
-          "onSuccess": {
-            "effects": [
-              {
-                "path": "world.flags.ledger_checked",
-                "op": "set",
-                "value": 1
-              },
-              {
-                "path": "world.flags.looked_away",
-                "op": "add",
-                "value": 1
-              }
-            ],
-            "text": "회신 서식에 「대조 완료, 이상 없음」을 적고 도장을 찍었다. 퇴근길에 축제 불빛이 창마다 환했다. 아름다웠다. 정말로 아름다웠다."
-          }
-        }
-      ]
-    },
-    {
-      "id": "WO-T7",
-      "minDecay": 0,
-      "weight": 1,
-      "face": "patrol",
-      "siteId": "d5-west3",
-      "requirements": [
-        {
-          "path": "world.calendar.day",
-          "gte": 3
-        },
-        {
-          "path": "world.flags.night_noise_seen",
-          "lte": 0
-        }
-      ],
-      "thread": true,
-      "title": [
-        {
-          "if": [
-            {
-              "path": "self.memory",
-              "gte": 2
-            }
-          ],
-          "text": "야간 소음 민원 순시 — 인공습지 갈대밭 (가동 중단 요청 3회 반려)"
-        },
-        {
-          "text": "야간 소음 민원 순시 — 인공습지 갈대밭"
-        }
-      ],
-      "body": [
-        {
-          "paragraphs": [
-            "심야 시간대 소음 민원이 반복 접수된 구역입니다. 현장 순시 후 민원인에게 표준 안내를 실시하십시오.",
-            "갈대밭 안쪽에서 낮고 규칙적인 소리가 올라온다. 바람에 갈대가 눕는 소리가 아니다. 설비가 도는 소리는 아니다. 숨을 고르는 것과 박자가 비슷하다."
-          ]
-        }
-      ],
-      "options": [
-        {
-          "label": "표준 안내를 실시하고 돌아온다",
-          "check": {
-            "kind": "broad",
-            "stat": "procedure",
-            "difficulty": 30
-          },
-          "timeCost": 1,
-          "onSuccess": {
-            "effects": [
-              {
-                "path": "world.flags.night_noise_seen",
-                "op": "set",
-                "value": 1
-              }
-            ],
-            "text": "민원인은 알겠다고 했다. 대문을 닫기 전에 한 번 더 골목 쪽을 보고는, \"그쪽은 원래 그렇습디까\" 하고 물었다. 규정에 없는 질문이었다."
-          }
-        },
-        {
-          "label": "소리의 주기를 기록한다",
-          "check": {
-            "kind": "broad",
-            "stat": "insight",
-            "difficulty": 35
-          },
-          "timeCost": 1,
-          "onSuccess": {
-            "effects": [
-              {
-                "path": "world.flags.night_noise_seen",
-                "op": "set",
-                "value": 1
-              },
-              {
-                "path": "world.flags.heard_breathing",
-                "op": "set",
-                "value": 1
-              },
-              {
-                "path": "world.menace.unrest",
-                "op": "add",
-                "value": 1
-              }
-            ],
-            "text": "스물여덟을 세고 한 번. 스물여덟을 세고 한 번. 수첩에 적어 놓고 보니 지난달 관로 점검 때 적어 둔 숫자와 같았다."
-          },
-          "onFailure": {
-            "effects": [
-              {
-                "path": "world.flags.night_noise_seen",
-                "op": "set",
-                "value": 1
-              },
-              {
-                "path": "world.menace.fatigue",
-                "op": "add",
-                "value": 1
-              }
-            ],
-            "text": "한참을 서 있었는데 주기가 잡히지 않았다. 셀 때마다 숫자가 달랐다. 아니면 세는 쪽이 흔들린 것인지도 모른다."
-          }
-        }
-      ]
-    },
-    {
-      "id": "WO-T8",
-      "minDecay": 0,
-      "weight": 1,
-      "face": "inspection",
-      "siteId": "d5-vent",
-      "requirements": [
-        {
-          "path": "world.calendar.day",
-          "gte": 3
-        },
-        {
-          "path": "world.flags.vent_checked",
-          "lte": 0
-        }
-      ],
-      "thread": true,
-      "title": [
-        {
-          "if": [
-            {
-              "path": "self.skills.flowsense",
-              "gte": 2
-            }
-          ],
-          "text": "배수 갱도 정기 점검 — 회색 폭포 상부 (역류 흔적 재확인)"
-        },
-        {
-          "text": "배수 갱도 정기 점검 — 회색 폭포 상부"
-        }
-      ],
-      "body": [
-        {
-          "paragraphs": [
-            "회색 폭포 상부 배수 갱도의 정기 점검 주기가 도래했습니다. 계기 이력을 확인하고 점검란에 서명하십시오.",
-            "갱도 입구의 계기는 지난 넉 달치 이력을 종이 띠에 그려 두고 있다. 띠는 대체로 평평하고, 넉 달에 몇 군데만 짧게 아래로 꺾여 있다."
-          ]
-        }
-      ],
-      "options": [
-        {
-          "label": "이력을 판독하고 원인을 좁힌다",
-          "check": {
-            "kind": "narrow",
-            "skill": "flowsense",
-            "difficulty": 2
-          },
-          "timeCost": 1,
-          "onSuccess": {
-            "effects": [
-              {
-                "path": "world.flags.vent_checked",
-                "op": "set",
-                "value": 1
-              },
-              {
-                "path": "world.flags.saw_backflow",
-                "op": "set",
-                "value": 1
-              },
-              {
-                "path": "self.memory",
-                "op": "add",
-                "value": 1
-              },
-              {
-                "path": "self.skillXp.flowsense",
-                "op": "add",
-                "value": 4
-              }
-            ],
-            "text": "꺾인 자리는 전부 배수가 아니라 역류 쪽이었다. 폭포가 그 시각에만 물을 거슬러 들이켰다는 뜻이다. 보고서에는 「계기 오차」라고 적었다. 그렇게 적으라고 배웠다."
-          },
-          "onFailure": {
-            "effects": [
-              {
-                "path": "world.flags.vent_checked",
-                "op": "set",
-                "value": 1
-              }
-            ],
-            "text": "띠를 몇 번이나 되짚었지만 꺾인 자리가 무엇을 뜻하는지 잡히지 않았다. 점검란에는 이상 없음을 적었다."
-          }
-        },
-        {
-          "label": "점검란에 서명하고 돌아온다",
-          "check": {
-            "kind": "auto"
-          },
-          "timeCost": 1,
-          "onSuccess": {
-            "effects": [
-              {
-                "path": "world.flags.vent_checked",
-                "op": "set",
-                "value": 1
-              },
-              {
-                "path": "world.flags.patched_{zone}",
-                "op": "add",
-                "value": 1
-              }
-            ],
-            "text": "서명하고 나오는데 갱도 안에서 바람이 한 번 방향을 바꿨다. 배기구가 그럴 수도 있다."
           }
         }
       ]
@@ -783,7 +403,7 @@
             }
           ],
           "paragraphs": [
-            "관로가 숨을 쉬고 있다. 표면이 부풀었다 가라앉는 간격은 4초. 당신은 이 간격을 어디선가 읽은 적이 있다.",
+            "관로가 숨을 쉬고 있다. 표면이 부풀었다 가라앉는 간격이 지나치게 고르다. 당신은 이 고른 숨을 어디선가 읽은 적이 있다.",
             "보고서에는 무엇이라 적어도, 지금 이 앞에 서 있는 것은 당신이고, 그것은 당신이 온 것을 알고 있다."
           ]
         },
@@ -802,7 +422,7 @@
             "skill": "flowsense",
             "difficulty": 2
           },
-          "successText": "수첩에 간격을 옮겨 적는다. 4초. 4초. 흐름이 읽히기 시작한다 — 어디가 시작이고 어디가 끝인지.",
+          "successText": "수첩에 간격을 옮겨 적는다. 흐름이 읽히기 시작한다 — 어디가 시작이고 어디가 끝인지.",
           "failureText": "어둠 속에서 간격이 자꾸 어긋난다. 아니, 어긋나는 것은 당신의 호흡이다."
         },
         "soothe": {
@@ -823,7 +443,7 @@
             "difficulty": 4
           },
           "successText": "각인이 완성되는 순간 푸른 불길이 분기부를 훑고 지나갔다. 소리가 멎었다.",
-          "failureText": "획이 마지막에서 흔들렸다. 각인이 불발한다. 어둠 속의 간격은 여전히 4초. 기다리고 있다."
+          "failureText": "획이 마지막에서 흔들렸다. 각인이 불발한다. 어둠 속의 간격은 여전히 고르다. 기다리고 있다."
         },
         "withdraw": {
           "label": "철수하고 구간을 봉쇄한다",
@@ -857,7 +477,7 @@
               "value": 4
             }
           ],
-          "text": "연소 후 잔류 열이 관로를 타고 흘렀다. 그날 저녁 구역의 가로등이 유난히 밝았다고, 민원 대신 감사 편지가 한 통 들어왔다. 보고서에는 이렇게 적었다: '과증식 조직 절제 완료. 연료 재생률 정상화.'"
+          "text": "연소 후 잔류 열이 관로를 타고 흘렀다. 보고서에는 이렇게 적었다: '과증식 조직 절제 완료. 연료 재생률 정상화.'"
         },
         "soothed": {
           "effects": [

@@ -7,8 +7,8 @@ describe('createInitialState', () => {
       account: { ownedEpisodes: ['ep1'] },
       self: {
         stats: { repair: 40, insight: 35, procedure: 30, nerve: 25 },
-        skills: { inscription: 1, flowsense: 1 },
-      skillXp: { inscription: 0, flowsense: 0 },
+        skills: { inscription: 1, flowsense: 1, frost: 0 },
+      skillXp: { inscription: 0, flowsense: 0, frost: 0 },
         memory: 0,
         rank: 0,
       },
@@ -18,6 +18,7 @@ describe('createInitialState', () => {
         weekRatings: {},
         weekTally: { processed: 0, notPassed: 0, perfect: 0 },
         ending: null,
+      weekend: null,
         cardNeglect: {},
         multiday: null,
         archive: [],

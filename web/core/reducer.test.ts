@@ -1,3 +1,4 @@
+import { WEEKLY_CONTENT } from './test-content';
 import { describe, it, expect } from 'vitest';
 import { reduce, altitude, getValueAtPath, evalConditions, selectProse, SHIFT_PER_DAY } from './reducer';
 import type { ContentBundle, GameState, WorkOrder, WorkOrderTemplate } from './schema';
@@ -7,8 +8,8 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
     account: { ownedEpisodes: ['ep1'] },
     self: {
       stats: { repair: 40, insight: 35, procedure: 30, nerve: 25 },
-      skills: { inscription: 1, flowsense: 1 },
-      skillXp: { inscription: 0, flowsense: 0 },
+      skills: { inscription: 1, flowsense: 1, frost: 0 },
+      skillXp: { inscription: 0, flowsense: 0, frost: 0 },
       memory: 0,
       rank: 0,
     },
@@ -18,6 +19,7 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
       weekRatings: {},
       weekTally: { processed: 0, notPassed: 0, perfect: 0 },
       ending: null,
+      weekend: null,
       cardNeglect: {},
       multiday: null,
       archive: [],
@@ -54,6 +56,7 @@ const AUTO_T: WorkOrderTemplate = {
 
 const CONTENT: ContentBundle = {
   bundleId: 'test',
+  ...WEEKLY_CONTENT,
   encounters: [],
   version: '0',
   zoneMaps: [],
@@ -315,7 +318,7 @@ describe('CLOSE_DAY — 금요일 주간 평가 (경계 합산식, 2026-08-11 �
   });
 });
 
-describe('CLOSE_DAY — FINAL_WEEK 엔딩 합산 (implementation-plan §6-0)', () => {
+describe('주간 마감 흐름 — 총평(debrief) → 주말 택2 → 엔딩 (확정 2026-08-11)', () => {
   function finalFriday(tally: GameState['world']['weekTally'], orders: GameState['world']['pendingOrders'] = []): GameState {
     return baseState({
       calendar: { day: 5, weekday: 5 },
@@ -324,34 +327,96 @@ describe('CLOSE_DAY — FINAL_WEEK 엔딩 합산 (implementation-plan §6-0)', (
       pendingOrders: orders,
     });
   }
-  it('Not Passed가 처리의 절반 미만 → 유임, ended 종착', () => {
+  /** 금요일 정산이 끝난 상태에서 총평 확인 → 주말 4슬롯 소화 (학습2 + 인물2) */
+  function throughWeekend(afterFriday: GameState) {
+    let result = reduce(afterFriday, { type: 'CONFIRM_DEBRIEF' }, CONTENT);
+    for (const activityId of ['WKD-frost', 'WKD-neighbor', 'WKD-frost', 'WKD-chief']) {
+      result = reduce(result.state, { type: 'CHOOSE_WEEKEND', activityId }, CONTENT);
+    }
+    return result;
+  }
+  it('금요일 정산은 즉시 끝내지 않는다 — 등급·통지서를 확정하고 debrief로 간다', () => {
     const { state, log } = reduce(finalFriday({ processed: 3, notPassed: 1, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT);
+    expect(state.world.phase).toBe('debrief');
+    expect(state.world.ending).toBeNull(); // 엔딩 확정은 주말 뒤
+    expect(state.world.weekRatings[1]).toBe('passed');
+    expect(state.world.archive).toContainEqual({ kind: 'notice', day: 5, week: 1 });
+    expect(log.join(' ')).toContain('통지서');
+  });
+  it('CONFIRM_DEBRIEF → 토요일(주말) — 슬롯 2, 이후 흐름의 요일은 6·7', () => {
+    const friday = reduce(finalFriday({ processed: 3, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
+    const { state } = reduce(friday, { type: 'CONFIRM_DEBRIEF' }, CONTENT);
+    expect(state.world.phase).toBe('weekend');
+    expect(state.world.calendar).toEqual({ day: 6, weekday: 6 });
+    expect(state.world.weekend).toEqual({ slotsLeft: 2, doneToday: [], done: [] });
+  });
+  it('Not Passed가 처리의 절반 미만 → 주말 뒤 유임, ended 종착 (weekTally는 금요일 값 유지)', () => {
+    const friday = reduce(finalFriday({ processed: 3, notPassed: 1, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
+    const { state, log } = throughWeekend(friday);
     expect(state.world.ending).toBe('retained');
     expect(state.world.phase).toBe('ended');
-    expect(state.world.weekRatings[1]).toBeDefined(); // 평가 기록은 엔딩과 별개로 남는다
+    expect(state.world.weekTally).toEqual({ processed: 3, notPassed: 1, perfect: 0 });
     expect(log.join(' ')).toContain('배치 유지');
   });
-  it('Not Passed가 처리의 절반 이상 → 해고', () => {
-    const { state, log } = reduce(finalFriday({ processed: 2, notPassed: 1, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT);
+  it('Not Passed가 처리의 절반 이상 → 주말 뒤 해고', () => {
+    const friday = reduce(finalFriday({ processed: 2, notPassed: 1, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
+    const { state, log } = throughWeekend(friday);
     expect(state.world.ending).toBe('fired');
     expect(log.join(' ')).toContain('배치 해제');
   });
   it('한 장도 처리하지 않은 주는 해고다 (0 ≥ 0×½ — 방치만 한 주가 유임이 되지 않는다)', () => {
-    const { state } = reduce(finalFriday({ processed: 0, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT);
-    expect(state.world.ending).toBe('fired');
+    const friday = reduce(finalFriday({ processed: 0, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
+    expect(throughWeekend(friday).state.world.ending).toBe('fired');
   });
   it('금요일 당일 처리분도 합산에 들어간다 — 주중 누적 + 당일 실패로 경계에 닿으면 해고', () => {
-    const { state } = reduce(
+    const friday = reduce(
       finalFriday({ processed: 1, notPassed: 0, perfect: 0 }, [makeOrder('d5', true, 2, 'notPassed')]),
       { type: 'CLOSE_DAY' },
       CONTENT,
-    );
-    expect(state.world.weekTally).toEqual({ processed: 2, notPassed: 1, perfect: 0 });
-    expect(state.world.ending).toBe('fired');
+    ).state;
+    expect(friday.world.weekTally).toEqual({ processed: 2, notPassed: 1, perfect: 0 });
+    expect(throughWeekend(friday).state.world.ending).toBe('fired');
   });
   it('ended는 종착 상태 — START_DAY를 받지 않는다', () => {
-    const { state } = reduce(finalFriday({ processed: 3, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT);
+    const friday = reduce(finalFriday({ processed: 3, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
+    const { state } = throughWeekend(friday);
     expect(() => reduce(state, { type: 'START_DAY' }, CONTENT)).toThrow(/morning/);
+  });
+  it('토요일 슬롯 2 소진 → 일요일 — 하루 제한(doneToday)만 풀리고 주말 누적(done)은 남는다', () => {
+    const friday = reduce(finalFriday({ processed: 3, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
+    let s = reduce(friday, { type: 'CONFIRM_DEBRIEF' }, CONTENT).state;
+    s = reduce(s, { type: 'CHOOSE_WEEKEND', activityId: 'WKD-frost' }, CONTENT).state;
+    s = reduce(s, { type: 'CHOOSE_WEEKEND', activityId: 'WKD-neighbor' }, CONTENT).state;
+    expect(s.world.calendar).toEqual({ day: 7, weekday: 7 });
+    expect(s.world.weekend).toEqual({ slotsLeft: 2, doneToday: [], done: ['WKD-frost', 'WKD-neighbor'] });
+  });
+  it('같은 활동을 같은 날 두 번 고를 수 없다', () => {
+    const friday = reduce(finalFriday({ processed: 3, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
+    let s = reduce(friday, { type: 'CONFIRM_DEBRIEF' }, CONTENT).state;
+    s = reduce(s, { type: 'CHOOSE_WEEKEND', activityId: 'WKD-frost' }, CONTENT).state;
+    expect(() => reduce(s, { type: 'CHOOSE_WEEKEND', activityId: 'WKD-frost' }, CONTENT)).toThrow(/이미/);
+  });
+  it('인물 장면은 주말 전체 1회 — 다음 날에도 다시 겪을 수 없다', () => {
+    const friday = reduce(finalFriday({ processed: 3, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
+    let s = reduce(friday, { type: 'CONFIRM_DEBRIEF' }, CONTENT).state;
+    s = reduce(s, { type: 'CHOOSE_WEEKEND', activityId: 'WKD-neighbor' }, CONTENT).state;
+    s = reduce(s, { type: 'CHOOSE_WEEKEND', activityId: 'WKD-chief' }, CONTENT).state;
+    // 일요일 — 옆집은 이미 다녀왔다. 학습은 반복형이라 된다
+    expect(() => reduce(s, { type: 'CHOOSE_WEEKEND', activityId: 'WKD-neighbor' }, CONTENT)).toThrow(/이미/);
+    expect(() => reduce(s, { type: 'CHOOSE_WEEKEND', activityId: 'WKD-frost' }, CONTENT)).not.toThrow();
+  });
+  it('빙결 학습 2회 = 경험치 8 → 빙결술 2등급 (0등급 미습득에서 승격, frost는 정식 스킬)', () => {
+    const friday = reduce(finalFriday({ processed: 3, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
+    expect(friday.self.skills.frost).toBe(0);
+    const first = reduce(reduce(friday, { type: 'CONFIRM_DEBRIEF' }, CONTENT).state, { type: 'CHOOSE_WEEKEND', activityId: 'WKD-frost' }, CONTENT);
+    expect(first.state.self.skills.frost).toBe(1); // 첫 학습에 습득
+    expect(first.log.join(' ')).toContain('빙결술');
+    const { state } = throughWeekend(friday); // 학습 2회 포함
+    expect(state.self.skillXp.frost).toBe(8);
+    expect(state.self.skills.frost).toBe(2);
+  });
+  it('주말 밖에서는 CHOOSE_WEEKEND를 받지 않는다', () => {
+    expect(() => reduce(baseState(), { type: 'CHOOSE_WEEKEND', activityId: 'WKD-frost' }, CONTENT)).toThrow(/weekend/);
   });
   it('평일의 처리·실패가 장부에 누적된다 (방치는 처리 장수에 들어가지 않는다)', () => {
     const s = baseState({

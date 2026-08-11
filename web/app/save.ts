@@ -29,8 +29,13 @@ const SAVE_KEY = 'phase0';
  *    pendingOrders가 세이브에 들어가므로 구 outcome 값이 정산에서 오독된다 — 새 게임으로.
  * 11: 카드 리뉴얼(세션 ③) — face 5종 → kind 4종, options 제거, resultProse 필수.
  *    구 세이브의 pendingOrders가 새 렌더러(kind·작업 개시)에서 깨진다 — 새 게임으로.
+ * 12: 주간 마감 흐름 — SkillId에 frost 추가(skills/skillXp 키 증가),
+ *    WorldSheet.weekend 추가, DayPhase에 debrief/weekend, ArchiveEntry에 notice.
+ *    구 세이브는 frost 키가 없어 효과 적용·렌더에서 깨진다 — 새 게임으로.
+ *    렌더 문장 미저장 제약 재확인: 통지서는 {kind:'notice', day, week}만 저장하고
+ *    본문은 weekRatings[week] 등급으로 재렌더링한다.
  */
-export const SAVE_SCHEMA = 11;
+export const SAVE_SCHEMA = 12;
 
 interface SaveEnvelope {
   schema: number;

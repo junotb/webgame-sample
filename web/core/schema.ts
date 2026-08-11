@@ -10,7 +10,11 @@
 export type ZoneId = 'd2' | 'd5' | 'd7'; // 제2·5·7구역 (가칭)
 export type NpcId = 'protagonist';           // Ep1 주인공 ("돌아온 자")
 export type StatId = 'repair' | 'insight' | 'procedure' | 'nerve'; // 정비/진단/절차/담력
-export type SkillId = 'inscription' | 'flowsense'; // 각인학/감류학 (슬라이스 범위)
+/**
+ * 각인학/감류학 + 빙결술 (2026-08-11 확정 — 어머니의 유산 경로).
+ * frost는 시작 등급 0 (미습득): 주말 마법서 학습(skillXp)이 첫 승격을 만든다.
+ */
+export type SkillId = 'inscription' | 'flowsense' | 'frost';
 export type MenaceId = 'fatigue' | 'scrutiny' | 'unrest'; // 피로/주목/동요
 
 // ─────────────────────────────────────────────
@@ -58,7 +62,12 @@ export type EndingId = 'retained' | 'fired';
 export type ArchiveEntry =
   | { kind: 'order'; day: number; templateId: string; zone: ZoneId }
   | { kind: 'storylet'; day: number; id: string }
-  | { kind: 'encounter'; day: number; id: string; zone: ZoneId };
+  | { kind: 'encounter'; day: number; id: string; zone: ZoneId }
+  /**
+   * 평가 통지서 (금요일 총평 장면에서 발행) — 재열람 목록의 주 단위 구분선.
+   * 등급은 저장하지 않는다: weekRatings[week]가 상태값이고 본문은 현재 상태로 재렌더링된다.
+   */
+  | { kind: 'notice'; day: number; week: number };
 
 export interface WorldSheet {
   calendar: {
@@ -73,8 +82,14 @@ export interface WorldSheet {
    * perfect는 미니게임 도입 전까지 항상 0 (현행 성공은 전부 Passed 취급).
    */
   weekTally: { processed: number; notPassed: number; perfect: number };
-  /** 엔딩 확정값 — FINAL_WEEK 금요일 정산에서만 기록된다. null = 진행 중 */
+  /** 엔딩 확정값 — FINAL_WEEK 주말이 끝날 때 기록된다 (등급 자체는 금요일 정산 값). null = 진행 중 */
   ending: EndingId | null;
+  /**
+   * 주말 상태 (주간 마감 흐름 확정 2026-08-11) — 주말 2일에 매일 택2, 주당 4슬롯.
+   * doneToday는 오늘 고른 것(하루 중복 방지), done은 주말 전체 누적(인물 1회 제한).
+   * 요일은 calendar.weekday(6=토, 7=일)가 든다. null = 주말이 아니다.
+   */
+  weekend: { slotsLeft: number; doneToday: string[]; done: string[] } | null;
   /** 템플릿별 방치 누적 — 미시 피드백의 근거. 처리 성공 시 리셋 (v3 §2 미시 층) */
   cardNeglect: Record<string, number>;
   /** 다일 이벤트 점유 (v3 §5) — 점유 중 근무 슬롯 축소. daysLeft는 남은 점유 근무일 */
@@ -101,8 +116,11 @@ export interface GameState {
   world: WorldSheet;
 }
 
-/** 'ended' = 엔딩 확정 후 종착 상태 — 어떤 액션도 받지 않는다 */
-export type DayPhase = 'morning' | 'field' | 'event' | 'closing' | 'ended';
+/**
+ * 'debrief' = 금요일 일과 종료 직후의 주간 총평 장면 (상사 구두 — 통지서는 이때 발행됨).
+ * 'weekend' = 주말 2일 택2 활동. 'ended' = 엔딩 확정 후 종착 상태 — 어떤 액션도 받지 않는다.
+ */
+export type DayPhase = 'morning' | 'field' | 'event' | 'closing' | 'debrief' | 'weekend' | 'ended';
 
 // ─────────────────────────────────────────────
 // 판정
@@ -323,6 +341,23 @@ export interface EncounterDef {
 }
 
 // ─────────────────────────────────────────────
+// 주말 활동 (주간 마감 흐름 확정 2026-08-11)
+// ─────────────────────────────────────────────
+/**
+ * 주말 택2 선택지 하나 — 빙결 학습 또는 인물 장면.
+ * repeatable=true는 하루 1회 제한(다음 날 다시 가능 — 학습),
+ * repeatable=false는 주말 전체 1회(인물 — 같은 장면을 두 번 겪지 않는다).
+ * 학습과 인물이 같은 슬롯을 경쟁한다: 3인 전부 + 학습 2회는 산술적으로 불가능.
+ */
+export interface WeekendActivityDef {
+  id: string;                       // 'WKD-frost' ...
+  label: string;                    // 선택지 문구
+  repeatable: boolean;
+  body: ProseVariant[];             // 장면 산문 — 선택 즉시 읽는다
+  effects: Effect[];                // 빙결 학습은 self.skillXp.frost, 인물은 플래그
+}
+
+// ─────────────────────────────────────────────
 // 콘텐츠 번들 (D4: 코드가 콘텐츠를 직접 import하지 않는다)
 // ─────────────────────────────────────────────
 export interface ContentBundle {
@@ -333,6 +368,14 @@ export interface ContentBundle {
   encounters: EncounterDef[];
   /** 구역 도면 (UI 층위 사양 §7) — 배치 구역의 지도가 여기서 온다 */
   zoneMaps: ZoneMap[];
+  /** 주간 총평 장면 — 상사가 말로 전한다 (금요일 일과 종료 직후, 등급별 변형) */
+  weeklyDebrief: Record<WeeklyRating, ProseVariant[]>;
+  /** 평가 통지서 — 문서. 총평 장면에서 발행되어 재열람에 등록, 현재 상태로 재렌더링 */
+  weeklyNotice: Record<WeeklyRating, ProseVariant[]>;
+  /** 주말 택2 선택지 풀 (빙결 학습 · 인물 3인) */
+  weekendActivities: WeekendActivityDef[];
+  /** 엔딩 맺음 산문 — 유임/해고. 문서 ID로 재열람에 등록하지 않는다 (종료 화면) */
+  endings: Record<EndingId, ProseVariant[]>;
 }
 
 // ─────────────────────────────────────────────
@@ -358,7 +401,11 @@ export type Action =
    * 미니게임 구현은 앱 층. 코어는 결과 하나만 받는다.
    */
   | { type: 'RESOLVE_MINIGAME'; orderIndex: number; result: MinigameResult }
-  | { type: 'CLOSE_DAY' };
+  | { type: 'CLOSE_DAY' }
+  /** 총평 장면을 읽고 확인 — 주말(토요일)로 넘어간다 */
+  | { type: 'CONFIRM_DEBRIEF' }
+  /** 주말 활동 하나 선택 — 슬롯이 다하면 다음 날로, 이틀이 다하면 엔딩(FINAL_WEEK) 또는 월요일로 */
+  | { type: 'CHOOSE_WEEKEND'; activityId: string };
 
 export interface StepResult {
   state: GameState;

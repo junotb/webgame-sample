@@ -27,7 +27,7 @@ export const ZONE_LABELS: Record<ZoneId, string> = {
   d7: '제7구역',
 };
 
-export const WEEKDAY_LABELS: Record<number, string> = { 1: '월', 2: '화', 3: '수', 4: '목', 5: '금' };
+export const WEEKDAY_LABELS: Record<number, string> = { 1: '월', 2: '화', 3: '수', 4: '목', 5: '금', 6: '토', 7: '일' };
 
 /** 일일 개시 오버레이용 — 하루에 한 번 크게 나오는 자리에서는 한 글자로 두지 않는다 */
 export const WEEKDAY_FULL: Record<number, string> = {
@@ -36,6 +36,8 @@ export const WEEKDAY_FULL: Record<number, string> = {
   3: '수요일',
   4: '목요일',
   5: '금요일',
+  6: '토요일',
+  7: '일요일',
 };
 
 /**
@@ -56,6 +58,8 @@ export const PHASE_LABELS: Record<DayPhase, string> = {
   field: '현장 처리',
   event: '특이 사항',
   closing: '일일 정산',
+  debrief: '주간 총평',
+  weekend: '주말',
   ended: '업무 종결',
 };
 

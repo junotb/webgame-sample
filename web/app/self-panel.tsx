@@ -37,6 +37,8 @@ export function SelfPanel({ state }: { state: GameState }) {
       <div className="skill-rows" aria-label="전문 기술">
         {(Object.keys(SKILL_LABELS) as (keyof typeof SKILL_LABELS)[]).map((skill) => {
           const level = state.self.skills[skill];
+          // 등급 0 = 미습득 (frost) — 배우기 전에는 목록에 없다. 존재 자체가 스포일러다
+          if (level <= 0) return null;
           const into = xpIntoLevel(state.self.skillXp[skill]);
           return (
             <div className="skill-row" key={skill}>

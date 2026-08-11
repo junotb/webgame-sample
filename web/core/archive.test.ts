@@ -2,6 +2,7 @@
  * 재열람 서류함 (v3 §7) — 제시된 문서가 기록되고, 본문은 저장하지 않으며,
  * 기억이 오르면 그 사실만 알린다. 강조는 답을 주고, 재열람은 질문을 준다.
  */
+import { WEEKLY_CONTENT } from './test-content';
 import { describe, expect, it } from 'vitest';
 import { growthNotes, reduce, selectProse } from './reducer';
 import { bindVariants } from './bind';
@@ -12,8 +13,8 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
     account: { ownedEpisodes: ['ep1'] },
     self: {
       stats: { repair: 40, insight: 35, procedure: 30, nerve: 25 },
-      skills: { inscription: 1, flowsense: 1 },
-      skillXp: { inscription: 0, flowsense: 0 },
+      skills: { inscription: 1, flowsense: 1, frost: 0 },
+      skillXp: { inscription: 0, flowsense: 0, frost: 0 },
       memory: 0,
       rank: 0,
     },
@@ -23,6 +24,7 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
       weekRatings: {},
       weekTally: { processed: 0, notPassed: 0, perfect: 0 },
       ending: null,
+      weekend: null,
       cardNeglect: {},
       multiday: null,
       archive: [],
@@ -59,6 +61,7 @@ const T: WorkOrderTemplate = {
 
 const CONTENT: ContentBundle = {
   bundleId: 'archive-test',
+  ...WEEKLY_CONTENT,
   version: '0',
   zoneMaps: [],
   encounters: [],

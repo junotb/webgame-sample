@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { WEEKLY_CONTENT } from '../core/test-content';
 import { loadContent } from './loader';
 
 const tempDirs: string[] = [];
@@ -21,6 +22,7 @@ afterEach(() => {
 
 const minimalBundle = {
   bundleId: 'ep-test',
+  ...WEEKLY_CONTENT,
   encounters: [],
   version: '0.0.1',
   orderTemplates: [

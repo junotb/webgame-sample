@@ -35,7 +35,7 @@ export function altitude(zones: Record<ZoneId, { decay: number }>): number {
 }
 
 const MENACE_LABELS: Record<MenaceId, string> = { fatigue: '피로', scrutiny: '주목', unrest: '동요' };
-export const SKILL_LABELS: Record<SkillId, string> = { inscription: '각인학', flowsense: '감류학' };
+export const SKILL_LABELS: Record<SkillId, string> = { inscription: '각인학', flowsense: '감류학', frost: '빙결술' };
 export const STAT_LABELS: Record<StatId, string> = { repair: '정비', insight: '진단', procedure: '절차', nerve: '담력' };
 
 /**
@@ -69,6 +69,7 @@ export function growthNotes(prev: GameState, next: GameState): string[] {
 function archiveKey(entry: ArchiveEntry): string {
   if (entry.kind === 'order') return `order:${entry.templateId}:${entry.zone}`;
   if (entry.kind === 'storylet') return `storylet:${entry.id}`;
+  if (entry.kind === 'notice') return `notice:${entry.week}`;
   return `encounter:${entry.id}:${entry.zone}`;
 }
 
@@ -242,29 +243,80 @@ export const reduce: Reducer = (state, action, content): StepResult => {
         next.world.multiday = null;
       }
       if (weekday === WORKDAYS_PER_WEEK) {
-        // 금요일: 주간 등급 = 경계 합산식 (미니게임 성적 기반 — 구 밴드 파생 방식은 폐기)
+        // 금요일: 주간 등급 = 경계 합산식 (미니게임 성적 기반 — 구 밴드 파생 방식은 폐기).
+        // 흐름 확정(2026-08-11): 일과 종료 → 총평 장면(debrief) → 주말 2일 → 엔딩.
+        // 등급·통지서는 여기서 확정되고, 엔딩 확정은 주말 뒤(CHOOSE_WEEKEND)로 미뤄진다.
         const rating = summarizeWeek(next.world.weekTally);
         const week = weekOf(day);
         next.world.weekRatings[week] = rating;
-        log.push(`본부 주간 평가: ${RATING_LABELS[rating]}.`);
-        if (week >= FINAL_WEEK) {
-          // 엔딩은 같은 경계를 공유한다: 주 등급 Not Passed = 해고, 그 외 유임
-          next.world.ending = rating === 'notPassed' ? 'fired' : 'retained';
-          next.world.phase = 'ended';
-          next.world.pendingOrders = [];
-          log.push(next.world.ending === 'fired' ? '통지: 배치 해제.' : '통지: 배치 유지.');
-          return { state: next, log };
-        }
-        log.push('이틀의 휴일이 지나간다.');
-        next.world.calendar = { day: day + 3, weekday: 1 };
-        next.world.weekTally = { processed: 0, notPassed: 0, perfect: 0 };
-      } else {
-        next.world.calendar = { day: day + 1, weekday: weekday + 1 };
+        // 통지서 발행 — 총평 장면에 동반된다. 등급은 weekRatings가 들고, 본문은 재렌더링
+        archiveAdd(next.world.archive, { kind: 'notice', day, week });
+        log.push(`본부 주간 평가: ${RATING_LABELS[rating]}.`, '평가 통지서가 서류함에 등록되었다.');
+        next.world.phase = 'debrief';
+        next.world.pendingOrders = [];
+        return { state: next, log };
       }
+      next.world.calendar = { day: day + 1, weekday: weekday + 1 };
       next.world.phase = 'morning';
       next.world.shiftLeft = SHIFT_PER_DAY;
       next.world.pendingOrders = [];
       return { state: next, log };
+    }
+
+    case 'CONFIRM_DEBRIEF': {
+      assertPhase(state, 'debrief', 'CONFIRM_DEBRIEF');
+      const next = structuredClone(state);
+      // 토요일 진입 — 주말 2일 × 택2 (weekday 6=토, 7=일)
+      next.world.calendar = { day: next.world.calendar.day + 1, weekday: 6 };
+      next.world.phase = 'weekend';
+      next.world.weekend = { slotsLeft: 2, doneToday: [], done: [] };
+      return { state: next, log: ['주말이다. 이틀 동안, 하루에 두 가지를 할 수 있다.'] };
+    }
+
+    case 'CHOOSE_WEEKEND': {
+      assertPhase(state, 'weekend', 'CHOOSE_WEEKEND');
+      const weekend = state.world.weekend;
+      if (!weekend || weekend.slotsLeft <= 0) throw new Error('주말 슬롯이 없음');
+      const def = content.weekendActivities.find((a) => a.id === action.activityId);
+      if (!def) throw new Error(`주말 활동 없음: ${action.activityId}`);
+      if (weekend.doneToday.includes(def.id)) {
+        throw new Error(`오늘 이미 한 활동: ${def.id}`);
+      }
+      if (!def.repeatable && weekend.done.includes(def.id)) {
+        throw new Error(`이번 주말에 이미 겪은 장면: ${def.id}`);
+      }
+      const next = applyEffects(state, def.effects);
+      const wk = next.world.weekend!;
+      wk.slotsLeft -= 1;
+      wk.doneToday.push(def.id);
+      wk.done.push(def.id);
+      const log = [...selectProse(next, def.body)];
+      log.push(...growthNotes(state, next));
+      if (wk.slotsLeft <= 0) {
+        const { day, weekday } = next.world.calendar;
+        if (weekday === 6) {
+          // 일요일로 — 하루 제한(doneToday)만 풀린다
+          next.world.calendar = { day: day + 1, weekday: 7 };
+          next.world.weekend = { slotsLeft: 2, doneToday: [], done: wk.done };
+          log.push('토요일이 저물었다.');
+        } else if (weekOf(day) >= FINAL_WEEK) {
+          // 엔딩 — 등급은 금요일 정산 값(weekRatings)을 그대로 쓴다 (경계 공유: 주 Not Passed = 해고)
+          const rating = next.world.weekRatings[weekOf(day)];
+          next.world.ending = rating === 'notPassed' ? 'fired' : 'retained';
+          next.world.phase = 'ended';
+          next.world.weekend = null;
+          log.push(next.world.ending === 'fired' ? '통지: 배치 해제.' : '통지: 배치 유지.');
+        } else {
+          // 월요일 롤오버 (FINAL_WEEK 확장 시 경로)
+          next.world.calendar = { day: day + 1, weekday: 1 };
+          next.world.weekend = null;
+          next.world.weekTally = { processed: 0, notPassed: 0, perfect: 0 };
+          next.world.phase = 'morning';
+          next.world.shiftLeft = SHIFT_PER_DAY;
+          log.push('주말이 끝났다.');
+        }
+      }
+      return { state: next, log, notices: cappedMenaces(state, next) };
     }
   }
 };

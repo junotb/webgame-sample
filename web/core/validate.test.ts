@@ -1,3 +1,4 @@
+import { WEEKLY_CONTENT } from './test-content';
 import { describe, expect, it } from 'vitest';
 import type { ContentBundle } from './schema';
 import { validateBundle } from './validate';
@@ -6,6 +7,7 @@ import { validateBundle } from './validate';
 function validBundle(): ContentBundle {
   return {
     bundleId: 'test-bundle',
+    ...WEEKLY_CONTENT,
     encounters: [],
     version: '0.0.1',
     orderTemplates: [

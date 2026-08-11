@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { SHIFT_PER_DAY } from '../core/reducer';
 import type { Action, ContentBundle, GameState } from '../core/schema';
 import { ArchivePanel } from './archive-panel';
-import { ClosingOverlay, EventOverlay, MorningOverlay } from './day-overlays';
+import { ClosingOverlay, DebriefOverlay, EndingOverlay, EventOverlay, MorningOverlay, WeekendOverlay } from './day-overlays';
 import { FieldStage } from './field-stage';
 import { CityPanel } from './city-panel';
 import { SelfPanel } from './self-panel';
@@ -119,6 +119,9 @@ export function GameView({
     if (phase === 'morning') return <MorningOverlay state={state} disabled={disabled} onAction={onAction} />;
     if (phase === 'event') return <EventOverlay state={state} content={content} disabled={disabled} onAction={onAction} />;
     if (phase === 'closing') return <ClosingOverlay state={state} log={log} disabled={disabled} onAction={onAction} />;
+    if (phase === 'debrief') return <DebriefOverlay state={state} content={content} disabled={disabled} onAction={onAction} />;
+    if (phase === 'weekend') return <WeekendOverlay state={state} content={content} log={log} disabled={disabled} onAction={onAction} />;
+    if (phase === 'ended') return <EndingOverlay state={state} content={content} />;
     return null;
   }
 

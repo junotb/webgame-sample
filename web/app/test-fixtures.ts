@@ -3,6 +3,7 @@
  * 마크업 테스트(node 환경)와 상호작용 테스트(jsdom 환경)가 함께 쓴다.
  */
 import type { ContentBundle, WorkOrder } from '../core/schema';
+import { WEEKLY_CONTENT } from '../core/test-content';
 
 export const RESULT_PROSE = {
   complete: [{ paragraphs: ['회로가 전부 이어졌다.', '보고: 이상 없음.'] }],
@@ -29,6 +30,7 @@ export const ORDER: WorkOrder = {
 
 export const CONTENT: ContentBundle = {
   bundleId: 'ui-test',
+  ...WEEKLY_CONTENT,
   encounters: [],
   version: '1',
   zoneMaps: [

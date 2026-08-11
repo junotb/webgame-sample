@@ -8,8 +8,9 @@ export function createInitialState(seed = DEFAULT_SEED): GameState {
     account: { ownedEpisodes: ['ep1'] },
     self: {
       stats: { repair: 40, insight: 35, procedure: 30, nerve: 25 },
-      skills: { inscription: 1, flowsense: 1 },
-      skillXp: { inscription: 0, flowsense: 0 },
+      // frost는 0 = 미습득 (어머니의 유산 경로 — 주말 마법서 학습이 첫 승격을 만든다)
+      skills: { inscription: 1, flowsense: 1, frost: 0 },
+      skillXp: { inscription: 0, flowsense: 0, frost: 0 },
       memory: 0,
       rank: 0,
     },
@@ -19,6 +20,7 @@ export function createInitialState(seed = DEFAULT_SEED): GameState {
       weekRatings: {},
       weekTally: { processed: 0, notPassed: 0, perfect: 0 },
       ending: null,
+      weekend: null,
       cardNeglect: {},
       multiday: null,
       archive: [],

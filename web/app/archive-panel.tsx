@@ -50,15 +50,32 @@ function resolveDocument(entry: ArchiveEntry, content: ContentBundle): ArchiveDo
     const s = content.storylets.find((s) => s.id === entry.id);
     return s ? { day: entry.day, anchor: '면담', title: [{ text: `면담록 ${s.id}` }], body: s.body } : null;
   }
+  if (entry.kind === 'notice') {
+    // 평가 통지서 — 등급은 상태값(weekRatings)이 들고, 본문은 현재 상태로 재렌더링된다.
+    // 어느 등급인지는 이 함수가 모른다: 호출부(state)가 필요해 아래 컴포넌트에서 접합한다.
+    return null;
+  }
   const e = content.encounters.find((e) => e.id === entry.id);
   return e
     ? { day: entry.day, anchor: '신고', title: [{ text: e.title }], body: bindVariants(e.intro, entry.zone) }
     : null;
 }
 
+/** 통지서 항목 — 재열람 목록의 주 단위 구분선 (아이콘 없음, CLAUDE.md 평가 절) */
+function resolveNotice(entry: ArchiveEntry & { kind: 'notice' }, state: GameState, content: ContentBundle): ArchiveDocument | null {
+  const rating = state.world.weekRatings[entry.week];
+  if (!rating) return null;
+  return {
+    day: entry.day,
+    anchor: '통지',
+    title: [{ text: `제${entry.week}주 평가 통지서` }],
+    body: content.weeklyNotice[rating],
+  };
+}
+
 export function ArchivePanel({ state, content }: { state: GameState; content: ContentBundle }) {
   const documents = state.world.archive
-    .map((entry) => resolveDocument(entry, content))
+    .map((entry) => (entry.kind === 'notice' ? resolveNotice(entry, state, content) : resolveDocument(entry, content)))
     .filter((d): d is ArchiveDocument => d !== null);
 
   const [selected, setSelected] = useState(0);

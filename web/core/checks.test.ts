@@ -74,13 +74,13 @@ describe('narrowProbability — p = clamp(0.5 + (skill−diff)·0.1, 0.1, 1.0)',
 
 describe('checkProbability — Check 객체 디스패치', () => {
   it('broad', () => {
-    expect(checkProbability({ kind: 'broad', stat: 'repair', difficulty: 60 }, { repair: 40, insight: 35, procedure: 30, nerve: 25 }, { inscription: 1, flowsense: 1 })).toBeCloseTo(0.4, 10);
+    expect(checkProbability({ kind: 'broad', stat: 'repair', difficulty: 60 }, { repair: 40, insight: 35, procedure: 30, nerve: 25 }, { inscription: 1, flowsense: 1, frost: 0 })).toBeCloseTo(0.4, 10);
   });
   it('narrow', () => {
-    expect(checkProbability({ kind: 'narrow', skill: 'inscription', difficulty: 1 }, { repair: 40, insight: 35, procedure: 30, nerve: 25 }, { inscription: 1, flowsense: 1 })).toBeCloseTo(0.5, 10);
+    expect(checkProbability({ kind: 'narrow', skill: 'inscription', difficulty: 1 }, { repair: 40, insight: 35, procedure: 30, nerve: 25 }, { inscription: 1, flowsense: 1, frost: 0 })).toBeCloseTo(0.5, 10);
   });
   it('auto는 항상 1.0', () => {
-    expect(checkProbability({ kind: 'auto' }, { repair: 0, insight: 0, procedure: 0, nerve: 0 }, { inscription: 0, flowsense: 0 })).toBe(1.0);
+    expect(checkProbability({ kind: 'auto' }, { repair: 0, insight: 0, procedure: 0, nerve: 0 }, { inscription: 0, flowsense: 0, frost: 0 })).toBe(1.0);
   });
 });
 
@@ -105,7 +105,7 @@ describe('mulberry32 — seedable PRNG 재현성', () => {
 
 describe('rollCheck — roll < p 성공, 같은 시드는 같은 결과', () => {
   const stats = { repair: 40, insight: 35, procedure: 30, nerve: 25 } as const;
-  const skills = { inscription: 1, flowsense: 1 } as const;
+  const skills = { inscription: 1, flowsense: 1, frost: 0 } as const;
 
   it('p = 1.0이면 어떤 roll에도 성공 (roll < p, roll은 1 미만)', () => {
     const result = rollCheck({ kind: 'auto' }, stats, skills, mulberry32(7));

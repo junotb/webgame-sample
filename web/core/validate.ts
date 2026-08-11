@@ -9,7 +9,7 @@ import type { Check, Condition, ContentBundle, ProseVariant, TemplateEffect, Tex
 const ZONE_IDS = ['d2', 'd5', 'd7'];
 const NPC_IDS = ['protagonist'];
 const STAT_IDS = ['repair', 'insight', 'procedure', 'nerve'];
-const SKILL_IDS = ['inscription', 'flowsense'];
+const SKILL_IDS = ['inscription', 'flowsense', 'frost'];
 const MENACE_IDS = ['fatigue', 'scrutiny', 'unrest'];
 /** 카드 종류 4종 — 미니게임 1:1 (카드 리뉴얼 확정). 구 표면 분류 5종은 폐기 */
 const CARD_KINDS = ['circuit', 'patrol', 'material', 'incinerate'];
@@ -296,6 +296,45 @@ export function validateBundle(bundle: ContentBundle): string[] {
   }
 
   checkZoneMaps(bundle, errors);
+
+  // 주간 총평·통지서 — 3등급 전부 필수 (금요일 흐름이 이 그릇을 무조건 연다)
+  const RATINGS = ['perfect', 'passed', 'notPassed'] as const;
+  for (const [name, record] of [['weeklyDebrief', bundle.weeklyDebrief], ['weeklyNotice', bundle.weeklyNotice]] as const) {
+    if (!record) {
+      errors.push(`${name} 누락 — 등급 3변형 전부 필요`);
+      continue;
+    }
+    for (const rating of RATINGS) {
+      if (!record[rating]) errors.push(`${name}.${rating} 누락 — 등급 3변형 전부 필요`);
+      else checkProse(record[rating], `${name}.${rating}`, errors);
+    }
+  }
+
+  // 엔딩 — 유임/해고 두 갈래 필수 (종료 화면이 이 그릇을 무조건 연다)
+  for (const endingId of ['retained', 'fired'] as const) {
+    const prose = bundle.endings?.[endingId];
+    if (!prose) errors.push(`endings.${endingId} 누락 — 유임/해고 두 갈래 전부 필요`);
+    else checkProse(prose, `endings.${endingId}`, errors);
+  }
+
+  // 주말 활동 — 주당 4슬롯을 항상 채울 수 있어야 한다
+  const activities = bundle.weekendActivities ?? [];
+  const seenActivityIds = new Set<string>();
+  for (const a of activities) {
+    const where = `주말 활동 ${a.id}`;
+    if (!a.id) errors.push('주말 활동 id가 비어 있음');
+    if (seenActivityIds.has(a.id)) errors.push(`중복 주말 활동 id: ${a.id}`);
+    seenActivityIds.add(a.id);
+    if (!a.label?.trim()) errors.push(`${where}: label이 비어 있음`);
+    if (typeof a.repeatable !== 'boolean') errors.push(`${where}: repeatable 누락`);
+    checkProse(a.body, where, errors);
+    a.effects.forEach((e) => checkEffect(e, false, where, errors));
+  }
+  // 공급량: 반복형은 하루 1회 × 2일 = 2슬롯, 인물형은 주말 1회 = 1슬롯
+  const capacity = activities.reduce((sum, a) => sum + (a.repeatable ? 2 : 1), 0);
+  if (capacity < 4) {
+    errors.push(`주말 활동 공급 부족 — 4슬롯 필요, 현재 ${capacity}슬롯 (반복형×2 + 인물형×1)`);
+  }
 
   return errors;
 }

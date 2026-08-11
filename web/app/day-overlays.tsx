@@ -4,6 +4,7 @@
  * L3 진행 오버레이 — 게임(흐름)이 여는 층 (UI 층위 사양 §5).
  * 하루의 마디마다 무대를 덮고, 확정하면 물러난다. 뒤의 L1은 사라지지 않는다.
  */
+import { RATING_LABELS, weekOf } from '../core/calendar';
 import { evalConditions } from '../core/reducer';
 import type { Action, ContentBundle, GameState } from '../core/schema';
 import { PagedCopy } from './paged-copy';
@@ -108,6 +109,94 @@ export function ClosingOverlay({ state, log, disabled, onAction }: OverlayProps 
       <button className="primary-action" disabled={disabled} onClick={() => onAction({ type: 'CLOSE_DAY' })}>
         퇴근한다
       </button>
+    </article>
+  );
+}
+
+/**
+ * 주간 총평 장면 — 금요일 일과 종료 직후, 상사가 말로 전한다 (주간 마감 흐름 확정 2026-08-11).
+ * 통지서(문서)는 CLOSE_DAY에서 이미 발행·등록되었다. 여기는 장면이다 — 문서 스킨을 쓰지 않는다.
+ */
+export function DebriefOverlay({ state, content, disabled, onAction }: OverlayProps & { content: ContentBundle }) {
+  const rating = state.world.weekRatings[weekOf(state.world.calendar.day)];
+  const body = rating ? content.weeklyDebrief[rating] : [];
+  return (
+    <article className="document debrief-scene">
+      <header className="document-header">
+        <span>{ZONE_LABELS[state.world.assignment.zone]} 사무소</span>
+        <span>금요일 · 업무 종료 후</span>
+      </header>
+      <h2>주간 총평</h2>
+      <PagedCopy state={state} body={body} className="document-copy narrative">
+        <button className="primary-action" disabled={disabled} onClick={() => onAction({ type: 'CONFIRM_DEBRIEF' })}>
+          사무소를 나선다
+        </button>
+      </PagedCopy>
+    </article>
+  );
+}
+
+/**
+ * 주말 — 이틀 동안 매일 (빙결 학습 · 인물 3인) 중 택2 (주당 4슬롯).
+ * 학습과 인물이 같은 슬롯을 경쟁한다: 무엇을 하지 않을지가 곧 선택이다.
+ * 직전 선택의 장면 산문은 리듀서 로그로 온다 — 다음 선택지 위에 그대로 놓는다.
+ */
+export function WeekendOverlay({ state, content, log, disabled, onAction }: OverlayProps & { content: ContentBundle; log: string[] }) {
+  const weekend = state.world.weekend;
+  if (!weekend) return null;
+  const { day, weekday } = state.world.calendar;
+  return (
+    <section className="day-open weekend-scene" aria-label="주말">
+      <p className="day-open-num">DAY {String(day).padStart(2, '0')}</p>
+      <h2 className="day-open-weekday">{WEEKDAY_FULL[weekday] ?? ''}</h2>
+      {log.length > 0 ? (
+        <div className="weekend-log narrative">
+          {log.map((line, i) => (
+            <p key={i}>{line}</p>
+          ))}
+        </div>
+      ) : null}
+      <p className="day-open-note">오늘 남은 일: {weekend.slotsLeft}</p>
+      <div className="choices weekend-choices">
+        {content.weekendActivities.map((activity) => {
+          const doneToday = weekend.doneToday.includes(activity.id);
+          const spent = !activity.repeatable && weekend.done.includes(activity.id);
+          return (
+            <button
+              key={activity.id}
+              disabled={disabled || doneToday || spent}
+              onClick={() => onAction({ type: 'CHOOSE_WEEKEND', activityId: activity.id })}
+            >
+              <span>{activity.label}</span>
+              {spent || doneToday ? <small>다녀왔다</small> : null}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * 엔딩 — 유임/해고 맺음 산문 → 종료 (2026-08-11 확정, 주말 뒤에 닫힌다).
+ * 재열람에 등록하지 않는다 (서류함 밖). 되돌아갈 버튼도 없다 — 종착 상태다.
+ */
+export function EndingOverlay({ state, content }: { state: GameState; content: ContentBundle }) {
+  const ending = state.world.ending;
+  const body = ending ? content.endings[ending] : [];
+  return (
+    <article className="document ending-scene">
+      <header className="document-header">
+        <span>중앙 시설국</span>
+        <span>주간 평가: {(() => {
+          const rating = state.world.weekRatings[weekOf(state.world.calendar.day)];
+          return rating ? RATING_LABELS[rating] : '';
+        })()}</span>
+      </header>
+      <h2>{ending === 'fired' ? '배치 해제' : '배치 유지'}</h2>
+      <PagedCopy state={state} body={body} className="document-copy narrative">
+        <p className="document-note">— 1주차 기록 끝 —</p>
+      </PagedCopy>
     </article>
   );
 }

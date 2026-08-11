@@ -200,13 +200,22 @@ export function validateBundle(bundle: ContentBundle): string[] {
     if (encounterIds.has(e.id)) errors.push(`중복 조우 id: ${e.id}`);
     encounterIds.add(e.id);
 
-    if (!Number.isInteger(e.maxTurns) || e.maxTurns < 3 || e.maxTurns > 5) {
+    checkProse(e.intro, `${where} intro`, errors, true);
+    if (e.briefing) {
+      // 설명형 조우 — 읽고 확인하면 끝. 다단 필드와는 상호 배타
+      if (!e.briefing.text?.trim()) errors.push(`${where}: briefing.text가 비어 있음 — 종료 한 줄은 필수`);
+      e.briefing.effects.forEach((ef) => checkEffect(ef, true, `${where} briefing`, errors));
+      if (e.actions || e.outcomes || e.maxTurns !== undefined || e.calmToSleep !== undefined) {
+        errors.push(`${where}: 설명형 조우에 다단 필드(actions/outcomes/maxTurns/calmToSleep) 혼재`);
+      }
+      continue;
+    }
+    if (!Number.isInteger(e.maxTurns) || e.maxTurns! < 3 || e.maxTurns! > 5) {
       errors.push(`${where}: maxTurns는 3~5 정수여야 함 (현재: ${e.maxTurns})`);
     }
-    if (!Number.isInteger(e.calmToSleep) || e.calmToSleep < 1 || e.calmToSleep > 3) {
+    if (!Number.isInteger(e.calmToSleep) || e.calmToSleep! < 1 || e.calmToSleep! > 3) {
       errors.push(`${where}: calmToSleep은 1~3 정수여야 함 (현재: ${e.calmToSleep})`);
     }
-    checkProse(e.intro, `${where} intro`, errors, true);
     for (const actionId of ENCOUNTER_ACTIONS) {
       const action = e.actions?.[actionId as keyof typeof e.actions];
       if (!action) {

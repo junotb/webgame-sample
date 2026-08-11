@@ -39,11 +39,16 @@ export function ZoneMap({ map, orders, openIndex, onOpen }: ZoneMapProps) {
   }
 
   /** 지점을 찾지 못한 지시서는 지도 밖에 두지 않는다 — 검증기가 막지만 런타임도 버틴다 */
-  const placed = orders.map((order, index) => ({
-    order,
-    index,
-    site: map.sites.find((s) => s.id === order.siteId),
-  }));
+  const siteUses = new Map<string, number>();
+  const placed = orders.map((order, index) => {
+    const site = map.sites.find((s) => s.id === order.siteId);
+    // 같은 지점에 두 장이 배부되면 마커가 겹쳐 한 장이 사라진다 — 부챗꼴로 벌린다.
+    // 지도 가장자리 지점은 안쪽으로 벌린다 (밖으로 밀면 도면을 벗어난다)
+    const nth = site ? (siteUses.get(site.id) ?? 0) : 0;
+    if (site) siteUses.set(site.id, nth + 1);
+    const dx = site && nth > 0 ? (site.x > 55 ? -1 : 1) * nth * 11 : 0;
+    return { order, index, site, dx };
+  });
 
   return (
     <div className="zone-map" aria-label={map.title}>
@@ -59,9 +64,9 @@ export function ZoneMap({ map, orders, openIndex, onOpen }: ZoneMapProps) {
         </svg>
 
         <ul className="zone-map-sites">
-          {placed.map(({ order, index, site }) =>
+          {placed.map(({ order, index, site, dx }) =>
             site ? (
-              <li key={order.templateId} style={{ left: `${site.x}%`, top: `${site.y}%` }}>
+              <li key={order.templateId} style={{ left: `${site.x + dx}%`, top: `${site.y}%` }}>
                 <button
                   aria-current={openIndex === index}
                   className={`site-marker${order.resolved ? ' is-resolved' : ''}`}

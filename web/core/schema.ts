@@ -320,24 +320,31 @@ export interface StoryletChoice {
 // 로컬 상태이며, 종료 시 outcome별 효과만 하루 루프로 돌아온다.
 // ─────────────────────────────────────────────
 export type EncounterActionId = 'observe' | 'soothe' | 'burn' | 'withdraw';
-export type EncounterOutcome = 'burned' | 'soothed' | 'withdrawn' | 'expired';
+/** 'briefed' = 설명형 조우의 유일한 결말 — 읽고 확인했다 */
+export type EncounterOutcome = 'burned' | 'soothed' | 'withdrawn' | 'expired' | 'briefed';
 
 export interface EncounterDef {
   id: string;                       // 'ENC-001' ...
   /** 고장 신고서 양식 제목 — 문서상 이것은 생물이 아니다 */
   title: string;
-  maxTurns: number;                 // 3~5 (빌드 검증)
-  /** soothe 성공 누적이 이 값에 닿으면 잠든다 (1~3) */
-  calmToSleep: number;
+  /**
+   * 설명형 선행 조우 (2026-08-11 확정 — ENC-001) — 행동·턴 없이 intro를 읽고
+   * 확인하면 끝난다. 종료 효과·한 줄은 여기서 온다 (outcome은 'briefed' 고정).
+   * 이 필드가 있으면 아래 다단 필드는 쓰지 않는다 (검증기가 상호 배타를 강제).
+   */
+  briefing?: { effects: TemplateEffect[]; text: string };
+  maxTurns?: number;                // 3~5 (빌드 검증) — 다단 조우 전용
+  /** soothe 성공 누적이 이 값에 닿으면 잠든다 (1~3) — 다단 조우 전용 */
+  calmToSleep?: number;
   intro: ProseVariant[];
-  actions: Record<EncounterActionId, {
+  actions?: Record<EncounterActionId, {
     label: string;
     check: Check;                   // withdraw는 auto
     successText: string;
     failureText?: string;
   }>;
   /** outcome 효과는 기존 자원만 (피로·동요·기억·플래그·노후도). {zone} 허용 */
-  outcomes: Record<EncounterOutcome, { effects: TemplateEffect[]; text: string }>;
+  outcomes?: Partial<Record<EncounterOutcome, { effects: TemplateEffect[]; text: string }>>;
 }
 
 // ─────────────────────────────────────────────

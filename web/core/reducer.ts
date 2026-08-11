@@ -9,7 +9,7 @@ import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
 import { generateCards } from './generate';
 import { gradeOf } from './minigame';
-import type { ArchiveEntry, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult } from './schema';
+import type { ArchiveEntry, ContentBundle, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult } from './schema';
 
 // 조건 평가는 core/conditions로 옮겼다 (생성기와의 순환 참조 회피). 기존 import 경로는 유지한다.
 export { evalConditions, getValueAtPath, selectProse, selectVariant } from './conditions';
@@ -95,6 +95,14 @@ function advanceSeed(rng: () => number): number {
   return Math.floor(rng() * 4294967296);
 }
 
+/**
+ * 근무 종료 후 갈 곳 — 조건 맞는 저녁 장면(관계 이벤트)이 있을 때만 event를 연다.
+ * 빈 저녁은 화면을 세우지 않고 곧장 정산이다 ("일과 뒤" 무조건 경유는 폐기 — 2026-08-11).
+ */
+function afterFieldPhase(state: GameState, content: ContentBundle): 'event' | 'closing' {
+  return content.storylets.some((s) => evalConditions(state, s.requirements)) ? 'event' : 'closing';
+}
+
 function assertPhase(state: GameState, expected: GameState['world']['phase'], actionType: string): void {
   if (state.world.phase !== expected) {
     throw new Error(`${actionType}은 ${expected} 단계에서만 가능 (현재: ${state.world.phase})`);
@@ -149,7 +157,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       next.world.pendingOrders[action.orderIndex].resolved = true;
       next.world.pendingOrders[action.orderIndex].outcome = grade;
       next.world.shiftLeft -= MINIGAME_TIME_COST;
-      if (next.world.shiftLeft <= 0) next.world.phase = 'event';
+      if (next.world.shiftLeft <= 0) next.world.phase = afterFieldPhase(next, content);
       // 결과 반영 산문 — 성적 3변형에서 현재 상태로 선택 (인터랙션 순서: 미니게임 → 산문)
       const prose = order.resultProse ? selectProse(next, order.resultProse[action.result]) : [];
       const log = [...prose];
@@ -161,7 +169,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       assertPhase(state, 'field', 'SKIP_TO_EVENT');
       const next = structuredClone(state);
       next.world.shiftLeft = 0;
-      next.world.phase = 'event';
+      next.world.phase = afterFieldPhase(next, content);
       return { state: next, log: ['남은 근무 시간을 접고 사무소로 돌아간다.'] };
     }
 
@@ -266,6 +274,13 @@ export const reduce: Reducer = (state, action, content): StepResult => {
     case 'CONFIRM_DEBRIEF': {
       assertPhase(state, 'debrief', 'CONFIRM_DEBRIEF');
       const next = structuredClone(state);
+      const week = weekOf(next.world.calendar.day);
+      // 해고(주 Not Passed)는 총평 직후 즉시 엔딩 — 주말은 유임자의 것이다 (2026-08-11 확정)
+      if (week >= FINAL_WEEK && next.world.weekRatings[week] === 'notPassed') {
+        next.world.ending = 'fired';
+        next.world.phase = 'ended';
+        return { state: next, log: ['통지: 배치 해제.'] };
+      }
       // 토요일 진입 — 주말 2일 × 택2 (weekday 6=토, 7=일)
       next.world.calendar = { day: next.world.calendar.day + 1, weekday: 6 };
       next.world.phase = 'weekend';
@@ -300,12 +315,11 @@ export const reduce: Reducer = (state, action, content): StepResult => {
           next.world.weekend = { slotsLeft: 2, doneToday: [], done: wk.done };
           log.push('토요일이 저물었다.');
         } else if (weekOf(day) >= FINAL_WEEK) {
-          // 엔딩 — 등급은 금요일 정산 값(weekRatings)을 그대로 쓴다 (경계 공유: 주 Not Passed = 해고)
-          const rating = next.world.weekRatings[weekOf(day)];
-          next.world.ending = rating === 'notPassed' ? 'fired' : 'retained';
+          // 엔딩 — 해고는 총평 직후 이미 빠졌으므로 주말을 마친 자는 유임이다
+          next.world.ending = 'retained';
           next.world.phase = 'ended';
           next.world.weekend = null;
-          log.push(next.world.ending === 'fired' ? '통지: 배치 해제.' : '통지: 배치 유지.');
+          log.push('통지: 배치 유지.');
         } else {
           // 월요일 롤오버 (FINAL_WEEK 확장 시 경로)
           next.world.calendar = { day: day + 1, weekday: 1 };

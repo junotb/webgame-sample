@@ -46,7 +46,20 @@ export interface EncounterResult {
   text: string;
 }
 
+/** 다단 필드 확인 — 설명형(briefing) 조우는 이 리듀서를 타지 않는다 (UI가 직접 닫는다) */
+function assertInteractive(def: EncounterDef): asserts def is EncounterDef & {
+  maxTurns: number;
+  calmToSleep: number;
+  actions: NonNullable<EncounterDef['actions']>;
+  outcomes: NonNullable<EncounterDef['outcomes']>;
+} {
+  if (def.briefing || !def.actions || !def.outcomes || def.maxTurns === undefined || def.calmToSleep === undefined) {
+    throw new Error(`설명형 조우는 다단 리듀서를 타지 않는다: ${def.id}`);
+  }
+}
+
 export function startEncounter(def: EncounterDef, zone: ZoneId, seed: number): EncounterState {
+  assertInteractive(def);
   return { encounterId: def.id, zone, turn: 1, calm: 0, observed: 0, outcome: null, seed };
 }
 
@@ -57,6 +70,7 @@ function eased(check: Check, observed: number): Check {
 
 /** 현재 조우 상태 기준의 실효 판정 — UI 성공률 표시용 (관찰 보정 반영) */
 export function effectiveCheck(def: EncounterDef, state: EncounterState, actionId: EncounterActionId): Check {
+  assertInteractive(def);
   const check = def.actions[actionId].check;
   return actionId === 'burn' || actionId === 'soothe' ? eased(check, state.observed) : { ...check };
 }
@@ -67,6 +81,7 @@ export const encounterReduce = (
   actionId: EncounterActionId,
   self: CharacterSheet,
 ): EncounterStep => {
+  assertInteractive(def);
   if (state.encounterId !== def.id) {
     throw new Error(`조우 정의 불일치: 상태 ${state.encounterId}, 정의 ${def.id}`);
   }
@@ -114,7 +129,9 @@ export function finishEncounter(def: EncounterDef, state: EncounterState): Encou
   if (state.outcome === null) {
     throw new Error(`진행 중인 조우는 반출할 수 없음: ${state.encounterId} (턴 ${state.turn})`);
   }
+  assertInteractive(def);
   const outcome = def.outcomes[state.outcome];
+  if (!outcome) throw new Error(`정의되지 않은 outcome: ${state.outcome} (${def.id})`);
   return {
     outcome: state.outcome,
     effects: bindEffects(outcome.effects, state.zone),

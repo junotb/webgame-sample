@@ -318,6 +318,23 @@ describe('CLOSE_DAY — 금요일 주간 평가 (경계 합산식, 2026-08-11 �
   });
 });
 
+describe('저녁 우회 — 조건 맞는 장면이 없으면 event를 세우지 않는다 (2026-08-11)', () => {
+  const noEvening = { ...CONTENT, storylets: [] };
+  it('마지막 카드 처리 후 곧장 정산으로 간다', () => {
+    const s = baseState({ phase: 'field', shiftLeft: 1, pendingOrders: [makeOrder('d5', false, 1)] });
+    const { state } = reduce(s, { type: 'RESOLVE_MINIGAME', orderIndex: 0, result: 'complete' }, noEvening);
+    expect(state.world.phase).toBe('closing');
+  });
+  it('현장 업무 종료(SKIP_TO_EVENT)도 곧장 정산으로 간다', () => {
+    const { state } = reduce(baseState({ phase: 'field' }), { type: 'SKIP_TO_EVENT' }, noEvening);
+    expect(state.world.phase).toBe('closing');
+  });
+  it('조건 맞는 장면이 있으면 여전히 event를 연다 — 관계 이벤트의 그릇은 남는다', () => {
+    const { state } = reduce(baseState({ phase: 'field' }), { type: 'SKIP_TO_EVENT' }, CONTENT);
+    expect(state.world.phase).toBe('event');
+  });
+});
+
 describe('주간 마감 흐름 — 총평(debrief) → 주말 택2 → 엔딩 (확정 2026-08-11)', () => {
   function finalFriday(tally: GameState['world']['weekTally'], orders: GameState['world']['pendingOrders'] = []): GameState {
     return baseState({
@@ -358,15 +375,17 @@ describe('주간 마감 흐름 — 총평(debrief) → 주말 택2 → 엔딩 (�
     expect(state.world.weekTally).toEqual({ processed: 3, notPassed: 1, perfect: 0 });
     expect(log.join(' ')).toContain('배치 유지');
   });
-  it('Not Passed가 처리의 절반 이상 → 주말 뒤 해고', () => {
+  it('Not Passed가 처리의 절반 이상 → 총평 직후 즉시 해고 — 주말은 유임자의 것이다', () => {
     const friday = reduce(finalFriday({ processed: 2, notPassed: 1, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
-    const { state, log } = throughWeekend(friday);
+    const { state, log } = reduce(friday, { type: 'CONFIRM_DEBRIEF' }, CONTENT);
     expect(state.world.ending).toBe('fired');
+    expect(state.world.phase).toBe('ended');
+    expect(state.world.weekend).toBeNull(); // 주말 진입 없음
     expect(log.join(' ')).toContain('배치 해제');
   });
   it('한 장도 처리하지 않은 주는 해고다 (0 ≥ 0×½ — 방치만 한 주가 유임이 되지 않는다)', () => {
     const friday = reduce(finalFriday({ processed: 0, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
-    expect(throughWeekend(friday).state.world.ending).toBe('fired');
+    expect(reduce(friday, { type: 'CONFIRM_DEBRIEF' }, CONTENT).state.world.ending).toBe('fired');
   });
   it('금요일 당일 처리분도 합산에 들어간다 — 주중 누적 + 당일 실패로 경계에 닿으면 해고', () => {
     const friday = reduce(
@@ -375,7 +394,7 @@ describe('주간 마감 흐름 — 총평(debrief) → 주말 택2 → 엔딩 (�
       CONTENT,
     ).state;
     expect(friday.world.weekTally).toEqual({ processed: 2, notPassed: 1, perfect: 0 });
-    expect(throughWeekend(friday).state.world.ending).toBe('fired');
+    expect(reduce(friday, { type: 'CONFIRM_DEBRIEF' }, CONTENT).state.world.ending).toBe('fired');
   });
   it('ended는 종착 상태 — START_DAY를 받지 않는다', () => {
     const friday = reduce(finalFriday({ processed: 3, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;

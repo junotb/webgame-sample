@@ -76,7 +76,7 @@ describe('행동별 전이', () => {
     expect(state.outcome).toBe('burned');
   });
   it('burn 실패: 턴만 소모하고 계속', () => {
-    const d = def({ actions: { ...def().actions, burn: { ...def().actions.burn, check: NEVER } } });
+    const d = def({ actions: { ...def().actions!, burn: { ...def().actions!.burn, check: NEVER } } });
     // p=0.1 — seed를 골라 실패 롤을 얻는다 (재현성: 같은 seed 같은 결과)
     const s = startEncounter(d, 'd5', 7);
     const step = encounterReduce(s, d, 'burn', SELF);
@@ -89,7 +89,7 @@ describe('행동별 전이', () => {
   });
   it('관찰 누적이 burn 난이도를 낮춘다 (OBSERVE_BONUS/회)', () => {
     // diff 6, skill 3 → p=0.2. 관찰 3회면 diff 3 → p=0.5. 여기서는 수식 검증만:
-    const d = def({ actions: { ...def().actions, burn: { ...def().actions.burn, check: { kind: 'narrow', skill: 'inscription', difficulty: 3 + 5 * OBSERVE_BONUS } } } });
+    const d = def({ actions: { ...def().actions!, burn: { ...def().actions!.burn, check: { kind: 'narrow', skill: 'inscription', difficulty: 3 + 5 * OBSERVE_BONUS } } } });
     let s = startEncounter(d, 'd5', 42);
     s = { ...s, observed: 5 }; // 관찰 5회 가정 → diff 실효 3, skill 3 → p=0.5
     // p가 0.1(clamp 하한)이 아니라는 것을 성공 가능성으로 간접 확인: 여러 seed 중 성공이 존재

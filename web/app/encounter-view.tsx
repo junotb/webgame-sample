@@ -35,7 +35,7 @@ export function EncounterView({ def, encounter, gameState, log, onEncounterActio
       {log.length > 0 ? <p className="result-log">{log.join(' ')}</p> : null}
       {finished ? (
         <>
-          <p className="document-copy narrative">{def.outcomes[encounter.outcome!].text}</p>
+          <p className="document-copy narrative">{def.outcomes?.[encounter.outcome!]?.text}</p>
           <button className="primary-action" disabled={disabled} onClick={onSubmit}>
             보고서 제출
           </button>
@@ -46,7 +46,7 @@ export function EncounterView({ def, encounter, gameState, log, onEncounterActio
           <div className="choices event-choices">
             {ACTION_ORDER.map((actionId) => (
               <button key={actionId} disabled={disabled} onClick={() => onEncounterAction(actionId)}>
-                <span>{def.actions[actionId].label}</span>
+                <span>{def.actions?.[actionId].label}</span>
                 <small>
                   {actionId === 'withdraw'
                     ? '이탈'

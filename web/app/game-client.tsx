@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { bindEffects } from '../core/bind';
 import {
   encounterReduce,
   finishEncounter,
@@ -9,8 +10,9 @@ import {
 } from '../core/encounter';
 import { MINIGAME_OF_KIND, type MinigameSession } from '../core/minigame';
 import { reduce } from '../core/reducer';
-import type { Action, ContentBundle, EncounterActionId, EncounterDef, GameState, MenaceId, MinigameResult, WorkOrder } from '../core/schema';
+import type { Action, ContentBundle, EncounterActionId, EncounterDef, GameState, MenaceId, MinigameResult, WorkOrder, ZoneId } from '../core/schema';
 import { EncounterView } from './encounter-view';
+import { OverlayShell } from './overlay-shell';
 import { createInitialState } from './game-state';
 import { GameView } from './game-view';
 import { MinigameOverlay } from './minigame-overlay';
@@ -143,6 +145,9 @@ export function GameClient({ content }: GameClientProps) {
     });
   }, []);
 
+  /** 설명형 선행 조우 — 읽고 확인하면 미니게임이 이어진다 (턴·판정 없음) */
+  const [briefing, setBriefing] = useState<{ def: EncounterDef; orderIndex: number; zone: ZoneId } | null>(null);
+
   /** 작업 개시 — 최초의 소각 카드는 미니게임 전에 조우 ENC-001이 선행된다 (확정) */
   const onStartWork = useCallback((orderIndex: number) => {
     const order = stateRef.current.world.pendingOrders[orderIndex];
@@ -150,6 +155,11 @@ export function GameClient({ content }: GameClientProps) {
     const enc001Done = (stateRef.current.world.flags.enc001_done ?? 0) >= 1;
     if (order.kind === 'incinerate' && !enc001Done) {
       const def = content.encounters.find((e) => e.id === 'ENC-001');
+      if (def?.briefing) {
+        // ENC-001은 설명형 (2026-08-11 확정): 첫 대면을 읽고, 확인하면 두더지 잡기다
+        setBriefing({ def, orderIndex, zone: order.zone });
+        return;
+      }
       if (def) {
         setEncounter({
           def,
@@ -162,6 +172,22 @@ export function GameClient({ content }: GameClientProps) {
     }
     openMinigame(orderIndex);
   }, [content, openMinigame]);
+
+  const onBriefingConfirm = useCallback(() => {
+    setBriefing((current) => {
+      if (!current?.def.briefing) return null;
+      onAction({
+        type: 'RESOLVE_ENCOUNTER',
+        encounterId: current.def.id,
+        zone: current.zone,
+        outcome: 'briefed',
+        effects: bindEffects(current.def.briefing.effects, current.zone),
+        text: current.def.briefing.text,
+      });
+      openMinigame(current.orderIndex);
+      return null;
+    });
+  }, [onAction, openMinigame]);
 
   const onEncounterAction = useCallback((actionId: EncounterActionId) => {
     setEncounter((current) => {
@@ -226,7 +252,20 @@ export function GameClient({ content }: GameClientProps) {
         onStartWork={onStartWork}
         disabled={!ready}
         overlay={
-          encounter ? (
+          briefing ? (
+            <OverlayShell
+              frame={['소각장 인계대', '업무 개시 전']}
+              title={briefing.def.title}
+              state={state}
+              body={briefing.def.intro}
+              ariaLabel="수거분 확인"
+              className="encounter-document"
+            >
+              <button className="primary-action" disabled={!ready} onClick={onBriefingConfirm}>
+                소각을 개시한다
+              </button>
+            </OverlayShell>
+          ) : encounter ? (
             <EncounterView
               def={encounter.def}
               encounter={encounter.state}

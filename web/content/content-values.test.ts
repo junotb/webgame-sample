@@ -80,19 +80,19 @@ describe('텍스트 변형 축 분리 (v3 §7) — 한 문서에 두 축을 쓰�
   });
 });
 
-describe('조우 — ENC-001', () => {
-  it('모든 outcome이 enc001_done을 세운다 — 생성기 소각 보장의 해제 조건', () => {
-    const enc = bundle.encounters.find((e) => e.id === 'ENC-001')!;
-    for (const outcome of Object.values(enc.outcomes)) {
-      expect(outcome.effects).toContainEqual({ path: 'world.flags.enc001_done', op: 'set', value: 1 });
-    }
+describe('조우 — ENC-001 (설명형 선행 조우, 2026-08-11 확정)', () => {
+  const enc = () => bundle.encounters.find((e) => e.id === 'ENC-001')!;
+  it('설명형이다 — 행동·턴 없이 briefing만 있다 (읽고 확인하면 두더지 잡기)', () => {
+    expect(enc().briefing).toBeDefined();
+    expect(enc().actions).toBeUndefined();
+    expect(enc().outcomes).toBeUndefined();
   });
-  it('행동 라벨 끝의 괄호가 판정 기술·스탯명을 반복하지 않는다 (메타 줄이 이미 말한다)', () => {
-    const SKILL_STAT_NAMES = ['각인학', '감류학', '정비', '진단', '절차', '담력'];
-    const labels = bundle.encounters.flatMap((e) => Object.values(e.actions).map((a) => a.label));
-    for (const label of labels) {
-      const paren = label.match(/\(([^)]+)\)$/);
-      if (paren) expect(SKILL_STAT_NAMES).not.toContain(paren[1]);
-    }
+  it('briefing 효과가 enc001_done을 세운다 — 생성기 소각 보장의 해제 조건', () => {
+    expect(enc().briefing!.effects).toContainEqual({ path: 'world.flags.enc001_done', op: 'set', value: 1 });
+  });
+  it('첫 대면 산문 — 찌꺼기가 무엇인지(서류상 명칭·선별 지침)를 도입이 설명한다', () => {
+    const text = enc().intro.flatMap((v) => v.paragraphs).join(' ');
+    expect(text).toContain('찌꺼기');
+    expect(text).toContain('선별');
   });
 });

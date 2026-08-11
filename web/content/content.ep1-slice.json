@@ -443,228 +443,31 @@
       }
     }
   ],
-  "storylets": [
-    {
-      "id": "EV-002",
-      "requirements": [
-        {
-          "path": "world.calendar.day",
-          "gte": 2
-        },
-        {
-          "path": "world.flags.md_ep1_errand_started",
-          "lte": 0
-        },
-        {
-          "path": "world.flags.md_ep1_errand_declined",
-          "lte": 0
-        }
-      ],
-      "body": [
-        {
-          "paragraphs": [
-            "퇴근 무렵, 그 사람이 사무소 문가에서 기다리고 있었다. \"외곽 순환로 쪽 점검 동행이 필요해서 말이야. 사흘 정도. 본부 승인은 받아 뒀네.\"",
-            "지도에는 외곽 구간이 접혀 있어 잘 보이지 않는다. 그 사람은 접힌 자리를 손끝으로 눌러 펴지 않았다."
-          ]
-        }
-      ],
-      "choices": [
-        {
-          "label": "\"가겠습니다.\" — 사흘을 내어준다",
-          "check": {
-            "kind": "auto"
-          },
-          "startsMultiday": {
-            "id": "ep1_errand",
-            "days": 3
-          },
-          "onSuccess": {
-            "effects": [
-              {
-                "path": "world.npcs.protagonist.trust",
-                "op": "add",
-                "value": 1
-              }
-            ],
-            "text": "그 사람은 고개를 끄덕이고는, 처음으로 당신의 이름을 불렀다. \"내일 새벽에 보지.\" 담당 구역의 내일 치 지시서들이 책상 위에 그대로 남아 있다."
-          }
-        },
-        {
-          "label": "\"이번 주는 어렵습니다.\" — 담당 구역을 지킨다",
-          "check": {
-            "kind": "auto"
-          },
-          "onSuccess": {
-            "effects": [
-              {
-                "path": "world.flags.md_ep1_errand_declined",
-                "op": "add",
-                "value": 1
-              }
-            ],
-            "text": "그 사람은 서운한 기색 없이 알겠다고 했다. \"구역 지키는 게 자네 일이지. 맞는 판단이야.\" 문이 닫히고 나서야, 맞는 판단이라는 말이 칭찬으로 들리지 않았다는 걸 깨달았다."
-          }
-        }
-      ]
-    }
-  ],
+  "storylets": [],
   "encounters": [
     {
       "id": "ENC-001",
-      "title": "설비 이상 확인 보고 — 하수 7호 지선",
-      "maxTurns": 4,
-      "calmToSleep": 2,
+      "title": "소각 대상 확인 — 수거분 인계",
+      "briefing": {
+        "effects": [
+          {
+            "path": "world.flags.enc001_done",
+            "op": "set",
+            "value": 1
+          }
+        ],
+        "text": "인계 대장에 서명했다. 통 안의 것은 다시, 고른 간격으로 부풀었다 가라앉기 시작했다."
+      },
       "intro": [
         {
-          "if": [
-            {
-              "path": "self.memory",
-              "gte": 1
-            }
-          ],
           "paragraphs": [
-            "관로가 숨을 쉬고 있다. 표면이 부풀었다 가라앉는 간격이 지나치게 고르다. 당신은 이 고른 숨을 어디선가 읽은 적이 있다.",
-            "보고서에는 무엇이라 적어도, 지금 이 앞에 서 있는 것은 당신이고, 그것은 당신이 온 것을 알고 있다."
-          ]
-        },
-        {
-          "paragraphs": [
-            "관로 표면이 규칙적으로 부풀었다 가라앉는다. 내압 변동일 것이다. 도면에 없는 분기부가 어둠 속으로 이어져 있고, 그 안쪽에서 낮고 고른 소리가 난다.",
-            "설비 이상. 보고서 양식 제4호가 이 경우를 위해 존재한다."
+            "소각장 인계대에 수거분 통이 놓여 있다. 서류상 명칭은 찌꺼기 — 관로와 침전조에서 걷어낸 마력 잔류물이다. 인계 담당자는 서명란만 내밀고는 통에서 한 걸음 떨어져 섰다.",
+            "뚜껑을 여니 안의 것이 움직임을 멈췄다. 젖은 재 같은 덩어리다. 방금까지는 분명히, 숨을 고르듯 부풀었다 가라앉고 있었다.",
+            "집게를 넣자 덩어리가 천천히 집게를 비켜났다. 지침서에는 태울 것과 두어야 할 것을 선별하라고 적혀 있다. 무엇을 근거로 나누는지는 적혀 있지 않다.",
+            "소각구에 불을 올린다. 일은 일이다. 손이 먼저 움직이는 편이 낫다."
           ]
         }
-      ],
-      "actions": {
-        "observe": {
-          "label": "간격을 기록하며 관찰한다",
-          "check": {
-            "kind": "narrow",
-            "skill": "flowsense",
-            "difficulty": 2
-          },
-          "successText": "수첩에 간격을 옮겨 적는다. 흐름이 읽히기 시작한다 — 어디가 시작이고 어디가 끝인지.",
-          "failureText": "어둠 속에서 간격이 자꾸 어긋난다. 아니, 어긋나는 것은 당신의 호흡이다."
-        },
-        "soothe": {
-          "label": "낮은 소리로 진동을 고른다",
-          "check": {
-            "kind": "broad",
-            "stat": "nerve",
-            "difficulty": 45
-          },
-          "successText": "벽면에 손을 대고 호흡을 맞춘다. 부풀던 간격이 조금 느려진다. 무언가가 당신의 손바닥 아래에서 귀를 기울이고 있다.",
-          "failureText": "손이 떨렸다. 간격이 빨라진다. 소리가 커진 것은 아닌데, 가까워졌다."
-        },
-        "burn": {
-          "label": "각인을 그려 연소시킨다",
-          "check": {
-            "kind": "narrow",
-            "skill": "inscription",
-            "difficulty": 4
-          },
-          "successText": "각인이 완성되는 순간 푸른 불길이 분기부를 훑고 지나갔다. 소리가 멎었다.",
-          "failureText": "획이 마지막에서 흔들렸다. 각인이 불발한다. 어둠 속의 간격은 여전히 고르다. 기다리고 있다."
-        },
-        "withdraw": {
-          "label": "철수하고 구간을 봉쇄한다",
-          "check": {
-            "kind": "auto"
-          },
-          "successText": "뒷걸음으로 분기부를 벗어나 입구에 임시 봉쇄 표지를 걸었다. 소리는 따라오지 않았다."
-        }
-      },
-      "outcomes": {
-        "burned": {
-          "effects": [
-            {
-              "path": "world.zones.{zone}.decay",
-              "op": "add",
-              "value": -1
-            },
-            {
-              "path": "world.menace.fatigue",
-              "op": "add",
-              "value": 1
-            },
-            {
-              "path": "world.flags.enc_burned_{zone}",
-              "op": "set",
-              "value": 1
-            },
-            {
-              "path": "self.skillXp.inscription",
-              "op": "add",
-              "value": 4
-            },
-            {
-              "path": "world.flags.enc001_done",
-              "op": "set",
-              "value": 1
-            }
-          ],
-          "text": "연소 후 잔류 열이 관로를 타고 흘렀다. 보고서에는 이렇게 적었다: '과증식 조직 절제 완료. 연료 재생률 정상화.'"
-        },
-        "soothed": {
-          "effects": [
-            {
-              "path": "world.menace.unrest",
-              "op": "add",
-              "value": 1
-            },
-            {
-              "path": "world.flags.enc_soothed_{zone}",
-              "op": "set",
-              "value": 1
-            },
-            {
-              "path": "self.skillXp.flowsense",
-              "op": "add",
-              "value": 4
-            },
-            {
-              "path": "world.flags.enc001_done",
-              "op": "set",
-              "value": 1
-            }
-          ],
-          "text": "간격이 길어지다가, 이윽고 들리지 않게 되었다. 잠든 것이다. 회수된 동력은 없다. 보고서의 '조치 결과' 칸 앞에서 펜이 오래 멈춰 있었다. 결국 이렇게 적었다: '경과 관찰.'"
-        },
-        "withdrawn": {
-          "effects": [
-            {
-              "path": "world.menace.scrutiny",
-              "op": "add",
-              "value": 1
-            },
-            {
-              "path": "world.flags.enc_withdrawn_{zone}",
-              "op": "set",
-              "value": 1
-            },
-            {
-              "path": "world.flags.enc001_done",
-              "op": "set",
-              "value": 1
-            }
-          ],
-          "text": "봉쇄 보고서는 수리되었지만, 미결 구간이 남았다는 사실도 함께 기록되었다. 다음 주 순시 일정에 이 구간이 추가되었다는 회람이 돌았다. 담당자 란은 비어 있다. 아직은."
-        },
-        "expired": {
-          "effects": [
-            {
-              "path": "world.menace.fatigue",
-              "op": "add",
-              "value": 2
-            },
-            {
-              "path": "world.flags.enc001_done",
-              "op": "set",
-              "value": 1
-            }
-          ],
-          "text": "조명이 다해 가고 있었다. 더 머무를 수 없어 물러났다. 기록은 반쪽짜리다. 어둠 속의 간격은, 나올 때까지 한 번도 흐트러지지 않았다."
-        }
-      }
+      ]
     }
   ],
   "zoneMaps": [
@@ -747,7 +550,7 @@
         "paragraphs": [
           "금요일 저녁, 구역 감독관 할도르는 앉지 않았다. 서류철을 책상에 내려놓는 소리가 평소보다 컸다.",
           "\"이번 주 등급은 Not Passed. 처리분 상당수가 규정치 이탈. 본부는 이 숫자를 배치 적합성 재검토 사유로 분류한다.\"",
-          "\"주말 지나고 통지가 갈 거다. 나는 전달만 한다.\" 통지서가 책상에 남았다. 종이는 다른 주의 것과 같은 두께였다."
+          "\"통지는 즉시 효력이다. 나는 전달만 한다.\" 통지서가 책상에 남았다. 종이는 다른 주의 것과 같은 두께였다."
         ]
       }
     ]
@@ -798,7 +601,11 @@
         }
       ],
       "effects": [
-        { "path": "self.skillXp.frost", "op": "add", "value": 4 }
+        {
+          "path": "self.skillXp.frost",
+          "op": "add",
+          "value": 4
+        }
       ]
     },
     {
@@ -815,7 +622,11 @@
         }
       ],
       "effects": [
-        { "path": "world.flags.met_neighbor", "op": "set", "value": 1 }
+        {
+          "path": "world.flags.met_neighbor",
+          "op": "set",
+          "value": 1
+        }
       ]
     },
     {
@@ -832,7 +643,11 @@
         }
       ],
       "effects": [
-        { "path": "world.flags.met_chief", "op": "set", "value": 1 }
+        {
+          "path": "world.flags.met_chief",
+          "op": "set",
+          "value": 1
+        }
       ]
     },
     {
@@ -849,7 +664,11 @@
         }
       ],
       "effects": [
-        { "path": "world.flags.met_barkeep", "op": "set", "value": 1 }
+        {
+          "path": "world.flags.met_barkeep",
+          "op": "set",
+          "value": 1
+        }
       ]
     }
   ],

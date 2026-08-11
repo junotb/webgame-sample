@@ -1,45 +1,23 @@
 /**
- * 카드 생성기 (v3 §4) — 기존 지시서 생성기의 표현 변경.
- * 무작위성의 출처는 셔플이 아니라 도시 상태다: 어떤 카드가 오는지는
- * 배치 구역의 노후도와 방치 누적이 결정하고, rng는 완전 동률에서만 갈린다.
+ * 카드 생성기 — 배부 3장 무작위 추첨 (2026-08-11 확정, 고정 배치표 폐기).
  * 생성 시점에 경로·본문 조건 바인딩과 난이도 보정을 전부 끝낸다.
+ *
+ * 추첨이지만 두 가지를 보장한다:
+ * 1) 서사 카드(`thread: true`)는 추첨 위에 선다 — 조건이 맞는 날 운에 밀리면 진실이 멈춘다.
+ *    희소성은 requirements가 이미 담당하므로 추첨과 경쟁시키지 않는다 (현재 콘텐츠엔 없음 — 특수 보류)
+ * 2) ENC-001 발생 전(`flags.enc001_done` 없음)에는 소각 카드가 매일 1장 포함된다 —
+ *    첫 대면(선행 조우)을 무작위가 무기한 미루지 못하게 하는 보장. 발생 후엔 일반 추첨으로
  */
-import { bindEffects, bindVariants } from './bind';
+import { bindVariants } from './bind';
 import { evalConditions } from './conditions';
-import type {
-  BoundWorkOption,
-  Check,
-  GameState,
-  ZoneId,
-  WorkOption,
-  WorkOrder,
-  WorkOrderTemplate,
-} from './schema';
+import type { GameState, WorkOrder, WorkOrderTemplate, ZoneId } from './schema';
 
-/** 제시 4장 / 처리 2장 (v3 §4) — 방치 2장이 미시 피드백의 재료가 된다 */
-export const CARDS_PER_DAY = 4;
-
-export function applyDifficultyBonus(check: Check, bonus: number): Check {
-  if (check.kind === 'auto') return { ...check };
-  return { ...check, difficulty: check.difficulty + bonus };
-}
-
-function bindOption(option: WorkOption, zone: ZoneId, bonus: number): BoundWorkOption {
-  return {
-    label: option.label,
-    check: applyDifficultyBonus(option.check, bonus),
-    timeCost: option.timeCost,
-    ...(option.startsEncounter ? { startsEncounter: option.startsEncounter } : {}),
-    onSuccess: { effects: bindEffects(option.onSuccess.effects, zone), text: option.onSuccess.text },
-    ...(option.onFailure
-      ? { onFailure: { effects: bindEffects(option.onFailure.effects, zone), text: option.onFailure.text } }
-      : {}),
-  };
-}
+/** 배부 3장(무작위) · 처리 2장 — 남는 1장을 버리는 것이 트리아지 */
+export const CARDS_PER_DAY = 3;
 
 /**
  * difficultyBonus = (노후도의 minDecay 초과분) + (방치 누적) —
- * 넘긴 카드는 악화된 채 돌아온다 (v3 §1 놀람의 설계: 귀속).
+ * 넘긴 카드는 악화된 채 돌아온다. 미니게임 난이도의 유일한 입력이다.
  */
 export function instantiateCard(
   template: WorkOrderTemplate,
@@ -54,35 +32,32 @@ export function instantiateCard(
     siteId: template.siteId,
     difficultyBonus,
     weight: template.weight,
-    face: template.face,
+    kind: template.kind,
     reissueCount: neglect,
     title: bindVariants(template.title, zone),
     body: bindVariants(template.body, zone),
-    options: template.options.map((o) => bindOption(o, zone, difficultyBonus)),
     resolved: false,
-    // 결과 반영 산문 (세션 ②) — 성적 3변형도 생성 시점에 구역 바인딩을 끝낸다
-    ...(template.resultProse
-      ? {
-          resultProse: {
-            complete: bindVariants(template.resultProse.complete, zone),
-            partial: bindVariants(template.resultProse.partial, zone),
-            fail: bindVariants(template.resultProse.fail, zone),
-          },
-        }
-      : {}),
+    // 결과 반영 산문 — 성적 3변형도 생성 시점에 구역 바인딩을 끝낸다
+    resultProse: {
+      complete: bindVariants(template.resultProse.complete, zone),
+      partial: bindVariants(template.resultProse.partial, zone),
+      fail: bindVariants(template.resultProse.fail, zone),
+    },
   };
 }
 
+/** rng 기반 제자리 셔플 (Fisher–Yates) — 추첨의 유일한 무작위성 출처 */
+function shuffle<T>(items: T[], rng: () => number): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 /**
- * 배치 구역 하나에서 최대 4장 (v3 §9: 1주차 한 구역 고정).
- *
- * 우선순위: **서사 카드 먼저** → 방치 누적 큰 순 → minDecay 깊은 순 → 완전 동률만 rng.
- * 방치한 카드가 다음 날 반드시 다시 올라오는 것이 미시 피드백의 전제다.
- *
- * 서사 카드를 맨 앞에 두는 이유: 조건이 맞는 날에 방치 정렬로 밀려 사라지면
- * 진실의 뼈대가 운에 맡겨진다. `requirements`가 이미 희소성을 담당하므로
- * (플래그·기억·일차로 걸린다) 우선순위까지 경쟁시킬 이유가 없다.
- *
+ * 배치 구역 하나에서 3장 추첨 (v3 §9: 1주차 한 구역 고정).
  * 조건 평가에 `self.memory`·`self.skills.*`가 필요하므로 world가 아니라 전체 상태를 받는다.
  */
 export function generateCards(
@@ -99,13 +74,34 @@ export function generateCards(
   if (eligible.length === 0) {
     throw new Error(`적격 템플릿 없음: 구역 ${zone} (노후도 ${decay})`);
   }
+
+  const picked: WorkOrderTemplate[] = [];
+  const remaining = new Set(eligible);
+
+  // 1) 서사 카드 우선 (현재 콘텐츠엔 없음 — 특수 카드 보류)
+  for (const t of eligible) {
+    if (t.thread && picked.length < CARDS_PER_DAY) {
+      picked.push(t);
+      remaining.delete(t);
+    }
+  }
+
+  // 2) ENC-001 전 소각 보장 — 적격 소각 카드 중 1장을 추첨해 자리 확보
+  const enc001Done = (world.flags.enc001_done ?? 0) >= 1;
+  if (!enc001Done && picked.length < CARDS_PER_DAY && !picked.some((t) => t.kind === 'incinerate')) {
+    const burners = shuffle([...remaining].filter((t) => t.kind === 'incinerate'), rng);
+    if (burners.length > 0) {
+      picked.push(burners[0]);
+      remaining.delete(burners[0]);
+    }
+  }
+
+  // 3) 나머지 슬롯은 순수 추첨
+  for (const t of shuffle([...remaining], rng)) {
+    if (picked.length >= CARDS_PER_DAY) break;
+    picked.push(t);
+  }
+
   const neglectOf = (t: WorkOrderTemplate) => world.cardNeglect[t.id] ?? 0;
-  const jitter = new Map(eligible.map((t) => [t.id, rng()]));
-  const sorted = [...eligible].sort((a, b) => {
-    if (!!a.thread !== !!b.thread) return a.thread ? -1 : 1;
-    if (neglectOf(a) !== neglectOf(b)) return neglectOf(b) - neglectOf(a);
-    if (a.minDecay !== b.minDecay) return b.minDecay - a.minDecay;
-    return (jitter.get(a.id) ?? 0) - (jitter.get(b.id) ?? 0);
-  });
-  return sorted.slice(0, CARDS_PER_DAY).map((t) => instantiateCard(t, zone, decay, neglectOf(t)));
+  return picked.map((t) => instantiateCard(t, zone, decay, neglectOf(t)));
 }

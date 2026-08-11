@@ -43,16 +43,18 @@ const T: WorkOrderTemplate = {
   id: 'AUTO',
   minDecay: 0,
   weight: 1,
-  face: 'inspection',
+  kind: 'circuit',
   siteId: 'test-site',
   title: [{ text: '점검' }],
   body: [
     { if: [{ path: 'self.memory', gte: 1 }], paragraphs: ['기억 변형'] },
     { paragraphs: ['기본 본문'] },
   ],
-  options: [
-    { label: '처리', check: { kind: 'auto' }, timeCost: 1, onSuccess: { effects: [], text: '완료' } },
-  ],
+  resultProse: {
+    complete: [{ paragraphs: ['완수 산문'] }],
+    partial: [{ paragraphs: ['부분 산문'] }],
+    fail: [{ paragraphs: ['실패 산문'] }],
+  },
 };
 
 const CONTENT: ContentBundle = {

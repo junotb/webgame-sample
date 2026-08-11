@@ -7,11 +7,13 @@ import {
   startEncounter,
   type EncounterState,
 } from '../core/encounter';
+import { MINIGAME_OF_KIND, type MinigameSession } from '../core/minigame';
 import { reduce } from '../core/reducer';
-import type { Action, ContentBundle, EncounterActionId, EncounterDef, GameState, MenaceId } from '../core/schema';
+import type { Action, ContentBundle, EncounterActionId, EncounterDef, GameState, MenaceId, MinigameResult, WorkOrder } from '../core/schema';
 import { EncounterView } from './encounter-view';
 import { createInitialState } from './game-state';
 import { GameView } from './game-view';
+import { MinigameOverlay } from './minigame-overlay';
 import { NoticeOverlay } from './notice-overlay';
 import { loadGame, saveGame } from './save';
 import { TitleScreen } from './title-screen';
@@ -21,12 +23,20 @@ interface GameClientProps {
   content: ContentBundle;
 }
 
-/** 조우 세션 — GameState에 저장되지 않는 로컬 상태 (v3 §6 격리 원칙) */
+/** 조우 세션 — GameState에 저장되지 않는 로컬 상태 (v3 §6 격리 원칙).
+ *  orderIndex는 선행 조우가 끝난 뒤 이어질 미니게임의 카드 자리다 (조우 → 미니게임 체인) */
 interface EncounterSession {
   def: EncounterDef;
   state: EncounterState;
   orderIndex: number;
   log: string[];
+}
+
+/** 미니게임 세션 — 카드 스냅샷을 함께 든다 (결과 산문은 이 카드의 것) */
+interface MinigamePlay {
+  orderIndex: number;
+  order: WorkOrder;
+  session: MinigameSession;
 }
 
 export function GameClient({ content }: GameClientProps) {
@@ -117,20 +127,41 @@ export function GameClient({ content }: GameClientProps) {
     }
   }, [content, persist]);
 
-  const onStartEncounter = useCallback((orderIndex: number, encounterId: string) => {
-    const def = content.encounters.find((e) => e.id === encounterId);
+  const [minigame, setMinigame] = useState<MinigamePlay | null>(null);
+
+  const openMinigame = useCallback((orderIndex: number) => {
     const order = stateRef.current.world.pendingOrders[orderIndex];
-    if (!def || !order) {
-      setLog([`조우 정의 없음: ${encounterId}`]);
-      return;
-    }
-    setEncounter({
-      def,
-      state: startEncounter(def, order.zone, stateRef.current.world.seed),
+    if (!order) return;
+    setMinigame({
       orderIndex,
-      log: [],
+      order,
+      session: {
+        id: MINIGAME_OF_KIND[order.kind],
+        difficulty: order.difficultyBonus,
+        seed: stateRef.current.world.seed,
+      },
     });
-  }, [content]);
+  }, []);
+
+  /** 작업 개시 — 최초의 소각 카드는 미니게임 전에 조우 ENC-001이 선행된다 (확정) */
+  const onStartWork = useCallback((orderIndex: number) => {
+    const order = stateRef.current.world.pendingOrders[orderIndex];
+    if (!order || order.resolved) return;
+    const enc001Done = (stateRef.current.world.flags.enc001_done ?? 0) >= 1;
+    if (order.kind === 'incinerate' && !enc001Done) {
+      const def = content.encounters.find((e) => e.id === 'ENC-001');
+      if (def) {
+        setEncounter({
+          def,
+          state: startEncounter(def, order.zone, stateRef.current.world.seed),
+          orderIndex,
+          log: [],
+        });
+        return;
+      }
+    }
+    openMinigame(orderIndex);
+  }, [content, openMinigame]);
 
   const onEncounterAction = useCallback((actionId: EncounterActionId) => {
     setEncounter((current) => {
@@ -149,14 +180,26 @@ export function GameClient({ content }: GameClientProps) {
     setEncounter((current) => {
       if (!current) return current;
       const result = finishEncounter(current.def, current.state);
+      const zone = current.state.zone;
       onAction({
         type: 'RESOLVE_ENCOUNTER',
-        orderIndex: current.orderIndex,
+        encounterId: current.def.id,
+        zone,
         outcome: result.outcome,
         effects: result.effects,
         text: result.text,
       });
+      // 조우 종료 후 미니게임이 이어진다 — 성적은 미니게임이 맡는다 (§6-5 확정)
+      openMinigame(current.orderIndex);
       return null;
+    });
+  }, [onAction, openMinigame]);
+
+  const onMinigameResolve = useCallback((result: MinigameResult) => {
+    setMinigame((current) => {
+      if (!current) return current;
+      onAction({ type: 'RESOLVE_MINIGAME', orderIndex: current.orderIndex, result });
+      return current; // 산문을 읽는 동안 오버레이는 남는다 — onClose가 걷는다
     });
   }, [onAction]);
 
@@ -180,7 +223,7 @@ export function GameClient({ content }: GameClientProps) {
         log={log}
         saveStatus={saveStatus}
         onAction={onAction}
-        onStartEncounter={onStartEncounter}
+        onStartWork={onStartWork}
         disabled={!ready}
         overlay={
           encounter ? (
@@ -191,6 +234,15 @@ export function GameClient({ content }: GameClientProps) {
               log={encounter.log}
               onEncounterAction={onEncounterAction}
               onSubmit={onEncounterSubmit}
+              disabled={!ready}
+            />
+          ) : minigame ? (
+            <MinigameOverlay
+              order={minigame.order}
+              state={state}
+              session={minigame.session}
+              onResolve={onMinigameResolve}
+              onClose={() => setMinigame(null)}
               disabled={!ready}
             />
           ) : null

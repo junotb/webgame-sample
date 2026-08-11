@@ -5,7 +5,15 @@
  * 성적 귀속은 확정 규칙 (완수→Perfect / 부분→Passed / 실패→Not Passed) —
  * 미니게임 구현이 등급을 직접 만들지 않는다.
  */
-import type { MinigameId, MinigameResult, WeeklyRating } from './schema';
+import type { CardKind, MinigameId, MinigameResult, WeeklyRating } from './schema';
+
+/** 카드 종류 → 미니게임 1:1 (확정) — 유일한 대응표. 검증기·UI가 이 표만 본다 */
+export const MINIGAME_OF_KIND: Record<CardKind, MinigameId> = {
+  circuit: 'pipe',
+  patrol: 'knight',
+  material: 'block',
+  incinerate: 'whack',
+};
 
 /** 성적 귀속 (2026-08-11 확정) — 유일한 결과→등급 변환 지점 */
 export function gradeOf(result: MinigameResult): WeeklyRating {

@@ -29,8 +29,8 @@ interface GameViewProps {
   log: string[];
   saveStatus: SaveStatus;
   onAction: (action: Action) => void;
-  /** 조우 진입 옵션 클릭 — RESOLVE_ORDER 대신 조우 리듀서로 (v3 §6) */
-  onStartEncounter?: (orderIndex: number, encounterId: string) => void;
+  /** 작업 개시 — 미니게임(최초 소각 카드는 선행 조우부터). 배선은 GameClient */
+  onStartWork?: (orderIndex: number) => void;
   disabled?: boolean;
   /** 조우 화면 — L3의 한 종류로 취급된다 (GameClient가 주입) */
   overlay?: React.ReactNode;
@@ -104,7 +104,7 @@ export function GameView({
   log,
   saveStatus,
   onAction,
-  onStartEncounter,
+  onStartWork,
   disabled = false,
   overlay,
 }: GameViewProps) {
@@ -152,7 +152,7 @@ export function GameView({
           zoneMap={content.zoneMaps.find((m) => m.zone === state.world.assignment.zone) ?? null}
           disabled={disabled}
           onAction={onAction}
-          onStartEncounter={onStartEncounter}
+          onStartWork={onStartWork}
           active={phase === 'field' && !hasOverlay && panel === null}
           log={phase === 'field' && !hasOverlay ? log : []}
         />

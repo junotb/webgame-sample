@@ -4,7 +4,7 @@
  */
 import { checkProbability } from '../core/checks';
 import { SKILL_LABELS, STAT_LABELS } from '../core/reducer';
-import type { CardFace, Check, DayPhase, GameState, ZoneId } from '../core/schema';
+import type { CardKind, Check, DayPhase, GameState, ZoneId } from '../core/schema';
 
 /** 판정 표기: "각인학 · 72%" — 트리아지 고민의 재료 (v3 §4, v1 실패 처방) */
 export function checkLabel(check: Check, self: GameState['self']): string {
@@ -39,16 +39,15 @@ export const WEEKDAY_FULL: Record<number, string> = {
 };
 
 /**
- * 카드 표면 분류 5종 (v3 §4 확정) — 이것은 분류명이지 얼굴 문구가 아니다.
- * "정기 순시" / "미확인 구간 확인" 같은 표현 변형은 지시서의 title이 담당하며,
- * 아이콘 어휘가 일대일로 대응하는 대상은 이 다섯 개다.
+ * 카드 종류 4종 (카드 리뉴얼 확정) — 분류명이지 얼굴 문구가 아니다.
+ * "정기 순시" / "정기 재각인" 같은 표현 변형은 지시서의 title이 담당하며,
+ * 아이콘 어휘가 일대일로 대응하는 대상은 이 네 개다 (구 표면 5종 폐기).
  */
-export const FACE_LABELS: Record<CardFace, string> = {
-  inspection: '점검',
+export const KIND_LABELS: Record<CardKind, string> = {
+  circuit: '점검',
   patrol: '순찰',
-  liaison: '보고',
-  supply: '자재',
-  survey: '탐사',
+  material: '자재',
+  incinerate: '소각',
 };
 
 /** 단계 라벨 — 상단 띠에서는 쓰지 않는다 (화면이 이미 말하고 있다). 오버레이 내부 표기용 */

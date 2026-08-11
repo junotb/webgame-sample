@@ -181,15 +181,16 @@ export interface ProseVariant {
 // 지시서 (자동 생성 콘텐츠)
 // ─────────────────────────────────────────────
 /**
- * 카드 표면 층 — 전부 조직의 언어 (v3 §4). 표면은 실제를 예고하지 않는다:
- * '전투' 같은 분류는 존재할 수 없다 (설비 이상은 고장 신고서 양식으로만 존재).
+ * 카드 종류 4종 (카드 리뉴얼 확정) — 미니게임과 1:1, 검증기가 이 필드를 검사한다.
+ * 구 표면 분류 5종(inspection/patrol/liaison/supply/survey)은 폐기.
+ * 얼굴 **문구**는 이 종류 안의 표현 변형(title)이고, 종류 자체는 4개 고정이다.
+ * 아이콘 어휘도 이 필드와 1:1 (얼굴 문구가 아니라).
  */
-export type CardFace =
-  | 'inspection'   // 점검
-  | 'patrol'       // 정기 순시
-  | 'liaison'      // 조직 방문·보고
-  | 'supply'       // 자재 수령
-  | 'survey';      // 미확인 구간 확인
+export type CardKind =
+  | 'circuit'      // 마력회로 점검 — 파이프 퍼즐
+  | 'patrol'       // 구역 순찰 — 기사의 여행
+  | 'material'     // 자재 옮기기 — 블록 퍼즐
+  | 'incinerate';  // 찌꺼기 소각 — 선별 두더지 잡기
 
 /**
  * 구역 도면의 한 지점 (UI 층위 사양 §7) — 지도 마커가 놓이는 자리.
@@ -213,7 +214,7 @@ export interface WorkOrderTemplate {
   id: string;                       // 'WO-T1' ...
   minDecay: number;                 // 이 노후도 이상 구역에서 생성됨
   weight: number;                   // 1~3 — CLOSE_DAY 노후도 정산 폭 (v3 §3, 빌드 검증 대상)
-  face: CardFace;                   // 카드 얼굴 (표면 층)
+  kind: CardKind;                   // 카드 종류 4종 — 미니게임 1:1 (빌드 검증 대상)
   siteId: string;                   // ZoneSite.id — 배치 구역 도면에서 이 지점에 놓인다
   /**
    * 서사 전제 (v3 §4 정정) — minDecay 외의 등장 조건.
@@ -234,35 +235,14 @@ export interface WorkOrderTemplate {
    * `self.memory` 조건이면 기억 축, `self.skills.*` 조건이면 기술 축.
    * 카드 하나는 한 축만 쓴다 — §7의 조합 폭발 방지 원칙.
    */
+  /** 도입 — 미니게임 전의 짧은 본문 (인터랙션 순서: 얼굴 → 열기 → 도입 → 미니게임 → 결과 산문) */
   title: TextVariant[];
   body: ProseVariant[];             // 완곡어 시스템 적용 지점 — 문단 배열 (ui-screen-spec §4)
-  options: WorkOption[];
-  /** 결과 반영 산문 (세션 ②) — 미니게임 성적 3변형. 미니게임 카드로 재작성 시 필수가 된다 */
-  resultProse?: Record<MinigameResult, ProseVariant[]>;
-}
-
-export interface WorkOption {
-  label: string;
-  check: Check;
-  timeCost: number;                 // 근무 시간 소모 (슬라이스: 1)
   /**
-   * 조우 진입 (v3 §6) — 이 옵션은 판정 대신 격리된 조우 리듀서로 넘어간다.
-   * 표면은 실제를 예고하지 않으므로 라벨은 반드시 조직의 언어여야 한다.
-   * check/onSuccess는 무시된다 (진입 자체는 판정 없음).
+   * 결과 반영 산문 — 미니게임 성적 3변형 (필수, 빌드 검증 대상).
+   * 각 변형 = 현장 묘사(노후도 축) 문단 + 보고 문구(기억 축) 문단, 문단 분리.
    */
-  startsEncounter?: string;         // EncounterDef.id
-  onSuccess: { effects: TemplateEffect[]; text: string };
-  onFailure?: { effects: TemplateEffect[]; text: string };
-}
-
-/** 생성 시점에 완전히 구체화된 옵션 — 경로 바인딩·난이도 보정 완료 */
-export interface BoundWorkOption {
-  label: string;
-  check: Check;                     // difficultyBonus 가산 완료
-  timeCost: number;
-  startsEncounter?: string;
-  onSuccess: { effects: Effect[]; text: string };
-  onFailure?: { effects: Effect[]; text: string };
+  resultProse: Record<MinigameResult, ProseVariant[]>;
 }
 
 /**
@@ -274,28 +254,24 @@ export interface WorkOrder {
   zone: ZoneId;
   /** 템플릿에서 복사 — 지도는 이 값만 보고 마커를 놓는다 (템플릿 재조회 없음) */
   siteId: string;
-  /** 난이도 보정: 구역 노후도의 minDecay 초과분 (방치의 대가, 튜닝 대상) */
+  /** 미니게임 난이도 보정: 구역 노후도의 minDecay 초과분 + 방치 누적 (상승의 축은 노후도) */
   difficultyBonus: number;
   weight: number;                   // 템플릿에서 복사 — 정산은 리듀서가 이 값만 본다
-  face: CardFace;
-  /** 재발부 차수 = 생성 시점의 방치 누적. 0이면 신규 발부 */
+  kind: CardKind;                   // 종류 4종 — 미니게임 1:1
+  /** 재발부 차수 = 생성 시점의 방치 누적. 0이면 신규 발부. UI에 표기하지 않는다 */
   reissueCount: number;
   /** 변형 선택은 렌더 시점 — 단서가 지금의 기억·기술로 다시 판정된다 (v3 §7) */
   title: TextVariant[];
   body: ProseVariant[];             // 변형 선택은 렌더 시점 (완곡어 시스템)
-  options: BoundWorkOption[];
   resolved: boolean;
-  /** 처리에 쓴 옵션 인덱스 — 재열람 시 선택한 것만 남기기 위한 기록 */
-  chosenOption?: number;
   /**
    * 처리 성적 (3등급 확정) — 미니게임 결과의 귀속: 완수→perfect / 부분→passed / 실패→notPassed.
-   * 과도기의 옵션 판정 경로는 성공→passed / 실패→notPassed (Perfect는 미니게임 전용).
    * CLOSE_DAY 정산 근거: notPassed 외 −weight / notPassed 0 / 방치(미기록) +weight
    * (성적별 가중치 차등은 미결 — CLAUDE.md 노후도 절).
    */
   outcome?: WeeklyRating;
-  /** 결과 반영 산문 (세션 ②) — 성적 3변형. 카드 리뉴얼(세션 ③) 콘텐츠부터 실린다 */
-  resultProse?: Record<MinigameResult, ProseVariant[]>;
+  /** 결과 반영 산문 — 성적 3변형 (구역 바인딩 완료). 산문은 반드시 미니게임 뒤 */
+  resultProse: Record<MinigameResult, ProseVariant[]>;
 }
 
 // ─────────────────────────────────────────────
@@ -364,7 +340,6 @@ export interface ContentBundle {
 // ─────────────────────────────────────────────
 export type Action =
   | { type: 'START_DAY' }
-  | { type: 'RESOLVE_ORDER'; orderIndex: number; optionIndex: number }
   | { type: 'SKIP_TO_EVENT' }
   | { type: 'CHOOSE_STORYLET'; storyletId: string; choiceIndex: number }
   /**
@@ -374,9 +349,10 @@ export type Action =
   | { type: 'SKIP_EVENT' }
   /**
    * 조우 종료 결과 반입 (v3 §6) — 조우 리듀서가 만든 완성된 효과만 받는다.
-   * burned/soothed는 카드 처리 성공, withdrawn/expired는 처리 실패로 정산된다.
+   * 조우는 카드 성적·근무 슬롯에 관여하지 않는다 (확정 — implementation-plan §6-5):
+   * 선행 조우(ENC-001)가 끝나면 미니게임이 이어지고, 성적은 RESOLVE_MINIGAME이 맡는다.
    */
-  | { type: 'RESOLVE_ENCOUNTER'; orderIndex: number; outcome: EncounterOutcome; effects: Effect[]; text: string }
+  | { type: 'RESOLVE_ENCOUNTER'; encounterId: string; zone: ZoneId; outcome: EncounterOutcome; effects: Effect[]; text: string }
   /**
    * 미니게임 종료 반입 (세션 ②) — 성적이 카드의 3등급이 된다 (판정 없음, PRNG 불사용).
    * 미니게임 구현은 앱 층. 코어는 결과 하나만 받는다.

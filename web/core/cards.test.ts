@@ -38,17 +38,21 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
   };
 }
 
+const RESULT_PROSE = {
+  complete: [{ paragraphs: ['완수 산문'] }],
+  partial: [{ paragraphs: ['부분 산문'] }],
+  fail: [{ paragraphs: ['실패 산문'] }],
+};
+
 const AUTO_T: WorkOrderTemplate = {
   id: 'AUTO',
   minDecay: 0,
   weight: 2,
-  face: 'inspection',
+  kind: 'circuit',
   siteId: 'test-site',
   title: [{ text: '점검' }],
   body: [{ paragraphs: ['본문'] }],
-  options: [
-    { label: '처리', check: { kind: 'auto' }, timeCost: 1, onSuccess: { effects: [], text: '처리 완료' } },
-  ],
+  resultProse: RESULT_PROSE,
 };
 
 const CONTENT: ContentBundle = {
@@ -56,7 +60,7 @@ const CONTENT: ContentBundle = {
   encounters: [],
   version: '0',
   zoneMaps: [],
-  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: [{ text: '자재 수령' }] }],
+  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, kind: 'material', title: [{ text: '자재 수령' }] }],
   storylets: [
     {
       id: 'EV-MD',
@@ -81,12 +85,12 @@ function card(templateId: string, resolved: boolean, outcome?: WorkOrder['outcom
     zone: 'd5',
     difficultyBonus: 0,
     weight: 2,
-    face: 'inspection',
+    kind: 'circuit',
     siteId: 'test-site',
     reissueCount: 0,
     title: [{ text: '점검' }],
     body: [{ paragraphs: ['본문'] }],
-    options: [],
+    resultProse: RESULT_PROSE,
     resolved,
     ...(outcome ? { outcome } : {}),
   };
@@ -107,12 +111,12 @@ describe('방치 장부 — 미시 피드백의 근거 (v3 §2)', () => {
     const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
     expect(state.world.cardNeglect).toEqual({});
   });
-  it('START_DAY: 방치된 카드가 우선 등장하되, 재발부는 표기되지 않는다 (v3 §0)', () => {
+  it('START_DAY: 재발부 카드는 방치 누적을 난이도로 이고 오되, 표기되지 않는다 (v3 §0)', () => {
     const s = baseState({ cardNeglect: { AUTO2: 1 } });
     const { state, log } = reduce(s, { type: 'START_DAY' }, CONTENT);
-    expect(state.world.pendingOrders[0].templateId).toBe('AUTO2');
-    expect(state.world.pendingOrders[0].reissueCount).toBe(1);
-    expect(state.world.pendingOrders[0].difficultyBonus).toBe(1 + 4); // 방치 1 + decay 초과분 4
+    const reissued = state.world.pendingOrders.find((o) => o.templateId === 'AUTO2')!;
+    expect(reissued.reissueCount).toBe(1);
+    expect(reissued.difficultyBonus).toBe(1 + 4); // 방치 1 + decay 초과분 4
     expect(log.join(' ')).not.toContain('재발부');
   });
   it('START_DAY 로그는 건수만 말하고 제목을 나열하지 않는다 (UI 층위 §5)', () => {
@@ -162,61 +166,28 @@ describe('다일 이벤트 — 3일 점유의 수명 주기 (v3 §5)', () => {
   });
 });
 
-describe('RESOLVE_ENCOUNTER — 조우 결과 반입 (v3 §6)', () => {
-  function encounterCard(): WorkOrder {
-    return {
-      ...card('AUTO', false),
-      options: [
-        {
-          label: '구간을 확인한다',
-          check: { kind: 'auto' },
-          timeCost: 1,
-          startsEncounter: 'ENC-001',
-          onSuccess: { effects: [], text: '' },
-        },
-      ],
-    };
-  }
+describe('RESOLVE_ENCOUNTER — 조우 결과 반입 (§6-5 확정: 성적·슬롯 미관여)', () => {
   function fieldState(): GameState {
-    return baseState({ phase: 'field', pendingOrders: [encounterCard()] });
+    return baseState({ phase: 'field', pendingOrders: [card('AUTO', false)] });
   }
-  it('burned/soothed는 처리 성공으로 정산된다 — 효과 적용 + shiftLeft 차감', () => {
+  it('효과 적용 + 재열람 등록 — 카드와 근무 슬롯은 건드리지 않는다 (미니게임이 닫는다)', () => {
     const { state, log } = reduce(
       fieldState(),
       {
         type: 'RESOLVE_ENCOUNTER',
-        orderIndex: 0,
+        encounterId: 'ENC-001',
+        zone: 'd5',
         outcome: 'burned',
         effects: [{ path: 'world.menace.fatigue', op: 'add', value: 1 }],
-        text: '동력이 회수되었다.',
+        text: '소리가 멎었다.',
       },
       CONTENT,
     );
-    expect(state.world.pendingOrders[0].resolved).toBe(true);
-    expect(state.world.pendingOrders[0].outcome).toBe('passed');
-    expect(state.world.pendingOrders[0].chosenOption).toBe(0); // 조우 진입 옵션이 기록된다
     expect(state.world.menace.fatigue).toBe(1);
-    expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY - 1);
-    expect(log.join(' ')).toContain('동력이 회수되었다');
-  });
-  it('withdrawn/expired는 처리 실패 — 시간만 소모', () => {
-    const { state } = reduce(
-      fieldState(),
-      { type: 'RESOLVE_ENCOUNTER', orderIndex: 0, outcome: 'withdrawn', effects: [], text: '물러섰다.' },
-      CONTENT,
-    );
-    expect(state.world.pendingOrders[0].outcome).toBe('notPassed');
-  });
-  it('조우 진입 옵션은 RESOLVE_ORDER로 처리할 수 없다', () => {
-    expect(() =>
-      reduce(fieldState(), { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT),
-    ).toThrow(/조우/);
-  });
-  it('조우 진입 옵션이 없는 지시서에 반입하면 throw', () => {
-    const s = baseState({ phase: 'field', pendingOrders: [card('AUTO', false)] });
-    expect(() =>
-      reduce(s, { type: 'RESOLVE_ENCOUNTER', orderIndex: 0, outcome: 'burned', effects: [], text: '' }, CONTENT),
-    ).toThrow(/조우 진입/);
+    expect(state.world.pendingOrders[0].resolved).toBe(false); // 성적은 RESOLVE_MINIGAME의 몫
+    expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY);
+    expect(state.world.archive).toContainEqual({ kind: 'encounter', day: 1, id: 'ENC-001', zone: 'd5' });
+    expect(log.join(' ')).toContain('소리가 멎었다');
   });
   it('반입 효과도 기억 비가역 런타임 가드를 지난다', () => {
     expect(() =>
@@ -224,7 +195,8 @@ describe('RESOLVE_ENCOUNTER — 조우 결과 반입 (v3 §6)', () => {
         fieldState(),
         {
           type: 'RESOLVE_ENCOUNTER',
-          orderIndex: 0,
+          encounterId: 'ENC-001',
+          zone: 'd5',
           outcome: 'burned',
           effects: [{ path: 'self.memory', op: 'add', value: -1 }],
           text: '',
@@ -232,6 +204,15 @@ describe('RESOLVE_ENCOUNTER — 조우 결과 반입 (v3 §6)', () => {
         CONTENT,
       ),
     ).toThrow();
+  });
+  it('field가 아니면 throw', () => {
+    expect(() =>
+      reduce(
+        baseState(),
+        { type: 'RESOLVE_ENCOUNTER', encounterId: 'ENC-001', zone: 'd5', outcome: 'burned', effects: [], text: '' },
+        CONTENT,
+      ),
+    ).toThrow(/field/);
   });
 });
 

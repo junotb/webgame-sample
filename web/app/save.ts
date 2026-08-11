@@ -27,8 +27,10 @@ const SAVE_KEY = 'phase0';
  *    weekTally에 perfect 추가 (경계 합산식). 구 세이브의 weekRatings 값이 무효.
  * 10: WorkOrder.outcome이 성공/실패 2값 → 3등급(WeeklyRating). resultProse 추가.
  *    pendingOrders가 세이브에 들어가므로 구 outcome 값이 정산에서 오독된다 — 새 게임으로.
+ * 11: 카드 리뉴얼(세션 ③) — face 5종 → kind 4종, options 제거, resultProse 필수.
+ *    구 세이브의 pendingOrders가 새 렌더러(kind·작업 개시)에서 깨진다 — 새 게임으로.
  */
-export const SAVE_SCHEMA = 10;
+export const SAVE_SCHEMA = 11;
 
 interface SaveEnvelope {
   schema: number;

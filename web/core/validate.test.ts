@@ -13,40 +13,18 @@ function validBundle(): ContentBundle {
         id: 'WO-X1',
         minDecay: 0,
         weight: 1,
-        face: 'inspection',
+        kind: 'circuit',
         siteId: 'x-site',
         title: [{ text: '테스트 지시서' }],
         body: [
           { if: [{ path: 'self.memory', gte: 1 }], paragraphs: ['변형 본문'] },
           { paragraphs: ['기본 본문'] },
         ],
-        options: [
-          {
-            label: '정석',
-            check: { kind: 'narrow', skill: 'inscription', difficulty: 1 },
-            timeCost: 1,
-            onSuccess: {
-              effects: [{ path: 'world.zones.{zone}.decay', op: 'add', value: -3 }],
-              text: '성공',
-            },
-            onFailure: {
-              effects: [{ path: 'world.menace.fatigue', op: 'add', value: 2 }],
-              text: '실패',
-            },
-          },
-          {
-            label: '임시방편',
-            check: { kind: 'broad', stat: 'repair', difficulty: 30 },
-            timeCost: 1,
-            onSuccess: {
-              effects: [
-                { path: 'world.zones.{zone}.decay', op: 'add', value: -1 },
-                { path: 'world.flags.patched_{zone}', op: 'add', value: 1 },
-              ],
-              text: '성공',
-            },
-          },
-        ],
+        resultProse: {
+          complete: [{ paragraphs: ['완수 산문'] }],
+          partial: [{ paragraphs: ['부분 산문'] }],
+          fail: [{ paragraphs: ['실패 산문'] }],
+        },
       },
     ],
     storylets: [
@@ -126,7 +104,7 @@ describe('validateBundle — 효과 경로 무결성', () => {
 
   it('알 수 없는 메나스 ID를 잡는다', () => {
     const errs = validateBundle(
-      mutate((b) => (b.orderTemplates[0].options[0].onFailure.effects[0].path = 'world.menace.doom')),
+      mutate((b) => (b.storylets[0].choices[0].onSuccess.effects[0].path = 'world.menace.doom')),
     );
     expect(errs.some((e) => e.includes('doom'))).toBe(true);
   });
@@ -152,18 +130,49 @@ describe('validateBundle — 효과 경로 무결성', () => {
     expect(validateBundle(validBundle())).toEqual([]);
   });
 
-  it('템플릿 효과에 알 수 없는 치환자가 있으면 잡는다', () => {
+  it('조우 outcome 효과에 알 수 없는 치환자가 있으면 잡는다', () => {
     const errs = validateBundle(
-      mutate((b) => (b.orderTemplates[0].options[0].onSuccess.effects[0].path = 'world.zones.{sector}.decay')),
+      mutate((b) => {
+        b.encounters = [
+          {
+            id: 'ENC-B',
+            title: '시험 조우',
+            maxTurns: 3,
+            calmToSleep: 1,
+            intro: [{ paragraphs: ['도입'] }],
+            actions: {
+              observe: { label: '관찰', check: { kind: 'auto' }, successText: 'x' },
+              soothe: { label: '진정', check: { kind: 'auto' }, successText: 'x' },
+              burn: { label: '연소', check: { kind: 'auto' }, successText: 'x' },
+              withdraw: { label: '철수', check: { kind: 'auto' }, successText: 'x' },
+            },
+            outcomes: {
+              burned: { effects: [{ path: 'world.zones.{sector}.decay', op: 'add', value: -1 }], text: 'x' },
+              soothed: { effects: [], text: 'x' },
+              withdrawn: { effects: [], text: 'x' },
+              expired: { effects: [], text: 'x' },
+            },
+          },
+        ];
+      }),
     );
     expect(errs.some((e) => e.includes('{sector}'))).toBe(true);
   });
 });
 
 describe('validateBundle — 카드 레이어 (v3 §4·§5)', () => {
-  it('알 수 없는 카드 얼굴을 잡는다 (표면 층은 조직의 언어만)', () => {
-    const errs = validateBundle(mutate((b) => (b.orderTemplates[0].face = 'combat')));
+  it('알 수 없는 카드 종류를 잡는다 (4종 고정)', () => {
+    const errs = validateBundle(mutate((b) => (b.orderTemplates[0].kind = 'combat')));
     expect(errs.some((e) => e.includes('combat'))).toBe(true);
+  });
+
+  it('resultProse 누락·변형 누락을 잡는다 (성적 3변형 필수)', () => {
+    expect(
+      validateBundle(mutate((b) => delete b.orderTemplates[0].resultProse)).join(' '),
+    ).toContain('resultProse');
+    expect(
+      validateBundle(mutate((b) => delete b.orderTemplates[0].resultProse.partial)).join(' '),
+    ).toContain('resultProse.partial');
   });
 
   it('weight 범위 밖(0, 4)을 잡는다', () => {
@@ -206,17 +215,17 @@ describe('validateBundle — 기억 비가역 (D4)', () => {
   });
 });
 
-describe('validateBundle — 판정', () => {
+describe('validateBundle — 판정 (조우·스토리렛만 판정을 갖는다)', () => {
   it('broad 판정의 알 수 없는 스탯을 잡는다', () => {
     const errs = validateBundle(
-      mutate((b) => (b.orderTemplates[0].options[1].check = { kind: 'broad', stat: 'luck', difficulty: 30 })),
+      mutate((b) => (b.storylets[0].choices[0].check = { kind: 'broad', stat: 'luck', difficulty: 30 })),
     );
     expect(errs.some((e) => e.includes('luck'))).toBe(true);
   });
 
   it('narrow 판정의 알 수 없는 스킬을 잡는다', () => {
     const errs = validateBundle(
-      mutate((b) => (b.orderTemplates[0].options[0].check = { kind: 'narrow', skill: 'pyromancy', difficulty: 1 })),
+      mutate((b) => (b.storylets[0].choices[0].check = { kind: 'narrow', skill: 'pyromancy', difficulty: 1 })),
     );
     expect(errs.some((e) => e.includes('pyromancy'))).toBe(true);
   });

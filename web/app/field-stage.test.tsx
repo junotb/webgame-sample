@@ -14,7 +14,7 @@ const SECOND: WorkOrder = {
   ...ORDER,
   templateId: 'WO-TEST2',
   siteId: 'site-b',
-  face: 'supply',
+  kind: 'material',
   title: [{ text: '정기 자재 수령' }],
   body: [{ paragraphs: ['수령 서명을 받으십시오.'] }],
 };
@@ -69,7 +69,7 @@ describe('지도 마커', () => {
 
     const resolved = container.querySelector('.site-marker.is-resolved');
     expect(resolved).not.toBeNull();
-    expect(resolved?.querySelector('[data-icon="face-inspection"]')).not.toBeNull();
+    expect(resolved?.querySelector('[data-icon="kind-circuit"]')).not.toBeNull();
     expect(resolved?.querySelector('.site-stamp')).not.toBeNull();
   });
 });
@@ -82,7 +82,7 @@ describe('호버 열람', () => {
     await user.hover(screen.getByRole('button', { name: /제3중계실/ }));
 
     await waitFor(() => expect(screen.getByText('이상 없음으로 처리하십시오.')).toBeDefined());
-    expect(screen.getByRole('button', { name: /표준 절차로 처리/ })).toBeDefined();
+    expect(screen.getByRole('button', { name: /작업 개시/ })).toBeDefined();
   });
 
   it('마커를 떠나도 카드는 남는다 — 선택지로 커서를 옮기는 동안 닫히면 안 된다', async () => {
@@ -115,30 +115,35 @@ describe('호버 열람', () => {
   });
 });
 
-describe('선택지', () => {
-  it('누르면 바로 처리된다 — 별도 확인 단계를 두지 않는다', async () => {
-    const { user, onAction } = stage();
+describe('작업 개시 — 카드 리뉴얼: 처리 = 미니게임', () => {
+  it('열린 카드에서 작업 개시를 누르면 onStartWork가 카드 자리를 받는다', async () => {
+    const onStartWork = vi.fn();
+    const { user } = renderUI(
+      <FieldStage
+        state={fieldState()}
+        zoneMap={MAP}
+        disabled={false}
+        onAction={vi.fn()}
+        onStartWork={onStartWork}
+        active
+      />,
+    );
 
     await user.hover(screen.getByRole('button', { name: /제3중계실/ }));
-    await waitFor(() => expect(screen.getByRole('button', { name: /표준 절차로 처리/ })).toBeDefined());
-    await user.click(screen.getByRole('button', { name: /표준 절차로 처리/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /작업 개시/ })).toBeDefined());
+    await user.click(screen.getByRole('button', { name: /작업 개시/ }));
 
-    expect(onAction).toHaveBeenCalledWith({ type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 });
+    expect(onStartWork).toHaveBeenCalledWith(0);
   });
 
-  it('판정 표기를 유지한다 (v3 §4 — 저울에는 눈금이 있어야 한다)', async () => {
-    const withCheck = fieldState([
-      {
-        ...ORDER,
-        options: [
-          { ...ORDER.options[0], check: { kind: 'narrow', skill: 'inscription', difficulty: 1 } },
-        ],
-      },
-      SECOND,
-    ]);
-    const { user } = stage(withCheck);
+  it('처리 완료 카드에는 작업 개시 대신 성적 도장이 남는다', async () => {
+    const done = fieldState([{ ...ORDER, resolved: true, outcome: 'passed' }, SECOND]);
+    const { user } = renderUI(
+      <FieldStage state={done} zoneMap={MAP} disabled={false} onAction={vi.fn()} onStartWork={vi.fn()} active />,
+    );
 
     await user.hover(screen.getByRole('button', { name: /제3중계실/ }));
-    await waitFor(() => expect(screen.getByText(/각인학 · \d+%/)).toBeDefined());
+    await waitFor(() => expect(screen.getByText('Passed')).toBeDefined());
+    expect(screen.queryByRole('button', { name: /작업 개시/ })).toBeNull();
   });
 });

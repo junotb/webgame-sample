@@ -20,7 +20,7 @@ import { bindVariants } from '../core/bind';
 import { selectVariant } from '../core/reducer';
 import type { ArchiveEntry, ContentBundle, GameState, ProseVariant, TextVariant } from '../core/schema';
 import { PagedCopy } from './paged-copy';
-import { FACE_LABELS } from './ui-labels';
+import { KIND_LABELS } from './ui-labels';
 
 /** 색인 한 장의 건수 — 가로모드 세로 예산(≈330px) 안에서 pager와 함께 서는 수 */
 const INDEX_PAGE_SIZE = 4;
@@ -40,7 +40,7 @@ function resolveDocument(entry: ArchiveEntry, content: ContentBundle): ArchiveDo
     return t
       ? {
           day: entry.day,
-          anchor: FACE_LABELS[t.face],
+          anchor: KIND_LABELS[t.kind],
           title: bindVariants(t.title, entry.zone),
           body: bindVariants(t.body, entry.zone),
         }

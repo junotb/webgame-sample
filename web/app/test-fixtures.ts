@@ -4,12 +4,18 @@
  */
 import type { ContentBundle, WorkOrder } from '../core/schema';
 
+export const RESULT_PROSE = {
+  complete: [{ paragraphs: ['회로가 전부 이어졌다.', '보고: 이상 없음.'] }],
+  partial: [{ paragraphs: ['절반만 이어졌다.', '보고: 정상 범위 내 변동.'] }],
+  fail: [{ paragraphs: ['회로가 열리지 않았다.', '보고: 미완.'] }],
+};
+
 export const ORDER: WorkOrder = {
   templateId: 'WO-TEST',
   zone: 'd5',
   difficultyBonus: 0,
   weight: 1,
-  face: 'inspection',
+  kind: 'circuit',
   siteId: 'test-site',
   reissueCount: 0,
   title: [{ text: '간헐 명멸 현상 점검' }],
@@ -17,14 +23,7 @@ export const ORDER: WorkOrder = {
     { if: [{ path: 'self.memory', gte: 1 }], paragraphs: ['당신은 이 문구가 무언가를 감추고 있음을 안다.'] },
     { paragraphs: ['이상 없음으로 처리하십시오.'] },
   ],
-  options: [
-    {
-      label: '표준 절차로 처리',
-      check: { kind: 'auto' },
-      timeCost: 1,
-      onSuccess: { effects: [], text: '완료' },
-    },
-  ],
+  resultProse: RESULT_PROSE,
   resolved: false,
 };
 
@@ -44,18 +43,11 @@ export const CONTENT: ContentBundle = {
       id: 'WO-TEST',
       minDecay: 0,
       weight: 1,
-      face: 'inspection',
+      kind: 'circuit',
       siteId: 'test-site',
       title: [{ text: '간헐 명멸 현상 점검' }],
       body: ORDER.body,
-      options: [
-        {
-          label: '표준 절차로 처리',
-          check: { kind: 'auto' },
-          timeCost: 1,
-          onSuccess: { effects: [], text: '완료' },
-        },
-      ],
+      resultProse: RESULT_PROSE,
     },
   ],
   storylets: [

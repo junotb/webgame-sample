@@ -11,7 +11,9 @@ const NPC_IDS = ['protagonist'];
 const STAT_IDS = ['repair', 'insight', 'procedure', 'nerve'];
 const SKILL_IDS = ['inscription', 'flowsense'];
 const MENACE_IDS = ['fatigue', 'scrutiny', 'unrest'];
-const CARD_FACES = ['inspection', 'patrol', 'liaison', 'supply', 'survey'];
+/** 카드 종류 4종 — 미니게임 1:1 (카드 리뉴얼 확정). 구 표면 분류 5종은 폐기 */
+const CARD_KINDS = ['circuit', 'patrol', 'material', 'incinerate'];
+const MINIGAME_RESULTS = ['complete', 'partial', 'fail'] as const;
 const MULTIDAY_MAX_DAYS = 3;
 const ENCOUNTER_ACTIONS = ['observe', 'soothe', 'burn', 'withdraw'];
 const ENCOUNTER_OUTCOMES = ['burned', 'soothed', 'withdrawn', 'expired'];
@@ -232,8 +234,8 @@ export function validateBundle(bundle: ContentBundle): string[] {
     if (!Number.isInteger(t.weight) || t.weight < 1 || t.weight > 3) {
       errors.push(`${where}: weight는 1~3 정수여야 함 (현재: ${t.weight})`);
     }
-    if (!CARD_FACES.includes(t.face)) {
-      errors.push(`${where}: 알 수 없는 카드 얼굴 '${t.face}' — 표면 층은 조직의 언어만 허용 (${CARD_FACES.join('/')})`);
+    if (!CARD_KINDS.includes(t.kind)) {
+      errors.push(`${where}: 알 수 없는 카드 종류 '${t.kind}' — 4종 고정 (${CARD_KINDS.join('/')})`);
     }
     if (!t.siteId) errors.push(`${where}: siteId가 비어 있음 — 지도에 놓일 자리가 없다`);
 
@@ -254,15 +256,20 @@ export function validateBundle(bundle: ContentBundle): string[] {
     }
 
     checkProse(t.body, where, errors, true);
-    t.options.forEach((opt, i) => {
-      const optWhere = `${where} 옵션[${i}]`;
-      checkCheck(opt.check, optWhere, errors);
-      if (opt.startsEncounter && !encounterIds.has(opt.startsEncounter)) {
-        errors.push(`${optWhere}: 존재하지 않는 조우 참조 '${opt.startsEncounter}'`);
+
+    // 결과 반영 산문 — 성적 3변형 전부 필수 (산문은 반드시 미니게임 뒤, 결과가 산문을 바꾼다)
+    if (!t.resultProse) {
+      errors.push(`${where}: resultProse 누락 — 결과 반영 산문 3변형(완수/부분/실패)은 필수`);
+    } else {
+      for (const result of MINIGAME_RESULTS) {
+        const prose = t.resultProse[result];
+        if (!prose) {
+          errors.push(`${where}: resultProse.${result} 누락 — 성적 3변형 전부 필요`);
+          continue;
+        }
+        checkProse(prose, `${where} resultProse.${result}`, errors, true);
       }
-      opt.onSuccess.effects.forEach((e) => checkEffect(e, true, `${optWhere} onSuccess`, errors));
-      opt.onFailure?.effects.forEach((e) => checkEffect(e, true, `${optWhere} onFailure`, errors));
-    });
+    }
   }
 
   const seenStoryletIds = new Set<string>();

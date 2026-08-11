@@ -65,28 +65,13 @@ describe('cappedMenaces — 상한 도달 감지', () => {
 
 // ── 리듀서 통합: 효과 적용 경로에서 통지가 StepResult에 실리는가 ──
 
-const FATIGUE_ORDER: WorkOrder = {
-  templateId: 'WO-FATIGUE',
-  zone: 'd2',
-  difficultyBonus: 0,
-  face: 'inspection' as const,
-  siteId: 'test-site',
-  reissueCount: 0,
-  weight: 1,
-  title: [{ text: '소모적인 작업' }],
-  body: [{ paragraphs: ['본문'] }],
-  options: [
-    {
-      label: '무리해서 처리한다',
-      check: { kind: 'auto' },
-      timeCost: 1,
-      onSuccess: {
-        effects: [{ path: 'world.menace.fatigue', op: 'add', value: 8 }],
-        text: '몸이 무겁다.',
-      },
-    },
-  ],
-  resolved: false,
+const FATIGUE_ENCOUNTER = {
+  type: 'RESOLVE_ENCOUNTER' as const,
+  encounterId: 'ENC-X',
+  zone: 'd5' as const,
+  outcome: 'burned' as const,
+  effects: [{ path: 'world.menace.fatigue' as const, op: 'add' as const, value: 8 }],
+  text: '몸이 무겁다.',
 };
 
 const CONTENT: ContentBundle = {
@@ -115,9 +100,9 @@ const CONTENT: ContentBundle = {
 };
 
 describe('리듀서 — 메나스 상한 통지 (UI 층위 §6)', () => {
-  it('RESOLVE_ORDER로 피로가 상한에 닿으면 통지가 실린다', () => {
-    const state = baseState({ phase: 'field', pendingOrders: [FATIGUE_ORDER] });
-    const { state: next, notices } = reduce(state, { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT);
+  it('RESOLVE_ENCOUNTER로 피로가 상한에 닿으면 통지가 실린다', () => {
+    const state = baseState({ phase: 'field' });
+    const { state: next, notices } = reduce(state, FATIGUE_ENCOUNTER, CONTENT);
     expect(next.world.menace.fatigue).toBe(MENACE_CAP);
     expect(notices).toEqual(['fatigue']);
   });
@@ -130,15 +115,15 @@ describe('리듀서 — 메나스 상한 통지 (UI 층위 §6)', () => {
   });
 
   it('이미 상한인 상태에서 추가 효과가 와도 통지를 반복하지 않는다', () => {
-    const at = baseState({ phase: 'field', pendingOrders: [structuredClone(FATIGUE_ORDER)] });
+    const at = baseState({ phase: 'field' });
     at.world.menace.fatigue = MENACE_CAP;
-    const { notices } = reduce(at, { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT);
+    const { notices } = reduce(at, FATIGUE_ENCOUNTER, CONTENT);
     expect(notices).toEqual([]);
   });
 
   it('경고 문구를 로그로 흘려보내지 않는다 — 통지는 L4의 몫이다', () => {
-    const state = baseState({ phase: 'field', pendingOrders: [FATIGUE_ORDER] });
-    const { log } = reduce(state, { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT);
+    const state = baseState({ phase: 'field' });
+    const { log } = reduce(state, FATIGUE_ENCOUNTER, CONTENT);
     expect(log.join(' ')).not.toContain('한계에 달했다');
     expect(log.join(' ')).not.toContain('⚠');
   });

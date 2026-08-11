@@ -34,27 +34,22 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
   };
 }
 
-// auto 판정 템플릿 — 판정 난수 없이 전이만 검증하기 위함.
 // 노후도 증감은 콘텐츠 효과가 아니라 CLOSE_DAY 가중치 정산의 몫 (v3 §3).
+const RESULT_PROSE = {
+  complete: [{ paragraphs: ['완수 산문'] }],
+  partial: [{ paragraphs: ['부분 산문'] }],
+  fail: [{ paragraphs: ['실패 산문'] }],
+};
+
 const AUTO_T: WorkOrderTemplate = {
   id: 'AUTO',
   minDecay: 0,
   weight: 2,
-  face: 'inspection',
+  kind: 'circuit',
   siteId: 'test-site',
   title: [{ text: '점검' }],
   body: [{ paragraphs: ['본문'] }],
-  options: [
-    {
-      label: '처리',
-      check: { kind: 'auto' },
-      timeCost: 1,
-      onSuccess: {
-        effects: [],
-        text: '처리 완료',
-      },
-    },
-  ],
+  resultProse: RESULT_PROSE,
 };
 
 const CONTENT: ContentBundle = {
@@ -62,7 +57,7 @@ const CONTENT: ContentBundle = {
   encounters: [],
   version: '0',
   zoneMaps: [],
-  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, face: 'supply', title: [{ text: '자재 수령' }] }],
+  orderTemplates: [AUTO_T, { ...AUTO_T, id: 'AUTO2', weight: 1, kind: 'material', title: [{ text: '자재 수령' }] }],
   storylets: [
     {
       id: 'EV-001',
@@ -102,12 +97,12 @@ function makeOrder(
     zone,
     difficultyBonus: 0,
     weight,
-    face: 'inspection',
+    kind: 'circuit',
     siteId: 'test-site',
     reissueCount: 0,
     title: [{ text: '점검' }],
     body: [{ paragraphs: ['본문'] }],
-    options: [],
+    resultProse: RESULT_PROSE,
     resolved,
     ...(outcome ? { outcome } : {}),
   };
@@ -131,36 +126,20 @@ describe('START_DAY — morning: 카드 발부 → field', () => {
   });
 });
 
-describe('RESOLVE_ORDER — field: 판정·효과·트리아지', () => {
+describe('카드 처리 흐름 — 미니게임 연쇄와 트리아지', () => {
   function fieldState(): GameState {
     return reduce(baseState(), { type: 'START_DAY' }, CONTENT).state;
   }
-  it('resolved 마킹 + outcome 기록, shiftLeft 차감 (노후도는 정산 전까지 불변)', () => {
-    const { state, log } = reduce(fieldState(), { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT);
-    expect(state.world.zones.d5.decay).toBe(4); // 증감은 CLOSE_DAY 가중치 정산의 몫
-    expect(state.world.pendingOrders[0].resolved).toBe(true);
-    expect(state.world.pendingOrders[0].outcome).toBe('passed');
-    expect(state.world.pendingOrders[0].chosenOption).toBe(0);
-    expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY - 1);
-    expect(state.world.phase).toBe('field');
-    expect(log.join(' ')).toContain('처리 완료');
-  });
-  it('shiftLeft가 0이 되면 event로 강제 전이 (2/3건 트리아지)', () => {
-    const s1 = reduce(fieldState(), { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT).state;
-    const s2 = reduce(s1, { type: 'RESOLVE_ORDER', orderIndex: 1, optionIndex: 0 }, CONTENT).state;
+  it('처리 두 장이면 shiftLeft 0 → event 전이 (2/3 트리아지)', () => {
+    const s1 = reduce(fieldState(), { type: 'RESOLVE_MINIGAME', orderIndex: 0, result: 'partial' }, CONTENT).state;
+    expect(s1.world.phase).toBe('field');
+    const s2 = reduce(s1, { type: 'RESOLVE_MINIGAME', orderIndex: 1, result: 'complete' }, CONTENT).state;
     expect(s2.world.shiftLeft).toBe(0);
     expect(s2.world.phase).toBe('event');
+    expect(s2.world.zones.d5.decay).toBe(4); // 증감은 CLOSE_DAY 가중치 정산의 몫
   });
-  it('이미 처리한 지시서 재처리 → throw', () => {
-    const s1 = reduce(fieldState(), { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT).state;
-    expect(() => reduce(s1, { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT)).toThrow(/처리/);
-  });
-  it('없는 지시서·옵션 인덱스 → throw', () => {
-    expect(() => reduce(fieldState(), { type: 'RESOLVE_ORDER', orderIndex: 9, optionIndex: 0 }, CONTENT)).toThrow();
-    expect(() => reduce(fieldState(), { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 9 }, CONTENT)).toThrow();
-  });
-  it('field가 아니면 throw', () => {
-    expect(() => reduce(baseState(), { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT)).toThrow(/field/);
+  it('없는 지시서 인덱스 → throw', () => {
+    expect(() => reduce(fieldState(), { type: 'RESOLVE_MINIGAME', orderIndex: 9, result: 'fail' }, CONTENT)).toThrow();
   });
 });
 

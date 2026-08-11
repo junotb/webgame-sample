@@ -11,7 +11,7 @@
  */
 import { useRef } from 'react';
 import type { WorkOrder, ZoneMap as ZoneMapDef } from '../core/schema';
-import { FaceIcon } from './face-icons';
+import { KindIcon } from './face-icons';
 
 /** 포인터가 지나가다 여는 것을 막는 지연. 키보드·터치에는 걸지 않는다 */
 const HOVER_DELAY_MS = 120;
@@ -77,7 +77,7 @@ export function ZoneMap({ map, orders, openIndex, onOpen }: ZoneMapProps) {
                   onPointerLeave={cancelPending}
                   type="button"
                 >
-                  <FaceIcon className="site-icon" face={order.face} />
+                  <KindIcon className="site-icon" kind={order.kind} />
                   <span className="site-label">{site.label}</span>
                   {order.resolved ? <span className="site-stamp" aria-label="처리 완료" /> : null}
                 </button>

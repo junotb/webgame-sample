@@ -9,7 +9,6 @@ import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
 import { generateCards } from './generate';
 import { gradeOf } from './minigame';
-import { resolveOption } from './resolve';
 import type { ArchiveEntry, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult } from './schema';
 
 // 조건 평가는 core/conditions로 옮겼다 (생성기와의 순환 참조 회피). 기존 import 경로는 유지한다.
@@ -125,57 +124,13 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       return { state: next, log };
     }
 
-    case 'RESOLVE_ORDER': {
-      assertPhase(state, 'field', 'RESOLVE_ORDER');
-      const order = state.world.pendingOrders[action.orderIndex];
-      if (!order) throw new Error(`지시서 없음: index ${action.orderIndex}`);
-      if (order.resolved) throw new Error(`이미 처리한 지시서: ${order.templateId} (${order.zone})`);
-      const option = order.options[action.optionIndex];
-      if (!option) throw new Error(`옵션 없음: index ${action.optionIndex}`);
-      if (option.startsEncounter) {
-        throw new Error(`조우 진입 옵션은 조우 리듀서를 거쳐야 함: ${option.startsEncounter} (RESOLVE_ENCOUNTER로 반입)`);
-      }
-      if (state.world.shiftLeft < option.timeCost) {
-        throw new Error(`근무 시간 부족: 잔여 ${state.world.shiftLeft}, 필요 ${option.timeCost}`);
-      }
-      const rng = mulberry32(state.world.seed);
-      const result = resolveOption(state, option, rng);
-      const next = result.state === state ? structuredClone(state) : result.state;
-      next.world.pendingOrders[action.orderIndex].resolved = true;
-      // 옵션 판정 경로는 과도기 — 성공은 passed까지만, Perfect는 미니게임 전용
-      next.world.pendingOrders[action.orderIndex].outcome = result.success ? 'passed' : 'notPassed';
-      next.world.pendingOrders[action.orderIndex].chosenOption = action.optionIndex;
-      next.world.shiftLeft -= option.timeCost;
-      if (next.world.shiftLeft <= 0) next.world.phase = 'event';
-      next.world.seed = advanceSeed(rng);
-      const log = [result.success ? '처리 완료.' : '처리 실패.'];
-      if (result.text) log.push(result.text);
-      log.push(...growthNotes(state, next));
-      return { state: next, log, notices: cappedMenaces(state, next) };
-    }
-
     case 'RESOLVE_ENCOUNTER': {
+      // 조우는 카드 성적·근무 슬롯에 관여하지 않는다 (확정 — implementation-plan §6-5).
+      // 효과 반입과 재열람 등록만 하고, 카드는 이어지는 미니게임(RESOLVE_MINIGAME)이 닫는다.
       assertPhase(state, 'field', 'RESOLVE_ENCOUNTER');
-      const order = state.world.pendingOrders[action.orderIndex];
-      if (!order) throw new Error(`지시서 없음: index ${action.orderIndex}`);
-      if (order.resolved) throw new Error(`이미 처리한 지시서: ${order.templateId} (${order.zone})`);
-      const entry = order.options.find((o) => o.startsEncounter);
-      if (!entry) throw new Error(`조우 진입 옵션이 없는 지시서: ${order.templateId}`);
-      if (state.world.shiftLeft < entry.timeCost) {
-        throw new Error(`근무 시간 부족: 잔여 ${state.world.shiftLeft}, 필요 ${entry.timeCost}`);
-      }
       const next = applyEffects(state, action.effects);
-      // 과도기: burned/soothed = passed, withdrawn/expired = notPassed.
-      // 확정 사양(implementation-plan §6-5)에서는 조우 뒤 미니게임이 성적을 맡는다 —
-      // 조우 → 미니게임 체인 구현 시 이 정산은 RESOLVE_MINIGAME으로 넘어간다
-      const success = action.outcome === 'burned' || action.outcome === 'soothed';
-      next.world.pendingOrders[action.orderIndex].resolved = true;
-      next.world.pendingOrders[action.orderIndex].outcome = success ? 'passed' : 'notPassed';
-      next.world.pendingOrders[action.orderIndex].chosenOption = order.options.indexOf(entry);
-      next.world.shiftLeft -= entry.timeCost;
-      if (next.world.shiftLeft <= 0) next.world.phase = 'event';
-      archiveAdd(next.world.archive, { kind: 'encounter', day: next.world.calendar.day, id: entry.startsEncounter!, zone: order.zone });
-      const log = [action.text, '보고서 제출: 설비 이상 점검 완료.'];
+      archiveAdd(next.world.archive, { kind: 'encounter', day: next.world.calendar.day, id: action.encounterId, zone: action.zone });
+      const log = [action.text];
       log.push(...growthNotes(state, next));
       return { state: next, log, notices: cappedMenaces(state, next) };
     }

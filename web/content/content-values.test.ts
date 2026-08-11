@@ -1,46 +1,13 @@
 /**
- * slice v3 §3 수치와 실제 콘텐츠의 정합 검사.
- * 노후도 증감은 콘텐츠 효과가 아니라 CLOSE_DAY 가중치 정산의 몫이다 —
- * 템플릿에 zone decay 효과가 남아 있으면 이중 계산이므로 여기서 잡는다.
+ * 실제 콘텐츠(1주차 발주분)와 설계 수치의 정합 검사.
+ * 카드 리뉴얼 이후: 일상 카드 9장 · 종류 4종 · 결과 산문 3변형이 발주 규격이다
+ * (docs/content-grid-week1.md §2·§4).
  */
 import { describe, expect, it } from 'vitest';
-import { generateCards } from '../core/generate';
-import type { GameState, TemplateEffect, WorkOption, WorkOrderTemplate } from '../core/schema';
+import type { CardKind, WorkOrderTemplate } from '../core/schema';
 import { loadContent } from './loader';
 
 const [bundle] = loadContent();
-
-function stateAt(decay: number): GameState {
-  return {
-    account: { ownedEpisodes: ['ep1'] },
-    self: {
-      stats: { repair: 40, insight: 35, procedure: 30, nerve: 25 },
-      skills: { inscription: 1, flowsense: 1 },
-      skillXp: { inscription: 0, flowsense: 0 },
-      memory: 0,
-      rank: 0,
-    },
-    world: {
-      calendar: { day: 1, weekday: 1 },
-      assignment: { zone: 'd5' },
-      weekRatings: {},
-      weekTally: { processed: 0, notPassed: 0, perfect: 0 },
-      ending: null,
-      cardNeglect: {},
-      multiday: null,
-      archive: [],
-      phase: 'morning',
-      zones: { d2: { decay: 3 }, d5: { decay }, d7: { decay: 5 } },
-      menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
-      npcs: { protagonist: { trust: 0 } },
-      flags: {},
-      shiftLeft: 2,
-      pendingOrders: [],
-      seed: 42,
-    },
-  };
-}
-
 
 function template(id: string): WorkOrderTemplate {
   const t = bundle.orderTemplates.find((t) => t.id === id);
@@ -48,33 +15,57 @@ function template(id: string): WorkOrderTemplate {
   return t;
 }
 
-function hasDecayEffect(effects: TemplateEffect[]): boolean {
-  return effects.some((e) => e.path === 'world.zones.{zone}.decay');
-}
-
-function hasPatchedFlag(effects: TemplateEffect[]): boolean {
-  return effects.some((e) => e.path === 'world.flags.patched_{zone}');
-}
-
-function fatigueOnFailure(opt: WorkOption): number | undefined {
-  return opt.onFailure?.effects.find((e) => e.path === 'world.menace.fatigue')?.value;
-}
-
-describe('가중치 — minDecay가 깊을수록 무겁다 (v3 §3: 하루 4장 합 8 전후)', () => {
-  it('WO-T1=1, WO-T2=2, WO-T3=3, WO-T4=2', () => {
+describe('발주 격자 — 일상 카드 9장, 종류 4종 (content-grid §2-1)', () => {
+  it('9장 전부 존재한다', () => {
+    expect(bundle.orderTemplates.map((t) => t.id).sort()).toEqual(
+      ['WO-N1', 'WO-N2', 'WO-N3', 'WO-N4', 'WO-N5', 'WO-T1', 'WO-T2', 'WO-T3', 'WO-T4'].sort(),
+    );
+  });
+  it('종류 배분: 점검 3 · 순찰 2 · 자재 1 · 소각 3 (소각은 배부 풀 비중 확보)', () => {
+    const byKind = new Map<CardKind, number>();
+    for (const t of bundle.orderTemplates) byKind.set(t.kind, (byKind.get(t.kind) ?? 0) + 1);
+    expect(byKind.get('circuit')).toBe(3);
+    expect(byKind.get('patrol')).toBe(2);
+    expect(byKind.get('material')).toBe(1);
+    expect(byKind.get('incinerate')).toBe(3);
+  });
+  it('가중치 — minDecay가 깊을수록 무겁다 (v3 §3)', () => {
     expect(template('WO-T1').weight).toBe(1);
     expect(template('WO-T2').weight).toBe(2);
     expect(template('WO-T3').weight).toBe(3);
     expect(template('WO-T4').weight).toBe(2);
+    expect(template('WO-N1').weight).toBe(1);
+    expect(template('WO-N2').weight).toBe(2);
+    expect(template('WO-N3').weight).toBe(2);
+    expect(template('WO-N4').weight).toBe(1);
+    expect(template('WO-N5').weight).toBe(2);
   });
-  it('노후도 5에서 제시 4장의 가중치 합이 8이다', () => {
-    const cards = generateCards(stateAt(5), bundle.orderTemplates, () => 0);
-    expect(cards.reduce((s, c) => s + c.weight, 0)).toBe(8);
+  it('ENC-001 보장의 전제: minDecay 0인 소각 카드가 존재한다 (첫날부터 배부 가능)', () => {
+    expect(bundle.orderTemplates.some((t) => t.kind === 'incinerate' && t.minDecay === 0)).toBe(true);
+  });
+});
+
+describe('결과 반영 산문 — 성적 3변형, 현장·보고 문단 분리 (content-grid §4-A)', () => {
+  it.each(bundle.orderTemplates.map((t) => t.id))('%s: 각 변형이 현장 묘사 + 보고 문구 2문단 이상', (id) => {
+    const t = template(id);
+    for (const result of ['complete', 'partial', 'fail'] as const) {
+      for (const variant of t.resultProse[result]) {
+        expect(variant.paragraphs.length).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+  it("보고 문구에 기억 0 액면('재생률'·'정상 범위')이 심겨 있다", () => {
+    const all = bundle.orderTemplates
+      .flatMap((t) => Object.values(t.resultProse))
+      .flatMap((variants) => variants.flatMap((v) => v.paragraphs))
+      .join(' ');
+    expect(all).toContain('재생률');
+    expect(all).toContain('정상 범위');
   });
 });
 
 describe('텍스트 변형 축 분리 (v3 §7) — 한 문서에 두 축을 쓰지 않는다', () => {
-  it.each(['WO-T1', 'WO-T2', 'WO-T3', 'WO-T4'])('%s: 본문 조건이 기억 축과 노후도 축을 섞지 않는다', (id) => {
+  it.each(bundle.orderTemplates.map((t) => t.id))('%s: 본문 조건이 기억 축과 노후도 축을 섞지 않는다', (id) => {
     const axes = new Set(
       template(id).body.flatMap((v) => v.if ?? []).map((c) =>
         c.path === 'self.memory' ? 'memory' : c.path.includes('.decay') ? 'decay' : 'other',
@@ -83,37 +74,22 @@ describe('텍스트 변형 축 분리 (v3 §7) — 한 문서에 두 축을 쓰�
     expect(axes.size).toBeLessThanOrEqual(1);
     expect(axes.has('other')).toBe(false);
   });
-});
-
-describe.each(['WO-T1', 'WO-T2', 'WO-T3', 'WO-T4'])('%s — v3 정산 규칙 정합', (id) => {
-  const t = template(id);
-
-  it('어떤 옵션도 노후도를 직접 건드리지 않는다 (정산 이중화 금지)', () => {
-    for (const opt of t.options) {
-      expect(hasDecayEffect(opt.onSuccess.effects)).toBe(false);
-      expect(hasDecayEffect(opt.onFailure?.effects ?? [])).toBe(false);
-    }
-  });
-
-  it('수리 계열 템플릿의 임시방편 옵션은 patched 플래그를 남긴다', () => {
-    if (id === 'WO-T4') return; // 자재 수령은 수리가 아니다
-    expect(t.options.some((o) => hasPatchedFlag(o.onSuccess.effects))).toBe(true);
-  });
-
-  it('실패 분기가 있는 옵션은 피로 +2', () => {
-    for (const opt of t.options) {
-      if (opt.onFailure) expect(fatigueOnFailure(opt)).toBe(2);
-    }
+  it('WO-T3: 기억 1부터 본문이 다르게 읽힌다 (재렌더 대조 지점)', () => {
+    const t3 = template('WO-T3');
+    expect(t3.body.some((v) => v.if?.some((c) => c.path === 'self.memory' && c.gte === 1))).toBe(true);
   });
 });
 
-describe('선택지 라벨 — 판정 메타와 중복 금지', () => {
-  const SKILL_STAT_NAMES = ['각인학', '감류학', '정비', '진단', '절차', '담력'];
-  it('라벨 끝의 괄호가 판정 기술·스탯명을 반복하지 않는다 (메타 줄이 이미 말한다)', () => {
-    const labels = [
-      ...bundle.orderTemplates.flatMap((t) => t.options.map((o) => o.label)),
-      ...bundle.encounters.flatMap((e) => Object.values(e.actions).map((a) => a.label)),
-    ];
+describe('조우 — ENC-001', () => {
+  it('모든 outcome이 enc001_done을 세운다 — 생성기 소각 보장의 해제 조건', () => {
+    const enc = bundle.encounters.find((e) => e.id === 'ENC-001')!;
+    for (const outcome of Object.values(enc.outcomes)) {
+      expect(outcome.effects).toContainEqual({ path: 'world.flags.enc001_done', op: 'set', value: 1 });
+    }
+  });
+  it('행동 라벨 끝의 괄호가 판정 기술·스탯명을 반복하지 않는다 (메타 줄이 이미 말한다)', () => {
+    const SKILL_STAT_NAMES = ['각인학', '감류학', '정비', '진단', '절차', '담력'];
+    const labels = bundle.encounters.flatMap((e) => Object.values(e.actions).map((a) => a.label));
     for (const label of labels) {
       const paren = label.match(/\(([^)]+)\)$/);
       if (paren) expect(SKILL_STAT_NAMES).not.toContain(paren[1]);

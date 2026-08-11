@@ -636,7 +636,8 @@ button {
 .document-featured,
 .event-document,
 .closing-document,
-.encounter-document {
+.encounter-document,
+.minigame-overlay {
   width: min(760px, 100%);
   margin: 0 auto;
   padding: clamp(28px, 6vw, 64px);
@@ -645,12 +646,72 @@ button {
 /* 오버레이 문서는 화면 안에 수납 — 본문(분절)이 남은 높이를 받는다 (스크롤 금지) */
 .event-document,
 .closing-document,
-.encounter-document {
+.encounter-document,
+.minigame-overlay {
   display: flex;
   flex-direction: column;
   min-height: 0;
   max-height: 100%;
   overflow: hidden;
+}
+
+/* ── 미니게임 — 지시서 카드 안의 작업면 (2026-08-11 UI 정비) ── */
+.minigame-overlay {
+  padding-top: clamp(20px, 4vw, 40px);
+  padding-bottom: clamp(20px, 4vw, 40px);
+}
+
+.minigame-overlay .document-header {
+  margin-top: calc(clamp(20px, 4vw, 40px) * -1);
+  margin-bottom: 22px;
+}
+
+.minigame-overlay h3 {
+  margin: 2px 0 10px;
+}
+
+.minigame {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  min-height: 0;
+}
+
+.minigame-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: #5a5443;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.minigame-clock {
+  color: rgba(122, 49, 38, 0.85);
+  font-family: Georgia, 'Noto Serif KR', serif;
+  font-size: 1.45rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.minigame-board button {
+  border: 1px solid rgba(74, 65, 48, 0.28);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.minigame-board button:disabled {
+  cursor: default;
+}
+
+.minigame-note {
+  color: #807866;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
 }
 
 /* 정산의 최근 기록도 한 줄 — 서사는 백로그(§3)의 몫, 여기는 수치의 자리다 */

@@ -3,7 +3,7 @@
  * 순수 리듀서: PRNG는 world.seed로 재현, 매 판정 후 seed 전진.
  * 트리아지 장치: shiftLeft(근무 시간 2)로 3건 중 2건만 처리 가능.
  */
-import { bandOf, RATING_LABELS, ratingOfBand, weekOf, WORKDAYS_PER_WEEK } from './calendar';
+import { FINAL_WEEK, RATING_LABELS, summarizeWeek, weekOf, WORKDAYS_PER_WEEK } from './calendar';
 import { evalConditions } from './conditions';
 import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
@@ -233,9 +233,15 @@ export const reduce: Reducer = (state, action, content): StepResult => {
           delta[order.zone] = (delta[order.zone] ?? 0) + order.weight;
           // 미시 피드백 장부: 방치 누적 — 내일 재발부 우선순위·난이도 보정의 근거
           next.world.cardNeglect[order.templateId] = (next.world.cardNeglect[order.templateId] ?? 0) + 1;
-        } else if (order.outcome === 'success') {
-          delta[order.zone] = (delta[order.zone] ?? 0) - order.weight;
-          delete next.world.cardNeglect[order.templateId];
+        } else {
+          // 엔딩 합산 장부 — 처리한 장수와 그중 실패만 센다. 방치는 노후도로만 값을 치른다
+          next.world.weekTally.processed += 1;
+          if (order.outcome === 'success') {
+            delta[order.zone] = (delta[order.zone] ?? 0) - order.weight;
+            delete next.world.cardNeglect[order.templateId];
+          } else {
+            next.world.weekTally.notPassed += 1;
+          }
         }
       }
       for (const [zoneId, z] of Object.entries(next.world.zones) as [ZoneId, { decay: number }][]) {
@@ -252,12 +258,22 @@ export const reduce: Reducer = (state, action, content): StepResult => {
         next.world.multiday = null;
       }
       if (weekday === WORKDAYS_PER_WEEK) {
-        // 금요일: 배치 구역의 정산 후 밴드가 곧 주간 평가 (별도 산식 없음)
-        const band = bandOf(next.world.zones[next.world.assignment.zone].decay);
-        const rating = ratingOfBand(band);
-        next.world.weekRatings[weekOf(day)] = rating;
-        log.push(`본부 주간 평가: ${RATING_LABELS[rating]}.`, '이틀의 휴일이 지나간다.');
+        // 금요일: 주간 등급 = 경계 합산식 (미니게임 성적 기반 — 구 밴드 파생 방식은 폐기)
+        const rating = summarizeWeek(next.world.weekTally);
+        const week = weekOf(day);
+        next.world.weekRatings[week] = rating;
+        log.push(`본부 주간 평가: ${RATING_LABELS[rating]}.`);
+        if (week >= FINAL_WEEK) {
+          // 엔딩은 같은 경계를 공유한다: 주 등급 Not Passed = 해고, 그 외 유임
+          next.world.ending = rating === 'notPassed' ? 'fired' : 'retained';
+          next.world.phase = 'ended';
+          next.world.pendingOrders = [];
+          log.push(next.world.ending === 'fired' ? '통지: 배치 해제.' : '통지: 배치 유지.');
+          return { state: next, log };
+        }
+        log.push('이틀의 휴일이 지나간다.');
         next.world.calendar = { day: day + 3, weekday: 1 };
+        next.world.weekTally = { processed: 0, notPassed: 0, perfect: 0 };
       } else {
         next.world.calendar = { day: day + 1, weekday: weekday + 1 };
       }

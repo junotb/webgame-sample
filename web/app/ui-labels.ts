@@ -57,6 +57,7 @@ export const PHASE_LABELS: Record<DayPhase, string> = {
   field: '현장 처리',
   event: '특이 사항',
   closing: '일일 정산',
+  ended: '업무 종결',
 };
 
 /**

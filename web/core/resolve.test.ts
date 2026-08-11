@@ -16,6 +16,8 @@ function baseState(): GameState {
       calendar: { day: 1, weekday: 1 },
       assignment: { zone: 'd5' },
       weekRatings: {},
+      weekTally: { processed: 0, notPassed: 0, perfect: 0 },
+      ending: null,
       cardNeglect: {},
       multiday: null,
       archive: [],

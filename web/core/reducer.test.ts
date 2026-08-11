@@ -16,6 +16,8 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
       calendar: { day: 1, weekday: 1 },
       assignment: { zone: 'd5' },
       weekRatings: {},
+      weekTally: { processed: 0, notPassed: 0, perfect: 0 },
+      ending: null,
       cardNeglect: {},
       multiday: null,
       archive: [],
@@ -245,36 +247,34 @@ describe('CLOSE_DAY — 가중치 정산 (v3 §3: 처리 −w / 방치 +w / 틱 
   });
 });
 
-describe('CLOSE_DAY — 금요일 주간 평가 (v3 §2·§3: 금요일 밴드 = 등급)', () => {
-  function fridayState(d5Decay: number): GameState {
+describe('CLOSE_DAY — 금요일 주간 평가 (경계 합산식, 2026-08-11 확정)', () => {
+  function fridayState(tally: GameState['world']['weekTally'], orders: GameState['world']['pendingOrders'] = []): GameState {
     return baseState({
       calendar: { day: 5, weekday: 5 },
       phase: 'closing',
-      zones: { d2: { decay: 3 }, d5: { decay: d5Decay }, d7: { decay: 5 } },
-      pendingOrders: [makeOrder('d5', false, 2)],
+      weekTally: tally,
+      pendingOrders: orders,
     });
   }
-  it('배치 구역의 정산 후 밴드가 주간 평가로 기록된다', () => {
-    // d5: 4 + 2(방치) + 1(틱) = 7 → 3밴드 → 염려
-    const { state, log } = reduce(fridayState(4), { type: 'CLOSE_DAY' }, CONTENT);
-    expect(state.world.weekRatings[1]).toBe('concern');
-    expect(log.join(' ')).toContain('염려');
+  it('성공 위주의 주는 Passed — 넓은 기본값', () => {
+    const { state, log } = reduce(
+      fridayState({ processed: 2, notPassed: 0, perfect: 0 }, [makeOrder('d5', true, 2, 'success')]),
+      { type: 'CLOSE_DAY' },
+      CONTENT,
+    );
+    expect(state.world.weekRatings[1]).toBe('passed');
+    expect(log.join(' ')).toContain('Passed');
   });
-  it('최선의 주만 완벽에 닿는다 — 정산 후 1밴드면 perfect', () => {
-    const s = baseState({
-      calendar: { day: 5, weekday: 5 },
-      phase: 'closing',
-      zones: { d2: { decay: 3 }, d5: { decay: 3 }, d7: { decay: 5 } },
-      pendingOrders: [makeOrder('d5', true, 3, 'success')],
-    });
-    // d5: 3 − 3 + 1 = 1 → 1밴드 → 완벽
-    const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
+  it('전 장 Perfect여야만 주 Perfect', () => {
+    const { state } = reduce(fridayState({ processed: 3, notPassed: 0, perfect: 3 }), { type: 'CLOSE_DAY' }, CONTENT);
     expect(state.world.weekRatings[1]).toBe('perfect');
   });
-  it('주말을 건너 월요일로: day 5 → 8, weekday 5 → 1', () => {
-    const { state } = reduce(fridayState(4), { type: 'CLOSE_DAY' }, CONTENT);
-    expect(state.world.calendar).toEqual({ day: 8, weekday: 1 });
+  it('Perfect가 하나라도 모자라면 Passed', () => {
+    const { state } = reduce(fridayState({ processed: 3, notPassed: 0, perfect: 2 }), { type: 'CLOSE_DAY' }, CONTENT);
+    expect(state.world.weekRatings[1]).toBe('passed');
   });
+  // 주말 롤오버(day+3·장부 리셋)는 FINAL_WEEK 이전 주 전용 — FINAL_WEEK=1인
+  // 현재 슬라이스에서는 도달할 수 없는 경로라 테스트를 두지 않는다 (사이클 확장 시 복원)
   it('금요일이 아니면 평가가 기록되지 않는다', () => {
     const { state } = reduce(
       baseState({ phase: 'closing', pendingOrders: [] }),
@@ -282,6 +282,59 @@ describe('CLOSE_DAY — 금요일 주간 평가 (v3 §2·§3: 금요일 밴드 =
       CONTENT,
     );
     expect(state.world.weekRatings).toEqual({});
+  });
+});
+
+describe('CLOSE_DAY — FINAL_WEEK 엔딩 합산 (implementation-plan §6-0)', () => {
+  function finalFriday(tally: GameState['world']['weekTally'], orders: GameState['world']['pendingOrders'] = []): GameState {
+    return baseState({
+      calendar: { day: 5, weekday: 5 },
+      phase: 'closing',
+      weekTally: tally,
+      pendingOrders: orders,
+    });
+  }
+  it('Not Passed가 처리의 절반 미만 → 유임, ended 종착', () => {
+    const { state, log } = reduce(finalFriday({ processed: 3, notPassed: 1, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT);
+    expect(state.world.ending).toBe('retained');
+    expect(state.world.phase).toBe('ended');
+    expect(state.world.weekRatings[1]).toBeDefined(); // 평가 기록은 엔딩과 별개로 남는다
+    expect(log.join(' ')).toContain('배치 유지');
+  });
+  it('Not Passed가 처리의 절반 이상 → 해고', () => {
+    const { state, log } = reduce(finalFriday({ processed: 2, notPassed: 1, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT);
+    expect(state.world.ending).toBe('fired');
+    expect(log.join(' ')).toContain('배치 해제');
+  });
+  it('한 장도 처리하지 않은 주는 해고다 (0 ≥ 0×½ — 방치만 한 주가 유임이 되지 않는다)', () => {
+    const { state } = reduce(finalFriday({ processed: 0, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT);
+    expect(state.world.ending).toBe('fired');
+  });
+  it('금요일 당일 처리분도 합산에 들어간다 — 주중 누적 + 당일 실패로 경계에 닿으면 해고', () => {
+    const { state } = reduce(
+      finalFriday({ processed: 1, notPassed: 0, perfect: 0 }, [makeOrder('d5', true, 2, 'failure')]),
+      { type: 'CLOSE_DAY' },
+      CONTENT,
+    );
+    expect(state.world.weekTally).toEqual({ processed: 2, notPassed: 1, perfect: 0 });
+    expect(state.world.ending).toBe('fired');
+  });
+  it('ended는 종착 상태 — START_DAY를 받지 않는다', () => {
+    const { state } = reduce(finalFriday({ processed: 3, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT);
+    expect(() => reduce(state, { type: 'START_DAY' }, CONTENT)).toThrow(/morning/);
+  });
+  it('평일의 처리·실패가 장부에 누적된다 (방치는 처리 장수에 들어가지 않는다)', () => {
+    const s = baseState({
+      phase: 'closing',
+      pendingOrders: [
+        makeOrder('d2', true, 2, 'success'),
+        makeOrder('d5', true, 2, 'failure'),
+        makeOrder('d7', false, 2),
+      ],
+    });
+    const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
+    expect(state.world.weekTally).toEqual({ processed: 2, notPassed: 1, perfect: 0 });
+    expect(state.world.ending).toBeNull();
   });
 });
 

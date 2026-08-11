@@ -31,8 +31,15 @@ export interface CharacterSheet {
   rank: number;                     // 직위 (슬라이스: 0 고정)
 }
 
-/** 주간 평가 등급 (v3 §2) — 금요일 종료 시점의 배치 구역 밴드가 곧 등급 */
-export type WeeklyRating = 'perfect' | 'good' | 'concern' | 'warning';
+/**
+ * 평가 3등급 (2026-08-11 확정) — 카드 성적과 주간 평가가 같은 3값을 쓴다.
+ * 카드: 미니게임 완수→perfect / 부분→passed / 실패→notPassed.
+ * 주간: 경계 합산식 (calendar.summarizeWeek) — 구 4종(완벽/양호/염려/경고)은 폐기.
+ */
+export type WeeklyRating = 'perfect' | 'passed' | 'notPassed';
+
+/** 엔딩 (implementation-plan §6-0) — Not Passed가 처리 장수의 절반 이상이면 해고, 그 외 유임 */
+export type EndingId = 'retained' | 'fired';
 
 /**
  * 재열람 항목 — 구역 바인딩이 필요한 문서는 구역을 함께 기억한다.
@@ -52,6 +59,14 @@ export interface WorldSheet {
   };
   assignment: { zone: ZoneId };            // 현재 배치 구역 — 1주차는 한 구역 고정 (v3 §9)
   weekRatings: Record<number, WeeklyRating>; // 주차 → 주간 평가
+  /**
+   * 주간 합산 장부 — 이번 주에 처리(resolved)한 장수와 그중 실패(Not Passed)·완수(Perfect) 장수.
+   * CLOSE_DAY마다 누적, 주가 넘어가면 리셋. 방치는 처리 장수에 들어가지 않는다.
+   * perfect는 미니게임 도입 전까지 항상 0 (현행 성공은 전부 Passed 취급).
+   */
+  weekTally: { processed: number; notPassed: number; perfect: number };
+  /** 엔딩 확정값 — FINAL_WEEK 금요일 정산에서만 기록된다. null = 진행 중 */
+  ending: EndingId | null;
   /** 템플릿별 방치 누적 — 미시 피드백의 근거. 처리 성공 시 리셋 (v3 §2 미시 층) */
   cardNeglect: Record<string, number>;
   /** 다일 이벤트 점유 (v3 §5) — 점유 중 근무 슬롯 축소. daysLeft는 남은 점유 근무일 */
@@ -78,7 +93,8 @@ export interface GameState {
   world: WorldSheet;
 }
 
-export type DayPhase = 'morning' | 'field' | 'event' | 'closing';
+/** 'ended' = 엔딩 확정 후 종착 상태 — 어떤 액션도 받지 않는다 */
+export type DayPhase = 'morning' | 'field' | 'event' | 'closing' | 'ended';
 
 // ─────────────────────────────────────────────
 // 판정

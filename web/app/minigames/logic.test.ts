@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { canPlace, generateBlockPuzzle, gradeBlock, place } from './block-logic';
-import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent } from './knight-logic';
+import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent, judgeStep, type PatrolBoard } from './knight-logic';
 import { correctCount, dirsAt, generatePipePuzzle, gradePipe, isSolved } from './pipe-logic';
 import { generateWhackPlan, gradeWhack, WHACK_HOLES } from './whack-logic';
 
@@ -85,6 +85,25 @@ describe('순찰 경로 (한붓 — 2026-08-11 재설계)', () => {
   it('난이도 4부터 판이 5×5로 커진다', () => {
     expect(generatePatrolBoard(1, 0).size).toBe(4);
     expect(generatePatrolBoard(1, 4).size).toBe(5);
+  });
+  it('즉시 판정: 잘못된 경로는 그 자리에서 끝난다 (2026-08-11 확정)', () => {
+    // 판정은 size·end만 본다 — 정답 경로 자체는 무관
+    const board: PatrolBoard = {
+      size: 3,
+      path: [],
+      start: [0, 0],
+      end: [2, 2],
+    };
+    // 계속: 갈 곳이 남아 있다
+    expect(judgeStep(board, [[0, 0], [0, 1]])).toBe('walking');
+    // 이른 도착: 끝 타일인데 남은 칸이 있다
+    expect(judgeStep(board, [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2]])).toBe('earlyEnd');
+    // 막다른 길: 갈 곳이 없는데 끝 타일이 아니다
+    expect(judgeStep(board, [[1, 0], [1, 1], [0, 1], [0, 0]])).toBe('deadEnd');
+    // 완주: 끝 타일 + 전 칸
+    expect(
+      judgeStep(board, [[0, 0], [0, 1], [0, 2], [1, 2], [1, 1], [1, 0], [2, 0], [2, 1], [2, 2]]),
+    ).toBe('complete');
   });
   it('성적: 끝 도달+전 칸 완수 / 절반 이상 부분 / 미만 실패', () => {
     expect(gradePatrol(16, 16, true)).toBe('complete');

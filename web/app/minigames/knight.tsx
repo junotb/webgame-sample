@@ -7,7 +7,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { MinigameProps } from '../minigame-shell';
 import { useCountdown } from './countdown';
-import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent } from './knight-logic';
+import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent, judgeStep } from './knight-logic';
 
 const TOTAL_MS = 30000;
 
@@ -31,7 +31,7 @@ export function KnightGame({ session, onFinish }: MinigameProps) {
 
   const step = (r: number, c: number) => {
     const k = cellKey(r, c);
-    // 직전 칸 = 한 걸음 무르기
+    // 직전 칸 = 한 걸음 무르기 (판정 전 한정 — 잘못 들어선 뒤에는 무를 수 없다)
     if (trail.length >= 2 && cellKey(...trail[trail.length - 2]) === k) {
       setTrail(trail.slice(0, -1));
       return;
@@ -39,9 +39,15 @@ export function KnightGame({ session, onFinish }: MinigameProps) {
     if (visited.has(k) || !isAdjacent(head, [r, c])) return;
     const next = [...trail, [r, c] as [number, number]];
     setTrail(next);
-    // 전 칸 답사 + 끝 지점 도달 — 즉시 완수
-    if (next.length === total && r === board.end[0] && c === board.end[1]) {
-      finish(next.length, true);
+    // 즉시 판정 (2026-08-11 확정) — 잘못된 경로는 그 자리에서 끝난다:
+    // 끝 타일인데 남은 칸이 있거나(earlyEnd), 끝 타일이 아닌 막다른 길(deadEnd)이면 실패
+    const verdict = judgeStep(board, next);
+    if (verdict === 'complete') finish(next.length, true);
+    else if (verdict === 'earlyEnd' || verdict === 'deadEnd') {
+      if (!finishedRef.current) {
+        finishedRef.current = true;
+        onFinish('fail');
+      }
     }
   };
 
@@ -90,7 +96,7 @@ export function KnightGame({ session, onFinish }: MinigameProps) {
         })}
       </div>
       <p className="minigame-note" style={{ textAlign: 'center', margin: '6px 0 0' }}>
-        직전 칸을 누르면 한 걸음 무릅니다.
+        직전 칸을 누르면 한 걸음 무릅니다. 막다른 길, 이른 도착은 그 자리에서 순찰 실패입니다.
       </p>
     </div>
   );

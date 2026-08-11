@@ -92,8 +92,24 @@ export function generatePatrolBoard(seed: number, difficulty: number): PatrolBoa
 }
 
 /**
- * 성적 — 끝 지점 도달 + 전 칸 답사가 완수. 절반 이상 밟았으면 부분.
- * (막다른 길에 몰려 끝났어도 밟은 만큼은 순찰이다)
+ * 한 걸음 뒤의 즉시 판정 (2026-08-11 확정) — 잘못된 경로는 그 자리에서 끝난다.
+ * complete: 끝 타일 + 전 칸 답사 / earlyEnd: 끝 타일인데 아직 남았다 /
+ * deadEnd: 갈 곳이 없는데 끝 타일이 아니다 / walking: 계속
+ */
+export type PatrolVerdict = 'walking' | 'complete' | 'earlyEnd' | 'deadEnd';
+
+export function judgeStep(board: PatrolBoard, trail: Array<[number, number]>): PatrolVerdict {
+  const head = trail[trail.length - 1];
+  const visited = new Set(trail.map((c) => cellKey(...c)));
+  const atEnd = head[0] === board.end[0] && head[1] === board.end[1];
+  if (atEnd) return trail.length === board.size * board.size ? 'complete' : 'earlyEnd';
+  const open = neighbors(head[0], head[1], board.size).filter(([r, c]) => !visited.has(cellKey(r, c)));
+  return open.length === 0 ? 'deadEnd' : 'walking';
+}
+
+/**
+ * 성적 — 끝 지점 도달 + 전 칸 답사가 완수. 잘못된 경로(earlyEnd·deadEnd)는 즉시 실패.
+ * 부분은 시간 만료 한정: 아직 유효한 경로 위에서 절반 이상 밟았을 때만.
  */
 export function gradePatrol(visitedCount: number, total: number, reachedEnd: boolean): MinigameResult {
   if (reachedEnd && visitedCount === total) return 'complete';

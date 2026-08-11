@@ -126,6 +126,18 @@ describe('generateCards — 배부 3장 무작위 추첨 (고정 배치표 폐�
     );
     expect(misses.some(Boolean)).toBe(true);
   });
+  it('하루 3장은 종류가 겹치지 않는다 (2026-08-11 확정)', () => {
+    for (let seed = 0; seed < 30; seed += 1) {
+      const kinds = generateCards(worldAt(5), TEMPLATES, mulberry32(seed)).map((c) => c.kind);
+      expect(new Set(kinds).size).toBe(kinds.length);
+    }
+  });
+  it('서로 다른 종류가 모자랄 때만 중복을 허용한다 — 배부는 3장을 채운다', () => {
+    const circuitOnly = [T1, { ...T1, id: 'C2' }, { ...T1, id: 'C3' }];
+    const cards = generateCards(worldAt(5, {}, { flags: { enc001_done: 1 } }), circuitOnly, mulberry32(1));
+    expect(cards).toHaveLength(CARDS_PER_DAY);
+    expect(cards.every((c) => c.kind === 'circuit')).toBe(true);
+  });
   it('적격 템플릿이 없으면 throw', () => {
     expect(() => generateCards(worldAt(0), [T3], mulberry32(1))).toThrow(/적격/);
   });

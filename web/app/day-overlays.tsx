@@ -7,7 +7,7 @@
 import { RATING_LABELS, weekOf } from '../core/calendar';
 import { evalConditions } from '../core/reducer';
 import type { Action, ContentBundle, GameState } from '../core/schema';
-import { PagedCopy } from './paged-copy';
+import { OverlayShell } from './overlay-shell';
 import { checkLabel, WEEKDAY_FULL, ZONE_LABELS } from './ui-labels';
 
 interface OverlayProps {
@@ -65,27 +65,26 @@ export function EventOverlay({ state, content, disabled, onAction }: OverlayProp
   }
 
   return (
-    <article className="document event-document">
-      <header className="document-header">
-        <span>{ZONE_LABELS[state.world.assignment.zone]} 사무소</span>
-        <span>업무 종료 후</span>
-      </header>
-      <h2>일과 뒤</h2>
-      <PagedCopy state={state} body={storylet.body} className="document-copy narrative">
-        <div className="choices event-choices">
-          {storylet.choices.map((choice, choiceIndex) => (
-            <button
-              disabled={disabled}
-              key={`${choice.label}-${choiceIndex}`}
-              onClick={() => onAction({ type: 'CHOOSE_STORYLET', storyletId: storylet.id, choiceIndex })}
-            >
-              <span>{choice.label}</span>
-              <small>{choice.startsMultiday ? `${choice.startsMultiday.days}일 일정` : checkLabel(choice.check, state.self)}</small>
-            </button>
-          ))}
-        </div>
-      </PagedCopy>
-    </article>
+    <OverlayShell
+      frame={[`${ZONE_LABELS[state.world.assignment.zone]} 사무소`, '업무 종료 후']}
+      title="일과 뒤"
+      state={state}
+      body={storylet.body}
+      className="event-document"
+    >
+      <div className="choices event-choices">
+        {storylet.choices.map((choice, choiceIndex) => (
+          <button
+            disabled={disabled}
+            key={`${choice.label}-${choiceIndex}`}
+            onClick={() => onAction({ type: 'CHOOSE_STORYLET', storyletId: storylet.id, choiceIndex })}
+          >
+            <span>{choice.label}</span>
+            <small>{choice.startsMultiday ? `${choice.startsMultiday.days}일 일정` : checkLabel(choice.check, state.self)}</small>
+          </button>
+        ))}
+      </div>
+    </OverlayShell>
   );
 }
 
@@ -121,18 +120,17 @@ export function DebriefOverlay({ state, content, disabled, onAction }: OverlayPr
   const rating = state.world.weekRatings[weekOf(state.world.calendar.day)];
   const body = rating ? content.weeklyDebrief[rating] : [];
   return (
-    <article className="document debrief-scene">
-      <header className="document-header">
-        <span>{ZONE_LABELS[state.world.assignment.zone]} 사무소</span>
-        <span>금요일 · 업무 종료 후</span>
-      </header>
-      <h2>주간 총평</h2>
-      <PagedCopy state={state} body={body} className="document-copy narrative">
-        <button className="primary-action" disabled={disabled} onClick={() => onAction({ type: 'CONFIRM_DEBRIEF' })}>
-          사무소를 나선다
-        </button>
-      </PagedCopy>
-    </article>
+    <OverlayShell
+      frame={[`${ZONE_LABELS[state.world.assignment.zone]} 사무소`, '금요일 · 업무 종료 후']}
+      title="주간 총평"
+      state={state}
+      body={body}
+      className="debrief-scene"
+    >
+      <button className="primary-action" disabled={disabled} onClick={() => onAction({ type: 'CONFIRM_DEBRIEF' })}>
+        사무소를 나선다
+      </button>
+    </OverlayShell>
   );
 }
 
@@ -184,19 +182,16 @@ export function WeekendOverlay({ state, content, log, disabled, onAction }: Over
 export function EndingOverlay({ state, content }: { state: GameState; content: ContentBundle }) {
   const ending = state.world.ending;
   const body = ending ? content.endings[ending] : [];
+  const rating = state.world.weekRatings[weekOf(state.world.calendar.day)];
   return (
-    <article className="document ending-scene">
-      <header className="document-header">
-        <span>중앙 시설국</span>
-        <span>주간 평가: {(() => {
-          const rating = state.world.weekRatings[weekOf(state.world.calendar.day)];
-          return rating ? RATING_LABELS[rating] : '';
-        })()}</span>
-      </header>
-      <h2>{ending === 'fired' ? '배치 해제' : '배치 유지'}</h2>
-      <PagedCopy state={state} body={body} className="document-copy narrative">
-        <p className="document-note">— 1주차 기록 끝 —</p>
-      </PagedCopy>
-    </article>
+    <OverlayShell
+      frame={['중앙 시설국', `주간 평가: ${rating ? RATING_LABELS[rating] : ''}`]}
+      title={ending === 'fired' ? '배치 해제' : '배치 유지'}
+      state={state}
+      body={body}
+      className="ending-scene"
+    >
+      <p className="document-note">— 1주차 기록 끝 —</p>
+    </OverlayShell>
   );
 }

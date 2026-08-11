@@ -139,7 +139,7 @@ describe('RESOLVE_ORDER — field: 판정·효과·트리아지', () => {
     const { state, log } = reduce(fieldState(), { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT);
     expect(state.world.zones.d5.decay).toBe(4); // 증감은 CLOSE_DAY 가중치 정산의 몫
     expect(state.world.pendingOrders[0].resolved).toBe(true);
-    expect(state.world.pendingOrders[0].outcome).toBe('success');
+    expect(state.world.pendingOrders[0].outcome).toBe('passed');
     expect(state.world.pendingOrders[0].chosenOption).toBe(0);
     expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY - 1);
     expect(state.world.phase).toBe('field');
@@ -161,6 +161,57 @@ describe('RESOLVE_ORDER — field: 판정·효과·트리아지', () => {
   });
   it('field가 아니면 throw', () => {
     expect(() => reduce(baseState(), { type: 'RESOLVE_ORDER', orderIndex: 0, optionIndex: 0 }, CONTENT)).toThrow(/field/);
+  });
+});
+
+describe('RESOLVE_MINIGAME — field: 성적 반입 (세션 ② 셸)', () => {
+  function fieldState(orders = [makeOrder('d5', false, 2)]): GameState {
+    return baseState({ phase: 'field', pendingOrders: orders });
+  }
+  it('결과가 3등급으로 귀속된다: 완수→perfect / 부분→passed / 실패→notPassed', () => {
+    const cases = [
+      ['complete', 'perfect'],
+      ['partial', 'passed'],
+      ['fail', 'notPassed'],
+    ] as const;
+    for (const [result, grade] of cases) {
+      const { state } = reduce(fieldState(), { type: 'RESOLVE_MINIGAME', orderIndex: 0, result }, CONTENT);
+      expect(state.world.pendingOrders[0].resolved).toBe(true);
+      expect(state.world.pendingOrders[0].outcome).toBe(grade);
+    }
+  });
+  it('근무 슬롯 1 소모, 0이 되면 event로 전이. 판정이 아니므로 seed는 불변', () => {
+    const s0 = fieldState();
+    s0.world.shiftLeft = 1;
+    const { state } = reduce(s0, { type: 'RESOLVE_MINIGAME', orderIndex: 0, result: 'partial' }, CONTENT);
+    expect(state.world.shiftLeft).toBe(0);
+    expect(state.world.phase).toBe('event');
+    expect(state.world.seed).toBe(42);
+  });
+  it('결과 반영 산문 — 성적 변형이 미니게임 뒤에 온다', () => {
+    const order = {
+      ...makeOrder('d5', false, 2),
+      resultProse: {
+        complete: [{ paragraphs: ['회로가 전부 이어졌다.'] }],
+        partial: [{ paragraphs: ['절반만 이었다.', '나머지는 어둠 속이다.'] }],
+        fail: [{ paragraphs: ['회로가 열리지 않았다.'] }],
+      },
+    };
+    const { log } = reduce(fieldState([order]), { type: 'RESOLVE_MINIGAME', orderIndex: 0, result: 'partial' }, CONTENT);
+    expect(log).toEqual(['절반만 이었다.', '나머지는 어둠 속이다.']);
+  });
+  it('perfect는 정산에서 성공(−w)이며 주간 장부 perfect에 계상된다', () => {
+    const s = baseState({ phase: 'closing', pendingOrders: [makeOrder('d5', true, 2, 'perfect')] });
+    const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
+    expect(state.world.zones.d5.decay).toBe(3); // 4 − 2 + 1(틱)
+    expect(state.world.weekTally).toEqual({ processed: 1, notPassed: 0, perfect: 1 });
+  });
+  it('이미 처리한 지시서·근무 시간 부족·field 밖 → throw', () => {
+    expect(() => reduce(fieldState([makeOrder('d5', true, 2, 'passed')]), { type: 'RESOLVE_MINIGAME', orderIndex: 0, result: 'fail' }, CONTENT)).toThrow(/이미 처리/);
+    const tired = fieldState();
+    tired.world.shiftLeft = 0;
+    expect(() => reduce(tired, { type: 'RESOLVE_MINIGAME', orderIndex: 0, result: 'fail' }, CONTENT)).toThrow(/근무 시간/);
+    expect(() => reduce(baseState(), { type: 'RESOLVE_MINIGAME', orderIndex: 0, result: 'fail' }, CONTENT)).toThrow(/field/);
   });
 });
 
@@ -202,7 +253,7 @@ describe('CLOSE_DAY — 가중치 정산 (v3 §3: 처리 −w / 방치 +w / 틱 
     return baseState({
       phase: 'closing',
       pendingOrders: [
-        makeOrder('d2', true, 2, 'success'),
+        makeOrder('d2', true, 2, 'passed'),
         makeOrder('d5', false, 2),
         makeOrder('d7', false, 2),
       ],
@@ -215,7 +266,7 @@ describe('CLOSE_DAY — 가중치 정산 (v3 §3: 처리 −w / 방치 +w / 틱 
     expect(state.world.zones.d7.decay).toBe(8); // 5 + 2(방치) + 1(틱)
   });
   it('처리했지만 실패한 지시서는 −도 +도 아니다 (시간만 잃는다)', () => {
-    const s = baseState({ phase: 'closing', pendingOrders: [makeOrder('d2', true, 3, 'failure')] });
+    const s = baseState({ phase: 'closing', pendingOrders: [makeOrder('d2', true, 3, 'notPassed')] });
     const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
     expect(state.world.zones.d2.decay).toBe(4); // 3 + 1(틱)
   });
@@ -223,7 +274,7 @@ describe('CLOSE_DAY — 가중치 정산 (v3 §3: 처리 −w / 방치 +w / 틱 
     const s = baseState({
       phase: 'closing',
       zones: { d2: { decay: 10 }, d5: { decay: 9 }, d7: { decay: 1 } },
-      pendingOrders: [makeOrder('d5', false, 3), makeOrder('d7', true, 3, 'success')],
+      pendingOrders: [makeOrder('d5', false, 3), makeOrder('d7', true, 3, 'passed')],
     });
     const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
     expect(state.world.zones.d2.decay).toBe(10);
@@ -258,7 +309,7 @@ describe('CLOSE_DAY — 금요일 주간 평가 (경계 합산식, 2026-08-11 �
   }
   it('성공 위주의 주는 Passed — 넓은 기본값', () => {
     const { state, log } = reduce(
-      fridayState({ processed: 2, notPassed: 0, perfect: 0 }, [makeOrder('d5', true, 2, 'success')]),
+      fridayState({ processed: 2, notPassed: 0, perfect: 0 }, [makeOrder('d5', true, 2, 'passed')]),
       { type: 'CLOSE_DAY' },
       CONTENT,
     );
@@ -312,7 +363,7 @@ describe('CLOSE_DAY — FINAL_WEEK 엔딩 합산 (implementation-plan §6-0)', (
   });
   it('금요일 당일 처리분도 합산에 들어간다 — 주중 누적 + 당일 실패로 경계에 닿으면 해고', () => {
     const { state } = reduce(
-      finalFriday({ processed: 1, notPassed: 0, perfect: 0 }, [makeOrder('d5', true, 2, 'failure')]),
+      finalFriday({ processed: 1, notPassed: 0, perfect: 0 }, [makeOrder('d5', true, 2, 'notPassed')]),
       { type: 'CLOSE_DAY' },
       CONTENT,
     );
@@ -327,8 +378,8 @@ describe('CLOSE_DAY — FINAL_WEEK 엔딩 합산 (implementation-plan §6-0)', (
     const s = baseState({
       phase: 'closing',
       pendingOrders: [
-        makeOrder('d2', true, 2, 'success'),
-        makeOrder('d5', true, 2, 'failure'),
+        makeOrder('d2', true, 2, 'passed'),
+        makeOrder('d5', true, 2, 'notPassed'),
         makeOrder('d7', false, 2),
       ],
     });

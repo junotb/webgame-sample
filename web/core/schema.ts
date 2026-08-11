@@ -14,6 +14,14 @@ export type SkillId = 'inscription' | 'flowsense'; // 각인학/감류학 (슬�
 export type MenaceId = 'fatigue' | 'scrutiny' | 'unrest'; // 피로/주목/동요
 
 // ─────────────────────────────────────────────
+// 미니게임 (세션 ② 셸)
+// ─────────────────────────────────────────────
+/** 일반 카드 4종과 1:1 — 파이프 퍼즐 / 기사의 여행 / 블록 퍼즐 / 선별 두더지 */
+export type MinigameId = 'pipe' | 'knight' | 'block' | 'whack';
+/** 미니게임 성적 3값 — 완수/부분/실패. 성적 귀속(gradeOf)으로 3등급이 된다 */
+export type MinigameResult = 'complete' | 'partial' | 'fail';
+
+// ─────────────────────────────────────────────
 // 3시트 상태 (세이브 = 이 객체 그대로)
 // ─────────────────────────────────────────────
 export interface AccountSheet {
@@ -229,6 +237,8 @@ export interface WorkOrderTemplate {
   title: TextVariant[];
   body: ProseVariant[];             // 완곡어 시스템 적용 지점 — 문단 배열 (ui-screen-spec §4)
   options: WorkOption[];
+  /** 결과 반영 산문 (세션 ②) — 미니게임 성적 3변형. 미니게임 카드로 재작성 시 필수가 된다 */
+  resultProse?: Record<MinigameResult, ProseVariant[]>;
 }
 
 export interface WorkOption {
@@ -277,8 +287,15 @@ export interface WorkOrder {
   resolved: boolean;
   /** 처리에 쓴 옵션 인덱스 — 재열람 시 선택한 것만 남기기 위한 기록 */
   chosenOption?: number;
-  /** 처리 결과 — CLOSE_DAY 정산 근거: 성공 −weight / 실패 0 / 방치(미기록) +weight */
-  outcome?: 'success' | 'failure';
+  /**
+   * 처리 성적 (3등급 확정) — 미니게임 결과의 귀속: 완수→perfect / 부분→passed / 실패→notPassed.
+   * 과도기의 옵션 판정 경로는 성공→passed / 실패→notPassed (Perfect는 미니게임 전용).
+   * CLOSE_DAY 정산 근거: notPassed 외 −weight / notPassed 0 / 방치(미기록) +weight
+   * (성적별 가중치 차등은 미결 — CLAUDE.md 노후도 절).
+   */
+  outcome?: WeeklyRating;
+  /** 결과 반영 산문 (세션 ②) — 성적 3변형. 카드 리뉴얼(세션 ③) 콘텐츠부터 실린다 */
+  resultProse?: Record<MinigameResult, ProseVariant[]>;
 }
 
 // ─────────────────────────────────────────────
@@ -360,6 +377,11 @@ export type Action =
    * burned/soothed는 카드 처리 성공, withdrawn/expired는 처리 실패로 정산된다.
    */
   | { type: 'RESOLVE_ENCOUNTER'; orderIndex: number; outcome: EncounterOutcome; effects: Effect[]; text: string }
+  /**
+   * 미니게임 종료 반입 (세션 ②) — 성적이 카드의 3등급이 된다 (판정 없음, PRNG 불사용).
+   * 미니게임 구현은 앱 층. 코어는 결과 하나만 받는다.
+   */
+  | { type: 'RESOLVE_MINIGAME'; orderIndex: number; result: MinigameResult }
   | { type: 'CLOSE_DAY' };
 
 export interface StepResult {

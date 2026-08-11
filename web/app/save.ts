@@ -25,8 +25,10 @@ const SAVE_KEY = 'phase0';
  *    렌더 문장 미저장 제약 재확인: 저장되는 것은 집계 수치와 엔딩 ID뿐이다.
  * 9: 평가 3등급 축소 — WeeklyRating 4종 → 3종(perfect/passed/notPassed),
  *    weekTally에 perfect 추가 (경계 합산식). 구 세이브의 weekRatings 값이 무효.
+ * 10: WorkOrder.outcome이 성공/실패 2값 → 3등급(WeeklyRating). resultProse 추가.
+ *    pendingOrders가 세이브에 들어가므로 구 outcome 값이 정산에서 오독된다 — 새 게임으로.
  */
-export const SAVE_SCHEMA = 9;
+export const SAVE_SCHEMA = 10;
 
 interface SaveEnvelope {
   schema: number;

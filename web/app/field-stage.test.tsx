@@ -64,7 +64,7 @@ describe('지도 마커', () => {
   });
 
   it('처리 완료 마커에는 도장만 붙는다 (아이콘은 그대로)', () => {
-    const done = fieldState([{ ...ORDER, resolved: true, outcome: 'success' }, SECOND]);
+    const done = fieldState([{ ...ORDER, resolved: true, outcome: 'passed' }, SECOND]);
     const { container } = stage(done);
 
     const resolved = container.querySelector('.site-marker.is-resolved');

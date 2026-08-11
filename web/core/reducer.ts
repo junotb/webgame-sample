@@ -4,10 +4,11 @@
  * 트리아지 장치: shiftLeft(근무 시간 2)로 3건 중 2건만 처리 가능.
  */
 import { FINAL_WEEK, RATING_LABELS, summarizeWeek, weekOf, WORKDAYS_PER_WEEK } from './calendar';
-import { evalConditions } from './conditions';
+import { evalConditions, selectProse } from './conditions';
 import { mulberry32, rollCheck } from './checks';
 import { applyEffects } from './effects';
 import { generateCards } from './generate';
+import { gradeOf } from './minigame';
 import { resolveOption } from './resolve';
 import type { ArchiveEntry, ZoneId, GameState, MenaceId, Reducer, SkillId, StatId, StepResult } from './schema';
 
@@ -15,6 +16,8 @@ import type { ArchiveEntry, ZoneId, GameState, MenaceId, Reducer, SkillId, StatI
 export { evalConditions, getValueAtPath, selectProse, selectVariant } from './conditions';
 
 export const SHIFT_PER_DAY = 2;
+/** 미니게임 카드 처리의 근무 슬롯 비용 — 카드 리뉴얼 후 옵션별 timeCost를 대체한다 */
+export const MINIGAME_TIME_COST = 1;
 /** 다일 이벤트 점유 중의 근무 슬롯 (v3 §5) — 처리 1장/방치 3장, 노후도 급등의 근원 */
 export const MULTIDAY_SHIFT = 1;
 export const MENACE_CAP = 8;
@@ -139,7 +142,8 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       const result = resolveOption(state, option, rng);
       const next = result.state === state ? structuredClone(state) : result.state;
       next.world.pendingOrders[action.orderIndex].resolved = true;
-      next.world.pendingOrders[action.orderIndex].outcome = result.success ? 'success' : 'failure';
+      // 옵션 판정 경로는 과도기 — 성공은 passed까지만, Perfect는 미니게임 전용
+      next.world.pendingOrders[action.orderIndex].outcome = result.success ? 'passed' : 'notPassed';
       next.world.pendingOrders[action.orderIndex].chosenOption = action.optionIndex;
       next.world.shiftLeft -= option.timeCost;
       if (next.world.shiftLeft <= 0) next.world.phase = 'event';
@@ -161,15 +165,38 @@ export const reduce: Reducer = (state, action, content): StepResult => {
         throw new Error(`근무 시간 부족: 잔여 ${state.world.shiftLeft}, 필요 ${entry.timeCost}`);
       }
       const next = applyEffects(state, action.effects);
-      // burned/soothed = 처리 성공 (−w 정산), withdrawn/expired = 처리 실패 (시간만 소모)
+      // 과도기: burned/soothed = passed, withdrawn/expired = notPassed.
+      // 확정 사양(implementation-plan §6-5)에서는 조우 뒤 미니게임이 성적을 맡는다 —
+      // 조우 → 미니게임 체인 구현 시 이 정산은 RESOLVE_MINIGAME으로 넘어간다
       const success = action.outcome === 'burned' || action.outcome === 'soothed';
       next.world.pendingOrders[action.orderIndex].resolved = true;
-      next.world.pendingOrders[action.orderIndex].outcome = success ? 'success' : 'failure';
+      next.world.pendingOrders[action.orderIndex].outcome = success ? 'passed' : 'notPassed';
       next.world.pendingOrders[action.orderIndex].chosenOption = order.options.indexOf(entry);
       next.world.shiftLeft -= entry.timeCost;
       if (next.world.shiftLeft <= 0) next.world.phase = 'event';
       archiveAdd(next.world.archive, { kind: 'encounter', day: next.world.calendar.day, id: entry.startsEncounter!, zone: order.zone });
       const log = [action.text, '보고서 제출: 설비 이상 점검 완료.'];
+      log.push(...growthNotes(state, next));
+      return { state: next, log, notices: cappedMenaces(state, next) };
+    }
+
+    case 'RESOLVE_MINIGAME': {
+      assertPhase(state, 'field', 'RESOLVE_MINIGAME');
+      const order = state.world.pendingOrders[action.orderIndex];
+      if (!order) throw new Error(`지시서 없음: index ${action.orderIndex}`);
+      if (order.resolved) throw new Error(`이미 처리한 지시서: ${order.templateId} (${order.zone})`);
+      if (state.world.shiftLeft < MINIGAME_TIME_COST) {
+        throw new Error(`근무 시간 부족: 잔여 ${state.world.shiftLeft}, 필요 ${MINIGAME_TIME_COST}`);
+      }
+      const next = structuredClone(state);
+      const grade = gradeOf(action.result);
+      next.world.pendingOrders[action.orderIndex].resolved = true;
+      next.world.pendingOrders[action.orderIndex].outcome = grade;
+      next.world.shiftLeft -= MINIGAME_TIME_COST;
+      if (next.world.shiftLeft <= 0) next.world.phase = 'event';
+      // 결과 반영 산문 — 성적 3변형에서 현재 상태로 선택 (인터랙션 순서: 미니게임 → 산문)
+      const prose = order.resultProse ? selectProse(next, order.resultProse[action.result]) : [];
+      const log = [...prose];
       log.push(...growthNotes(state, next));
       return { state: next, log, notices: cappedMenaces(state, next) };
     }
@@ -234,13 +261,15 @@ export const reduce: Reducer = (state, action, content): StepResult => {
           // 미시 피드백 장부: 방치 누적 — 내일 재발부 우선순위·난이도 보정의 근거
           next.world.cardNeglect[order.templateId] = (next.world.cardNeglect[order.templateId] ?? 0) + 1;
         } else {
-          // 엔딩 합산 장부 — 처리한 장수와 그중 실패만 센다. 방치는 노후도로만 값을 치른다
+          // 주간 합산 장부 — 처리한 장수와 성적을 센다. 방치는 노후도로만 값을 치른다
           next.world.weekTally.processed += 1;
-          if (order.outcome === 'success') {
+          if (order.outcome === 'perfect') next.world.weekTally.perfect += 1;
+          if (order.outcome === 'notPassed') {
+            next.world.weekTally.notPassed += 1;
+          } else {
+            // 노후도 정산: notPassed 외(perfect·passed)는 처리 성공 −w (성적별 차등은 미결)
             delta[order.zone] = (delta[order.zone] ?? 0) - order.weight;
             delete next.world.cardNeglect[order.templateId];
-          } else {
-            next.world.weekTally.notPassed += 1;
           }
         }
       }

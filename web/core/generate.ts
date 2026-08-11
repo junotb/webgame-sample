@@ -60,6 +60,16 @@ export function instantiateCard(
     body: bindVariants(template.body, zone),
     options: template.options.map((o) => bindOption(o, zone, difficultyBonus)),
     resolved: false,
+    // 결과 반영 산문 (세션 ②) — 성적 3변형도 생성 시점에 구역 바인딩을 끝낸다
+    ...(template.resultProse
+      ? {
+          resultProse: {
+            complete: bindVariants(template.resultProse.complete, zone),
+            partial: bindVariants(template.resultProse.partial, zone),
+            fail: bindVariants(template.resultProse.fail, zone),
+          },
+        }
+      : {}),
   };
 }
 

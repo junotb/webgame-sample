@@ -97,13 +97,13 @@ describe('방치 장부 — 미시 피드백의 근거 (v3 §2)', () => {
     const s = baseState({
       phase: 'closing',
       cardNeglect: { AUTO: 3 },
-      pendingOrders: [card('AUTO', true, 'success'), card('AUTO2', false)],
+      pendingOrders: [card('AUTO', true, 'passed'), card('AUTO2', false)],
     });
     const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
     expect(state.world.cardNeglect).toEqual({ AUTO2: 1 });
   });
   it('처리 실패는 방치가 아니다 — 장부 불변', () => {
-    const s = baseState({ phase: 'closing', pendingOrders: [card('AUTO', true, 'failure')] });
+    const s = baseState({ phase: 'closing', pendingOrders: [card('AUTO', true, 'notPassed')] });
     const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
     expect(state.world.cardNeglect).toEqual({});
   });
@@ -193,7 +193,7 @@ describe('RESOLVE_ENCOUNTER — 조우 결과 반입 (v3 §6)', () => {
       CONTENT,
     );
     expect(state.world.pendingOrders[0].resolved).toBe(true);
-    expect(state.world.pendingOrders[0].outcome).toBe('success');
+    expect(state.world.pendingOrders[0].outcome).toBe('passed');
     expect(state.world.pendingOrders[0].chosenOption).toBe(0); // 조우 진입 옵션이 기록된다
     expect(state.world.menace.fatigue).toBe(1);
     expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY - 1);
@@ -205,7 +205,7 @@ describe('RESOLVE_ENCOUNTER — 조우 결과 반입 (v3 §6)', () => {
       { type: 'RESOLVE_ENCOUNTER', orderIndex: 0, outcome: 'withdrawn', effects: [], text: '물러섰다.' },
       CONTENT,
     );
-    expect(state.world.pendingOrders[0].outcome).toBe('failure');
+    expect(state.world.pendingOrders[0].outcome).toBe('notPassed');
   });
   it('조우 진입 옵션은 RESOLVE_ORDER로 처리할 수 없다', () => {
     expect(() =>

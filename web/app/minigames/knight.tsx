@@ -1,83 +1,97 @@
 'use client';
 
-/** 기사의 여행 (구역 순찰) — 행마 가능한 지점을 골라 30초 안에 최대한 밟는다 */
+/**
+ * 순찰 경로 (구역 순찰) — 시작 지점에서 끝 지점까지, 지났던 칸을 다시 밟지 않고
+ * 모든 칸을 지난다. 인접 칸을 눌러 나아가고, 직전 칸을 누르면 한 걸음 무른다.
+ */
 import { useMemo, useRef, useState } from 'react';
 import type { MinigameProps } from '../minigame-shell';
 import { useCountdown } from './countdown';
-import { cellKey, generateKnightBoard, gradeKnight, legalMoves } from './knight-logic';
+import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent } from './knight-logic';
 
 const TOTAL_MS = 30000;
 
 export function KnightGame({ session, onFinish }: MinigameProps) {
-  const board = useMemo(() => generateKnightBoard(session.seed, session.difficulty), [session]);
-  const blocked = useMemo(() => new Set(board.blocked), [board]);
-  const [pos, setPos] = useState<[number, number]>(board.start);
-  const [visited, setVisited] = useState<Set<string>>(() => new Set([cellKey(...board.start)]));
+  const board = useMemo(() => generatePatrolBoard(session.seed, session.difficulty), [session]);
+  const [trail, setTrail] = useState<Array<[number, number]>>([board.start]);
   const finishedRef = useRef(false);
 
-  const playable = board.size * board.size - blocked.size;
-  const moves = legalMoves(pos, visited, blocked, board.size);
-  const moveKeys = new Set(moves.map(([r, c]) => cellKey(r, c)));
+  const total = board.size * board.size;
+  const visited = new Set(trail.map((cell) => cellKey(...cell)));
+  const head = trail[trail.length - 1];
+  const atEnd = head[0] === board.end[0] && head[1] === board.end[1];
 
-  const finish = () => {
+  const finish = (cells: number, reachedEnd: boolean) => {
     if (finishedRef.current) return;
     finishedRef.current = true;
-    onFinish(gradeKnight(visited.size, playable));
+    onFinish(gradePatrol(cells, total, reachedEnd));
   };
 
-  const remaining = useCountdown(TOTAL_MS, finish);
-  if (moves.length === 0 && !finishedRef.current) {
-    // 더 갈 곳이 없다 — 즉시 정산 (렌더 중 부수효과 회피)
-    setTimeout(finish, 0);
-  }
+  const remaining = useCountdown(TOTAL_MS, () => finish(trail.length, atEnd && trail.length === total));
+
+  const step = (r: number, c: number) => {
+    const k = cellKey(r, c);
+    // 직전 칸 = 한 걸음 무르기
+    if (trail.length >= 2 && cellKey(...trail[trail.length - 2]) === k) {
+      setTrail(trail.slice(0, -1));
+      return;
+    }
+    if (visited.has(k) || !isAdjacent(head, [r, c])) return;
+    const next = [...trail, [r, c] as [number, number]];
+    setTrail(next);
+    // 전 칸 답사 + 끝 지점 도달 — 즉시 완수
+    if (next.length === total && r === board.end[0] && c === board.end[1]) {
+      finish(next.length, true);
+    }
+  };
 
   return (
     <div className="minigame" data-minigame="knight">
       <header className="minigame-head">
-        <span>구역 순찰 — 순찰로를 밟으십시오 ({visited.size}/{playable})</span>
+        <span>구역 순찰 — 모든 칸을 한 번씩 지나 끝 지점까지 ({trail.length}/{total})</span>
         <span className="minigame-clock">{Math.ceil(remaining / 1000)}</span>
       </header>
       <div
         className="minigame-board"
         style={{ display: 'grid', gridTemplateColumns: `repeat(${board.size}, 44px)`, gap: 2, justifyContent: 'center' }}
       >
-        {Array.from({ length: board.size * board.size }, (_, i) => {
+        {Array.from({ length: total }, (_, i) => {
           const r = Math.floor(i / board.size);
           const c = i % board.size;
           const k = cellKey(r, c);
-          const isBlocked = blocked.has(k);
-          const isCurrent = pos[0] === r && pos[1] === c;
+          const isHead = head[0] === r && head[1] === c;
           const isVisited = visited.has(k);
-          const isMove = moveKeys.has(k);
+          const isPrev = trail.length >= 2 && cellKey(...trail[trail.length - 2]) === k;
+          const canStep = !isVisited && isAdjacent(head, [r, c]);
+          const isStart = board.start[0] === r && board.start[1] === c;
+          const isEnd = board.end[0] === r && board.end[1] === c;
           return (
             <button
               key={k}
               aria-label={`순찰 ${r + 1}행 ${c + 1}열`}
-              disabled={!isMove}
+              disabled={!canStep && !isPrev}
               style={{
                 width: 44,
                 height: 44,
-                background: isBlocked
-                  ? 'rgba(127,127,127,.06)'
-                  : isCurrent
-                    ? 'currentColor'
-                    : isVisited
-                      ? 'rgba(127,127,127,.45)'
-                      : isMove
-                        ? 'rgba(127,127,127,.28)'
-                        : 'rgba(127,127,127,.14)',
-                outline: isMove ? '1.5px solid currentColor' : 'none',
+                background: isHead
+                  ? 'currentColor'
+                  : isVisited
+                    ? 'rgba(127,127,127,.45)'
+                    : canStep
+                      ? 'rgba(127,127,127,.28)'
+                      : 'rgba(127,127,127,.14)',
+                outline: canStep ? '1.5px solid currentColor' : 'none',
               }}
-              onClick={() => {
-                setPos([r, c]);
-                setVisited((prev) => new Set(prev).add(k));
-              }}
+              onClick={() => step(r, c)}
             >
-              {isBlocked ? '×' : isCurrent ? '♞' : ''}
+              {isStart && !isHead ? '시' : isEnd ? '끝' : ''}
             </button>
           );
         })}
       </div>
+      <p className="minigame-note" style={{ textAlign: 'center', margin: '6px 0 0' }}>
+        직전 칸을 누르면 한 걸음 무릅니다.
+      </p>
     </div>
   );
 }

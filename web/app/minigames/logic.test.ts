@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { canPlace, generateBlockPuzzle, gradeBlock, place } from './block-logic';
-import { cellKey, generateKnightBoard, gradeKnight, KNIGHT_SIZE, legalMoves } from './knight-logic';
+import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent } from './knight-logic';
 import { correctCount, dirsAt, generatePipePuzzle, gradePipe, isSolved } from './pipe-logic';
 import { generateWhackPlan, gradeWhack, WHACK_HOLES } from './whack-logic';
 
@@ -66,27 +66,31 @@ describe('파이프 퍼즐', () => {
   });
 });
 
-describe('기사의 여행', () => {
-  it('막힌 지점은 난이도만큼, 시작점은 막히지 않은 곳', () => {
-    for (let seed = 0; seed < 10; seed += 1) {
-      const b = generateKnightBoard(seed, 3);
-      expect(b.blocked).toHaveLength(3);
-      expect(b.blocked).not.toContain(cellKey(...b.start));
+describe('순찰 경로 (한붓 — 2026-08-11 재설계)', () => {
+  it('정답 경로가 모든 칸을 정확히 한 번씩, 인접 이동으로 지난다 — 항상 해가 있는 판', () => {
+    for (let seed = 0; seed < 20; seed += 1) {
+      const b = generatePatrolBoard(seed, seed % 6);
+      expect(b.path).toHaveLength(b.size * b.size);
+      expect(new Set(b.path.map((c) => cellKey(...c))).size).toBe(b.size * b.size);
+      for (let i = 1; i < b.path.length; i += 1) {
+        expect(isAdjacent(b.path[i - 1], b.path[i])).toBe(true);
+      }
+      expect(b.start).toEqual(b.path[0]);
+      expect(b.end).toEqual(b.path[b.path.length - 1]);
     }
   });
-  it('행마는 기사 규칙 + 미방문 + 통행 가능 지점만', () => {
-    const moves = legalMoves([2, 2], new Set([cellKey(0, 1)]), new Set([cellKey(0, 3)]), KNIGHT_SIZE);
-    expect(moves).toHaveLength(6); // 8행마 중 방문 1·차단 1 제외
-    for (const [r, c] of moves) {
-      const dr = Math.abs(r - 2);
-      const dc = Math.abs(c - 2);
-      expect(dr * dc).toBe(2);
-    }
+  it('같은 시드는 같은 판 (재현성)', () => {
+    expect(generatePatrolBoard(7, 3)).toEqual(generatePatrolBoard(7, 3));
   });
-  it('성적 경계: 64% 완수 / 32% 부분', () => {
-    expect(gradeKnight(16, 25)).toBe('complete');
-    expect(gradeKnight(8, 25)).toBe('partial');
-    expect(gradeKnight(7, 25)).toBe('fail');
+  it('난이도 4부터 판이 5×5로 커진다', () => {
+    expect(generatePatrolBoard(1, 0).size).toBe(4);
+    expect(generatePatrolBoard(1, 4).size).toBe(5);
+  });
+  it('성적: 끝 도달+전 칸 완수 / 절반 이상 부분 / 미만 실패', () => {
+    expect(gradePatrol(16, 16, true)).toBe('complete');
+    expect(gradePatrol(16, 16, false)).toBe('partial'); // 다 밟아도 끝 지점이 아니면 완수가 아니다
+    expect(gradePatrol(8, 16, false)).toBe('partial');
+    expect(gradePatrol(7, 16, false)).toBe('fail');
   });
 });
 

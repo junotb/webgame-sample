@@ -375,26 +375,26 @@ describe('주간 마감 흐름 — 총평(debrief) → 주말 택2 → 엔딩 (�
     expect(state.world.weekTally).toEqual({ processed: 3, notPassed: 1, perfect: 0 });
     expect(log.join(' ')).toContain('배치 유지');
   });
-  it('Not Passed가 처리의 절반 이상 → 총평 직후 즉시 해고 — 주말은 유임자의 것이다', () => {
-    const friday = reduce(finalFriday({ processed: 2, notPassed: 1, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
-    const { state, log } = reduce(friday, { type: 'CONFIRM_DEBRIEF' }, CONTENT);
+  it('Not Passed가 처리의 절반 이상 → 총평 장면 없이 금요일 정산에서 곧장 해고 엔딩', () => {
+    const { state, log } = reduce(finalFriday({ processed: 2, notPassed: 1, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT);
     expect(state.world.ending).toBe('fired');
     expect(state.world.phase).toBe('ended');
-    expect(state.world.weekend).toBeNull(); // 주말 진입 없음
+    expect(state.world.weekend).toBeNull(); // 총평·주말 진입 없음
+    expect(state.world.archive).toContainEqual({ kind: 'notice', day: 5, week: 1 }); // 통지서는 발행된다
     expect(log.join(' ')).toContain('배치 해제');
   });
   it('한 장도 처리하지 않은 주는 해고다 (0 ≥ 0×½ — 방치만 한 주가 유임이 되지 않는다)', () => {
-    const friday = reduce(finalFriday({ processed: 0, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;
-    expect(reduce(friday, { type: 'CONFIRM_DEBRIEF' }, CONTENT).state.world.ending).toBe('fired');
+    const { state } = reduce(finalFriday({ processed: 0, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT);
+    expect(state.world.ending).toBe('fired');
   });
   it('금요일 당일 처리분도 합산에 들어간다 — 주중 누적 + 당일 실패로 경계에 닿으면 해고', () => {
-    const friday = reduce(
+    const { state } = reduce(
       finalFriday({ processed: 1, notPassed: 0, perfect: 0 }, [makeOrder('d5', true, 2, 'notPassed')]),
       { type: 'CLOSE_DAY' },
       CONTENT,
-    ).state;
-    expect(friday.world.weekTally).toEqual({ processed: 2, notPassed: 1, perfect: 0 });
-    expect(reduce(friday, { type: 'CONFIRM_DEBRIEF' }, CONTENT).state.world.ending).toBe('fired');
+    );
+    expect(state.world.weekTally).toEqual({ processed: 2, notPassed: 1, perfect: 0 });
+    expect(state.world.ending).toBe('fired');
   });
   it('ended는 종착 상태 — START_DAY를 받지 않는다', () => {
     const friday = reduce(finalFriday({ processed: 3, notPassed: 0, perfect: 0 }), { type: 'CLOSE_DAY' }, CONTENT).state;

@@ -36,7 +36,8 @@ export interface MinigameSession {
 /** 카드 종류 라벨이 아니라 미니게임 자체의 개발용 명칭 — 표면 층에 노출하지 않는다 */
 export const MINIGAME_NAMES: Record<MinigameId, string> = {
   pipe: '파이프 퍼즐',
-  knight: '기사의 여행',
+  // id 'knight'는 구 기사의 여행의 잔재 — 게임은 한붓 순찰로 재설계됨 (2026-08-11)
+  knight: '한붓 순찰',
   block: '블록 퍼즐',
   whack: '선별 두더지 잡기',
 };

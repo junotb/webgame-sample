@@ -260,8 +260,15 @@ export const reduce: Reducer = (state, action, content): StepResult => {
         // 통지서 발행 — 총평 장면에 동반된다. 등급은 weekRatings가 들고, 본문은 재렌더링
         archiveAdd(next.world.archive, { kind: 'notice', day, week });
         log.push(`본부 주간 평가: ${RATING_LABELS[rating]}.`, '평가 통지서가 서류함에 등록되었다.');
-        next.world.phase = 'debrief';
         next.world.pendingOrders = [];
+        // 해고(주 Not Passed)는 총평 장면 없이 곧장 엔딩 — 화면 깊이를 늘리지 않는다 (2026-08-11)
+        if (week >= FINAL_WEEK && rating === 'notPassed') {
+          next.world.ending = 'fired';
+          next.world.phase = 'ended';
+          log.push('통지: 배치 해제.');
+          return { state: next, log };
+        }
+        next.world.phase = 'debrief';
         return { state: next, log };
       }
       next.world.calendar = { day: day + 1, weekday: weekday + 1 };
@@ -272,15 +279,9 @@ export const reduce: Reducer = (state, action, content): StepResult => {
     }
 
     case 'CONFIRM_DEBRIEF': {
+      // 해고는 debrief에 도달하지 않는다 (CLOSE_DAY에서 곧장 ended) — 여기는 유임 경로다
       assertPhase(state, 'debrief', 'CONFIRM_DEBRIEF');
       const next = structuredClone(state);
-      const week = weekOf(next.world.calendar.day);
-      // 해고(주 Not Passed)는 총평 직후 즉시 엔딩 — 주말은 유임자의 것이다 (2026-08-11 확정)
-      if (week >= FINAL_WEEK && next.world.weekRatings[week] === 'notPassed') {
-        next.world.ending = 'fired';
-        next.world.phase = 'ended';
-        return { state: next, log: ['통지: 배치 해제.'] };
-      }
       // 토요일 진입 — 주말 2일 × 택2 (weekday 6=토, 7=일)
       next.world.calendar = { day: next.world.calendar.day + 1, weekday: 6 };
       next.world.phase = 'weekend';

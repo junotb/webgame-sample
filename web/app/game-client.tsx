@@ -17,7 +17,7 @@ import { createInitialState } from './game-state';
 import { GameView } from './game-view';
 import { MinigameOverlay } from './minigame-overlay';
 import { NoticeOverlay } from './notice-overlay';
-import { loadGame, saveGame } from './save';
+import { clearGame, loadGame, saveGame } from './save';
 import { TitleScreen } from './title-screen';
 import type { SaveStatus } from './ui-labels';
 
@@ -78,7 +78,9 @@ export function GameClient({ content }: GameClientProps) {
   const persist = useCallback((nextState: GameState) => {
     const version = ++saveVersion.current;
     setSaveStatus('saving');
-    const queued = saveQueue.current.catch(() => undefined).then(() => saveGame(nextState));
+    // 엔딩 도달 = 세이브 폐기 — 끝난 기록은 이어할 수 없다 (2026-08-11 확정)
+    const write = nextState.world.phase === 'ended' ? () => clearGame() : () => saveGame(nextState);
+    const queued = saveQueue.current.catch(() => undefined).then(write);
     saveQueue.current = queued;
     void queued
       .then(() => {

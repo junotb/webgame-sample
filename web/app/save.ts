@@ -88,6 +88,24 @@ export async function saveGame(
   }
 }
 
+/** 세이브 폐기 — 엔딩 도달 시 호출된다. 끝난 기록은 이어할 수 없다 */
+export async function clearGame(
+  factory: IDBFactory | undefined = globalThis.indexedDB,
+): Promise<void> {
+  const database = await openDatabase(factory);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(STORE_NAME, 'readwrite');
+      transaction.objectStore(STORE_NAME).delete(SAVE_KEY);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error('세이브 폐기에 실패했습니다.'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('세이브 폐기가 중단되었습니다.'));
+    });
+  } finally {
+    database.close();
+  }
+}
+
 export async function loadGame(
   factory: IDBFactory | undefined = globalThis.indexedDB,
 ): Promise<GameState | null> {
@@ -98,8 +116,13 @@ export async function loadGame(
       const request = transaction.objectStore(STORE_NAME).get(SAVE_KEY);
       request.onsuccess = () => {
         const value: unknown = request.result;
-        // 구 스키마(래핑 없는 GameState 등)는 조용히 폐기 — 새 게임으로 시작
-        resolve(isCurrentEnvelope(value) ? structuredClone(value.state) : null);
+        // 구 스키마(래핑 없는 GameState 등)는 조용히 폐기 — 새 게임으로 시작.
+        // 엔딩 도달 세이브도 폐기 대상이다 (ended는 종착 — 이어할 것이 없다)
+        resolve(
+          isCurrentEnvelope(value) && value.state.world.phase !== 'ended'
+            ? structuredClone(value.state)
+            : null,
+        );
       };
       request.onerror = () => reject(request.error ?? new Error('세이브 불러오기에 실패했습니다.'));
       transaction.onabort = () => reject(transaction.error ?? new Error('세이브 불러오기가 중단되었습니다.'));

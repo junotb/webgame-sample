@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from './game-state';
-import { loadGame, saveGame } from './save';
+import { clearGame, loadGame, saveGame } from './save';
 
 class MemoryIndexedDB {
   private readonly records = new Map<IDBValidKey, unknown>();
@@ -19,6 +19,13 @@ class MemoryIndexedDB {
           put: (value: unknown, key: IDBValidKey) => {
             queueMicrotask(() => {
               this.records.set(key, structuredClone(value));
+              transaction.oncomplete?.({} as Event);
+            });
+            return {} as IDBRequest;
+          },
+          delete: (key: IDBValidKey) => {
+            queueMicrotask(() => {
+              this.records.delete(key);
               transaction.oncomplete?.({} as Event);
             });
             return {} as IDBRequest;
@@ -72,6 +79,23 @@ describe('IndexedDB save', () => {
 
   it('IndexedDB가 없는 환경은 명확한 오류를 낸다', async () => {
     await expect(loadGame(undefined)).rejects.toThrow(/IndexedDB/);
+  });
+
+  it('엔딩 도달 세이브는 복원하지 않는다 — ended는 종착, 이어할 것이 없다', async () => {
+    const factory = new MemoryIndexedDB() as unknown as IDBFactory;
+    const ended = createInitialState(9);
+    ended.world.phase = 'ended';
+    ended.world.ending = 'retained';
+    await saveGame(ended, factory);
+    await expect(loadGame(factory)).resolves.toBeNull();
+  });
+
+  it('clearGame이 세이브를 폐기한다 — 엔딩 도달 시 호출되는 경로', async () => {
+    const factory = new MemoryIndexedDB() as unknown as IDBFactory;
+    await saveGame(createInitialState(3), factory);
+    await expect(loadGame(factory)).resolves.not.toBeNull();
+    await clearGame(factory);
+    await expect(loadGame(factory)).resolves.toBeNull();
   });
 
   it('구 스키마 세이브(래핑 없는 GameState)는 버리고 null을 반환한다', async () => {

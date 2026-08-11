@@ -7,10 +7,18 @@
  * 산문을 읽고 나서야 오버레이가 닫힌다 — 읽지 않고는 다음 카드로 갈 수 없다.
  */
 import { useState } from 'react';
-import type { MinigameSession } from '../core/minigame';
+import { RATING_LABELS } from '../core/calendar';
+import { gradeOf, type MinigameSession } from '../core/minigame';
 import type { GameState, MinigameResult, WorkOrder } from '../core/schema';
 import { MinigameShell } from './minigame-shell';
 import { PagedCopy } from './paged-copy';
+
+/** 결과의 현장 언어 — 성적이 산문보다 먼저 잡힌다 (좋았는지 나빴는지를 화면이 말한다) */
+const RESULT_LABELS: Record<MinigameResult, string> = {
+  complete: '완수',
+  partial: '부분 완수',
+  fail: '미완',
+};
 
 interface MinigameOverlayProps {
   order: WorkOrder;
@@ -42,6 +50,12 @@ export function MinigameOverlay({ order, state, session, onResolve, onClose, dis
 
   return (
     <section className="document minigame-overlay" aria-label="작업 결과">
+      {/* 결과 판정 먼저 — 현장 언어(완수/부분/미완)와 조직의 도장(3등급)을 나란히.
+          산문은 그 아래에서 결과를 묘사한다 (읽기 전에 좋고 나쁨이 잡혀야 산문이 읽힌다) */}
+      <header className="document-header minigame-result-head">
+        <span>작업 결과 — {RESULT_LABELS[result]}</span>
+        <span className="resolved-stamp">{RATING_LABELS[gradeOf(result)]}</span>
+      </header>
       {/* 현장 묘사(노후도 축) 문단과 보고 문구(기억 축) 문단이 분리된 채 내려온다 */}
       <PagedCopy state={state} body={order.resultProse[result]}>
         <div className="choices">

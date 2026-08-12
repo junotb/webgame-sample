@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * 카드 종류 아이콘 4종 (CLAUDE.md 아이콘 규칙, 카드 리뉴얼 확정).
@@ -13,14 +13,14 @@
  * 여기 있는 것은 절차적 폴백이며, 파일이 확정되면 이 모듈만 교체한다 —
  * 참조하는 쪽은 `CardKind`만 넘기므로 무변경이다.
  */
-import type { CardKind } from '../core/schema';
+import type { CardKind } from "../core/schema";
 
 /** 등록부의 의미 ID — 스펙 문서는 아이콘을 이 ID로만 언급한다 */
 export const KIND_ICON_IDS: Record<CardKind, string> = {
-  circuit: 'kind-circuit',
-  patrol: 'kind-patrol',
-  material: 'kind-material',
-  incinerate: 'kind-incinerate',
+  circuit: "kind-circuit",
+  patrol: "kind-patrol",
+  material: "kind-material",
+  incinerate: "kind-incinerate",
 };
 
 const PATHS: Record<CardKind, React.ReactNode> = {
@@ -54,7 +54,13 @@ const PATHS: Record<CardKind, React.ReactNode> = {
   ),
 };
 
-export function KindIcon({ kind, className }: { kind: CardKind; className?: string }) {
+export function KindIcon({
+  kind,
+  className,
+}: {
+  kind: CardKind;
+  className?: string;
+}) {
   return (
     <svg
       aria-hidden="true"

@@ -3,17 +3,17 @@
  * 오인 소각의 대가는 감점이 아니라 산문 한 줄 (성적은 소각률로만 정한다).
  * 난이도(노후도)는 템포와 구분의 모호함을 올린다 — 후반엔 거의 같아 보인다.
  */
-import { mulberry32 } from '../../core/checks';
-import type { MinigameResult } from '../../core/schema';
+import { mulberry32 } from "../../core/checks";
+import type { MinigameResult } from "../../core/schema";
 
 export const WHACK_HOLES = 9;
 export const WHACK_DURATION_MS = 20000;
 
 export interface WhackSpawn {
-  at: number;       // 등장 시각 (ms)
-  life: number;     // 노출 시간 (ms)
-  hole: number;     // 0~8
-  kind: 'residue' | 'keeper';
+  at: number; // 등장 시각 (ms)
+  life: number; // 노출 시간 (ms)
+  hole: number; // 0~8
+  kind: "residue" | "keeper";
 }
 
 export interface WhackPlan {
@@ -33,17 +33,24 @@ export function generateWhackPlan(seed: number, difficulty: number): WhackPlan {
       at,
       life,
       hole: Math.floor(rng() * WHACK_HOLES),
-      kind: rng() < 0.65 ? 'residue' : 'keeper',
+      kind: rng() < 0.65 ? "residue" : "keeper",
     });
   }
-  return { duration: WHACK_DURATION_MS, spawns, ambiguity: Math.min(1, difficulty / 8) };
+  return {
+    duration: WHACK_DURATION_MS,
+    spawns,
+    ambiguity: Math.min(1, difficulty / 8),
+  };
 }
 
 /** 성적은 소각률로만 — 태울 것을 얼마나 태웠는가 */
-export function gradeWhack(burnedResidue: number, totalResidue: number): MinigameResult {
-  if (totalResidue === 0) return 'complete';
+export function gradeWhack(
+  burnedResidue: number,
+  totalResidue: number,
+): MinigameResult {
+  if (totalResidue === 0) return "complete";
   const ratio = burnedResidue / totalResidue;
-  if (ratio >= 0.9) return 'complete';
-  if (ratio >= 0.5) return 'partial';
-  return 'fail';
+  if (ratio >= 0.9) return "complete";
+  if (ratio >= 0.5) return "partial";
+  return "fail";
 }

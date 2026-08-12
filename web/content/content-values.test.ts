@@ -125,11 +125,11 @@ describe("조우 — ENC-001 (설명형 선행 조우, 2026-08-11 확정)", () =
       value: 1,
     });
   });
-  it("첫 대면 산문 — 찌꺼기가 무엇인지(서류상 명칭·선별 지침)를 도입이 설명한다", () => {
+  it("첫 대면 산문 — 불순물이 무엇인지(서류상 명칭·선별 지침)를 도입이 설명한다", () => {
     const text = enc()
       .intro.flatMap((v) => v.paragraphs)
       .join(" ");
-    expect(text).toContain("찌꺼기");
+    expect(text).toContain("불순물");
     expect(text).toContain("선별");
   });
 });

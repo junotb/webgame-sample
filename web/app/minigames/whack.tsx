@@ -1,6 +1,6 @@
 "use client";
 
-/** 선별 두더지 잡기 (찌꺼기 소각) — 태울 것만 태운다. 오인 소각은 기록만 남는다 */
+/** 선별 두더지 잡기 (불순물 소각) — 태울 것만 태운다. 오인 소각은 기록만 남는다 */
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "../minigame-shell";
 import { generateWhackPlan, gradeWhack, WHACK_HOLES } from "./whack-logic";
@@ -53,7 +53,7 @@ export function WhackGame({ session, onFinish }: MinigameProps) {
     <div className="minigame" data-minigame="whack">
       <header className="minigame-head">
         <span>
-          찌꺼기 소각 — 태울 것만 태우십시오 ({burnedRef.current}/{totalResidue}
+          불순물 소각 — 태울 것만 태우십시오 ({burnedRef.current}/{totalResidue}
           )
         </span>
         <span className="minigame-clock">

@@ -219,7 +219,7 @@ export type CardKind =
   | "circuit" // 마력회로 점검 — 파이프 퍼즐
   | "patrol" // 구역 순찰 — 기사의 여행
   | "material" // 자재 옮기기 — 블록 퍼즐
-  | "incinerate"; // 찌꺼기 소각 — 선별 두더지 잡기
+  | "incinerate"; // 불순물 소각 — 선별 두더지 잡기
 
 /**
  * 구역 도면의 한 지점 (UI 층위 사양 §7) — 지도 마커가 놓이는 자리.

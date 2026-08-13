@@ -11,7 +11,7 @@ export type ZoneId = "d2" | "d5" | "d7"; // 제2·5·7구역 (가칭)
 export type NpcId = "returned"; // "돌아온 자" — 조직의 전령. 플레이어 자신은 NpcId가 아니다
 export type StatId = "repair" | "insight" | "procedure" | "nerve"; // 정비/진단/절차/담력
 /**
- * 기술 5종 (2026-08-13 확정 — design-structure §5).
+ * 기술 5종 (2026-08-13 확정 — design-structure §2).
  *
  * 마력을 다루는 **언어 3종**과 그 위에 서는 **술법 2종**으로 나뉜다:
  * 감류학(듣기) · 영창술(말하기) · 각인학(쓰기) / 화염술 · 빙결술.
@@ -59,7 +59,7 @@ export interface CharacterSheet {
  */
 export type WeeklyRating = "perfect" | "passed" | "notPassed";
 
-/** 엔딩 (design-structure §4) — Not Passed가 처리 장수의 절반 이상이면 해고, 그 외 유임 */
+/** 엔딩 (design-structure §8) — Not Passed가 처리 장수의 절반 이상이면 해고, 그 외 유임 */
 export type EndingId = "retained" | "fired";
 
 /**
@@ -419,7 +419,7 @@ export type Action =
   | { type: "SKIP_EVENT" }
   /**
    * 조우 종료 결과 반입 (v3 §6) — 조우 리듀서가 만든 완성된 효과만 받는다.
-   * 조우는 카드 성적·근무 슬롯에 관여하지 않는다 (확정 — design-structure §2-6):
+   * 조우는 카드 성적·근무 슬롯에 관여하지 않는다 (확정 — design-structure §6-6):
    * 선행 조우(ENC-001)가 끝나면 미니게임이 이어지고, 성적은 RESOLVE_MINIGAME이 맡는다.
    */
   | {

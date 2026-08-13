@@ -196,7 +196,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
     }
 
     case "RESOLVE_ENCOUNTER": {
-      // 조우는 카드 성적·근무 슬롯에 관여하지 않는다 (확정 — design-structure §2-6).
+      // 조우는 카드 성적·근무 슬롯에 관여하지 않는다 (확정 — design-structure §6-6).
       // 효과 반입과 재열람 등록만 하고, 카드는 이어지는 미니게임(RESOLVE_MINIGAME)이 닫는다.
       assertPhase(state, "field", "RESOLVE_ENCOUNTER");
       const next = applyEffects(state, action.effects);

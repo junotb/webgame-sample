@@ -19,7 +19,7 @@ export function checkLabel(check: Check, self: GameState['self']): string {
  * d5 = 서편 거주구역 (2026-08-07 확정): 도시 서쪽의 하위 거주구, 화자의 집이 있다.
  * 특이 지형은 하수도 — 그라우포스(Gráfoss, 회색 폭포: 하수가 공중도시 밖으로 떨어지는 곳),
  * 세프미리(Sefmýri, 갈대 습지: 하층민들이 하수를 정화하는 갈대밭)가 여기 딸려 있다.
- * 명명은 노르드어 기초 (design-structure §5-4).
+ * 명명은 노르드어 기초 (design-structure §1-5).
  * d2/d7은 고유명사 미정 — 행정 코드로 남는다.
  */
 export const ZONE_LABELS: Record<ZoneId, string> = {

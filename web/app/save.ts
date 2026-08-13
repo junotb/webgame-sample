@@ -21,7 +21,7 @@ const SAVE_KEY = 'phase0';
  *    pendingOrders가 세이브에 들어가므로 구 세이브의 body.text가 selectProse에서
  *    빈 본문이 된다 — 스키마를 올려 새 게임으로 보낸다.
  *    v3 §8 제약 재확인: 문단 배열은 조건+원문 목록이지 렌더된 문장이 아니다.
- * 8: WorldSheet.weekTally·ending 추가 (FINAL_WEEK 엔딩 합산 — design-structure §4).
+ * 8: WorldSheet.weekTally·ending 추가 (FINAL_WEEK 엔딩 합산 — design-structure §8).
  *    렌더 문장 미저장 제약 재확인: 저장되는 것은 집계 수치와 엔딩 ID뿐이다.
  * 9: 평가 3등급 축소 — WeeklyRating 4종 → 3종(perfect/passed/notPassed),
  *    weekTally에 perfect 추가 (경계 합산식). 구 세이브의 weekRatings 값이 무효.
@@ -35,7 +35,7 @@ const SAVE_KEY = 'phase0';
  *    렌더 문장 미저장 제약 재확인: 통지서는 {kind:'notice', day, week}만 저장하고
  *    본문은 weekRatings[week] 등급으로 재렌더링한다.
  * 13: 기술 5종 확정 — SkillId에 incantation(영창술)·flame(화염술) 추가
- *    (감류학=듣기 / 영창술=말하기 / 각인학=쓰기 + 화염술 · 빙결술, design-structure §5).
+ *    (감류학=듣기 / 영창술=말하기 / 각인학=쓰기 + 화염술 · 빙결술, design-structure §2).
  *    구 세이브는 두 키가 없어 등급 파생·패널 렌더에서 깨진다 — 새 게임으로.
  */
 export const SAVE_SCHEMA = 14;

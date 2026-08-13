@@ -125,6 +125,13 @@ describe("조우 — ENC-001 (설명형 선행 조우, 2026-08-11 확정)", () =
       value: 1,
     });
   });
+  it("공포는 동요다 — briefing이 동요를 1 올린다 (별도 수치 없음, 2026-08-13 확정)", () => {
+    expect(enc().briefing!.effects).toContainEqual({
+      path: "world.menace.unrest",
+      op: "add",
+      value: 1,
+    });
+  });
   it("첫 대면 산문 — 불순물이 무엇인지(서류상 명칭·선별 지침)를 도입이 설명한다", () => {
     const text = enc()
       .intro.flatMap((v) => v.paragraphs)

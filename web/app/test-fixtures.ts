@@ -43,7 +43,7 @@ export const CONTENT: ContentBundle = {
   orderTemplates: [
     {
       id: 'WO-TEST',
-      minDecay: 0,
+      minStagnation: 0,
       weight: 1,
       kind: 'circuit',
       siteId: 'test-site',

@@ -4,7 +4,7 @@
   "orderTemplates": [
     {
       "id": "WO-T1",
-      "minDecay": 0,
+      "minStagnation": 0,
       "weight": 1,
       "kind": "circuit",
       "siteId": "d5-lamp",
@@ -17,7 +17,7 @@
         {
           "if": [
             {
-              "path": "world.zones.{zone}.decay",
+              "path": "world.zones.{zone}.stagnation",
               "gte": 6
             }
           ],
@@ -61,7 +61,7 @@
     },
     {
       "id": "WO-T2",
-      "minDecay": 4,
+      "minStagnation": 4,
       "weight": 2,
       "kind": "circuit",
       "siteId": "d5-trunk",
@@ -74,7 +74,7 @@
         {
           "if": [
             {
-              "path": "world.zones.{zone}.decay",
+              "path": "world.zones.{zone}.stagnation",
               "gte": 6
             }
           ],
@@ -118,7 +118,7 @@
     },
     {
       "id": "WO-T3",
-      "minDecay": 5,
+      "minStagnation": 5,
       "weight": 3,
       "kind": "circuit",
       "siteId": "d5-relay",
@@ -174,7 +174,7 @@
     },
     {
       "id": "WO-T4",
-      "minDecay": 0,
+      "minStagnation": 0,
       "weight": 2,
       "kind": "material",
       "siteId": "d5-depot",
@@ -219,7 +219,7 @@
     },
     {
       "id": "WO-N1",
-      "minDecay": 0,
+      "minStagnation": 0,
       "weight": 1,
       "kind": "patrol",
       "siteId": "d5-west3",
@@ -264,7 +264,7 @@
     },
     {
       "id": "WO-N2",
-      "minDecay": 3,
+      "minStagnation": 3,
       "weight": 2,
       "kind": "patrol",
       "siteId": "d5-vent",
@@ -309,7 +309,7 @@
     },
     {
       "id": "WO-N3",
-      "minDecay": 0,
+      "minStagnation": 0,
       "weight": 2,
       "kind": "incinerate",
       "siteId": "d5-w7",
@@ -354,7 +354,7 @@
     },
     {
       "id": "WO-N4",
-      "minDecay": 0,
+      "minStagnation": 0,
       "weight": 1,
       "kind": "incinerate",
       "siteId": "d5-west3",
@@ -399,7 +399,7 @@
     },
     {
       "id": "WO-N5",
-      "minDecay": 4,
+      "minStagnation": 4,
       "weight": 2,
       "kind": "incinerate",
       "siteId": "d5-trunk",

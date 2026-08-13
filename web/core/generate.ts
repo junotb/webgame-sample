@@ -19,16 +19,16 @@ import type { GameState, WorkOrder, WorkOrderTemplate, ZoneId } from './schema';
 export const CARDS_PER_DAY = 3;
 
 /**
- * difficultyBonus = (정체의 minDecay 초과분) + (방치 누적) —
+ * difficultyBonus = (정체의 minStagnation 초과분) + (방치 누적) —
  * 넘긴 카드는 악화된 채 돌아온다. 미니게임 난이도의 유일한 입력이다.
  */
 export function instantiateCard(
   template: WorkOrderTemplate,
   zone: ZoneId,
-  decay: number,
+  stagnation: number,
   neglect: number,
 ): WorkOrder {
-  const difficultyBonus = Math.max(0, decay - template.minDecay) + neglect;
+  const difficultyBonus = Math.max(0, stagnation - template.minStagnation) + neglect;
   return {
     templateId: template.id,
     zone,
@@ -70,12 +70,12 @@ export function generateCards(
 ): WorkOrder[] {
   const world = state.world;
   const zone = world.assignment.zone;
-  const decay = world.zones[zone].decay;
+  const stagnation = world.zones[zone].stagnation;
   const eligible = templates.filter(
-    (t) => t.minDecay <= decay && (!t.requirements || evalConditions(state, t.requirements)),
+    (t) => t.minStagnation <= stagnation && (!t.requirements || evalConditions(state, t.requirements)),
   );
   if (eligible.length === 0) {
-    throw new Error(`적격 템플릿 없음: 구역 ${zone} (정체 ${decay})`);
+    throw new Error(`적격 템플릿 없음: 구역 ${zone} (정체 ${stagnation})`);
   }
 
   const picked: WorkOrderTemplate[] = [];
@@ -113,5 +113,5 @@ export function generateCards(
   }
 
   const neglectOf = (t: WorkOrderTemplate) => world.cardNeglect[t.id] ?? 0;
-  return picked.map((t) => instantiateCard(t, zone, decay, neglectOf(t)));
+  return picked.map((t) => instantiateCard(t, zone, stagnation, neglectOf(t)));
 }

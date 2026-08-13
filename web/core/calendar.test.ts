@@ -22,7 +22,7 @@ describe('bandOf — 정체 0~10 → 4밴드 (v3 §3 표)', () => {
     expect(bandOf(9)).toBe(4);
     expect(bandOf(10)).toBe(4);
   });
-  it('범위 밖 입력은 클램프된다 (decay는 0~10 계약)', () => {
+  it('범위 밖 입력은 클램프된다 (stagnation는 0~10 계약)', () => {
     expect(bandOf(-1)).toBe(1);
     expect(bandOf(11)).toBe(4);
   });

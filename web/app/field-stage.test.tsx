@@ -53,7 +53,7 @@ describe('지도 마커', () => {
 
   it('정체를 시각화하지 않는다 — 마커는 상태에 반응하지 않는다', () => {
     const worse = fieldState();
-    worse.world.zones.d5.decay = 10;
+    worse.world.zones.d5.stagnation = 10;
     const { container } = stage(worse);
     const markers = container.querySelectorAll('.site-marker');
 

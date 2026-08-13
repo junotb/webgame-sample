@@ -7,7 +7,7 @@
 import type { Check, Condition, ContentBundle, ProseVariant, TemplateEffect, TextVariant } from './schema';
 
 const ZONE_IDS = ['d2', 'd5', 'd7'];
-const NPC_IDS = ['protagonist'];
+const NPC_IDS = ['returned'];
 const STAT_IDS = ['repair', 'insight', 'procedure', 'nerve'];
 const SKILL_IDS = ['flowsense', 'incantation', 'inscription', 'flame', 'frost'];
 const MENACE_IDS = ['fatigue', 'scrutiny', 'unrest'];
@@ -29,7 +29,7 @@ function isValidEffectPath(path: string): boolean {
     return false;
   }
   if (segs[0] === 'world') {
-    if (segs.length === 4 && segs[1] === 'zones' && segs[3] === 'decay')
+    if (segs.length === 4 && segs[1] === 'zones' && segs[3] === 'stagnation')
       return ZONE_IDS.includes(segs[2]);
     if (segs.length === 3 && segs[1] === 'menace') return MENACE_IDS.includes(segs[2]);
     if (segs.length === 4 && segs[1] === 'npcs' && segs[3] === 'trust')

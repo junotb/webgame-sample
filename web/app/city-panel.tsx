@@ -22,17 +22,17 @@ export function CityPanel({ state }: { state: GameState }) {
       </div>
       {/* 정체는 밴드만 보인다 (v3 §9의 유일한 비공개 항목) */}
       <dl className="ledger-grid" aria-label="구역 상태">
-        {(Object.entries(state.world.zones) as [ZoneId, { decay: number }][]).map(([zone, value]) => (
+        {(Object.entries(state.world.zones) as [ZoneId, { stagnation: number }][]).map(([zone, value]) => (
           <div key={zone}>
             <dt>{ZONE_LABELS[zone]}</dt>
-            <dd>{BAND_NAMES[bandOf(value.decay)]}</dd>
+            <dd>{BAND_NAMES[bandOf(value.stagnation)]}</dd>
           </div>
         ))}
       </dl>
       <div className="menace-row" aria-label="위협 수치">
         <span>주목 <b>{menace.scrutiny}</b></span>
         <span>동요 <b>{menace.unrest}</b></span>
-        <span>신뢰 <b>{state.world.npcs.protagonist.trust}</b></span>
+        <span>신뢰 <b>{state.world.npcs.returned.trust}</b></span>
       </div>
       {state.world.multiday ? (
         <div className="multiday-row" aria-label="일정 점유">

@@ -38,7 +38,7 @@ function def(overrides?: Partial<EncounterDef>): EncounterDef {
       withdraw: { label: '물러선다', check: { kind: 'auto' }, successText: '물러섰다' },
     },
     outcomes: {
-      burned: { effects: [{ path: 'world.zones.{zone}.decay', op: 'add', value: -2 }], text: '동력이 회수되었다.' },
+      burned: { effects: [{ path: 'world.zones.{zone}.stagnation', op: 'add', value: -2 }], text: '동력이 회수되었다.' },
       soothed: { effects: [{ path: 'world.menace.unrest', op: 'add', value: 1 }], text: '그것은 잠들었다.' },
       withdrawn: { effects: [], text: '구간은 봉쇄되었다.' },
       expired: { effects: [{ path: 'world.menace.fatigue', op: 'add', value: 2 }], text: '날이 저물었다.' },
@@ -126,7 +126,7 @@ describe('finishEncounter — 반출물', () => {
     const s = encounterReduce(startEncounter(def(), 'd5', 42), def(), 'burn', SELF).state;
     const result = finishEncounter(def(), s);
     expect(result.outcome).toBe('burned');
-    expect(result.effects).toEqual([{ path: 'world.zones.d5.decay', op: 'add', value: -2 }]);
+    expect(result.effects).toEqual([{ path: 'world.zones.d5.stagnation', op: 'add', value: -2 }]);
     expect(result.text).toBe('동력이 회수되었다.');
   });
   it('진행 중인 조우는 반출 불가', () => {

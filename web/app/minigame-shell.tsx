@@ -9,7 +9,7 @@ import type { ComponentType } from 'react';
 import type { MinigameId, MinigameResult } from '../core/schema';
 import type { MinigameSession } from '../core/minigame';
 import { BlockGame } from './minigames/block';
-import { KnightGame } from './minigames/knight';
+import { OnestrokeGame } from './minigames/onestroke';
 import { PipeGame } from './minigames/pipe';
 import { WhackGame } from './minigames/whack';
 
@@ -21,7 +21,7 @@ export interface MinigameProps {
 /** 4종 레지스트리 — 구현 교체 지점. 셸·호출부는 이 표만 본다 */
 const MINIGAMES: Record<MinigameId, ComponentType<MinigameProps>> = {
   pipe: PipeGame,
-  knight: KnightGame,
+  onestroke: OnestrokeGame,
   block: BlockGame,
   whack: WhackGame,
 };

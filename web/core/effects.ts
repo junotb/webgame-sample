@@ -11,7 +11,7 @@ const RANGES: Array<{ test: RegExp; min: number; max: number }> = [
   { test: /^self\.stats\./, min: 0, max: 100 },
   { test: /^self\.skillXp\./, min: 0, max: SKILL_XP_MAX },
   { test: /^self\.memory$/, min: 0, max: 7 },
-  { test: /^world\.zones\..+\.decay$/, min: 0, max: 10 },
+  { test: /^world\.zones\..+\.stagnation$/, min: 0, max: 10 },
   { test: /^world\.menace\./, min: 0, max: 8 },
   { test: /^world\.npcs\..+\.trust$/, min: 0, max: 7 },
   // world.flags.* 는 클램프 없음

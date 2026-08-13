@@ -43,7 +43,7 @@ describe('MinigameShell', () => {
   });
 
   it('남은 시간이 표시된다', () => {
-    renderUI(<MinigameShell session={{ id: 'knight', difficulty: 1, seed: 5 }} onFinish={vi.fn()} />);
+    renderUI(<MinigameShell session={{ id: 'onestroke', difficulty: 1, seed: 5 }} onFinish={vi.fn()} />);
     expect(screen.getByText('30')).toBeDefined();
   });
 });

@@ -29,9 +29,9 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
       multiday: null,
       archive: [],
       phase: 'morning',
-      zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
+      zones: { d2: { stagnation: 3 }, d5: { stagnation: 4 }, d7: { stagnation: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
-      npcs: { protagonist: { trust: 0 } },
+      npcs: { returned: { trust: 0 } },
       flags: {},
       shiftLeft: 2,
       pendingOrders: [],
@@ -43,7 +43,7 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
 
 const T: WorkOrderTemplate = {
   id: 'AUTO',
-  minDecay: 0,
+  minStagnation: 0,
   weight: 1,
   kind: 'circuit',
   siteId: 'test-site',

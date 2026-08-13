@@ -1,6 +1,6 @@
 /**
  * 시간·평가 코어 (slice v3 §2·§3)
- * 밴드는 저장하지 않는 파생값 — decay → band는 렌더링·평가 시점에만 접는다.
+ * 밴드는 저장하지 않는 파생값 — stagnation → band는 렌더링·평가 시점에만 접는다.
  * 금요일 종료 시점의 밴드가 곧 주간 평가 등급이다 (별도 산식 없음).
  */
 import type { WeeklyRating } from './schema';
@@ -17,10 +17,10 @@ export const DAYS_PER_WEEK = 7;
 export const FINAL_WEEK = 1;
 
 /** 0~2 정상 / 3~5 삐걱임 / 6~8 이상(임계) / 9~10 한계 */
-export function bandOf(decay: number): Band {
-  if (decay <= 2) return 1;
-  if (decay <= 5) return 2;
-  if (decay <= 8) return 3;
+export function bandOf(stagnation: number): Band {
+  if (stagnation <= 2) return 1;
+  if (stagnation <= 5) return 2;
+  if (stagnation <= 8) return 3;
   return 4;
 }
 

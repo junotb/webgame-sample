@@ -7,11 +7,11 @@
 import { useMemo, useRef, useState } from 'react';
 import type { MinigameProps } from '../minigame-shell';
 import { useCountdown } from './countdown';
-import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent, judgeStep } from './knight-logic';
+import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent, judgeStep } from './onestroke-logic';
 
 const TOTAL_MS = 30000;
 
-export function KnightGame({ session, onFinish }: MinigameProps) {
+export function OnestrokeGame({ session, onFinish }: MinigameProps) {
   const board = useMemo(() => generatePatrolBoard(session.seed, session.difficulty), [session]);
   const [trail, setTrail] = useState<Array<[number, number]>>([board.start]);
   const finishedRef = useRef(false);
@@ -52,7 +52,7 @@ export function KnightGame({ session, onFinish }: MinigameProps) {
   };
 
   return (
-    <div className="minigame" data-minigame="knight">
+    <div className="minigame" data-minigame="onestroke">
       <header className="minigame-head">
         <span>구역 순찰 — 모든 칸을 한 번씩 지나 끝 지점까지 ({trail.length}/{total})</span>
         <span className="minigame-clock">{Math.ceil(remaining / 1000)}</span>

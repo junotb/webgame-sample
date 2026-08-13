@@ -28,9 +28,9 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
       multiday: null,
       archive: [],
       phase: 'morning',
-      zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
+      zones: { d2: { stagnation: 3 }, d5: { stagnation: 4 }, d7: { stagnation: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
-      npcs: { protagonist: { trust: 0 } },
+      npcs: { returned: { trust: 0 } },
       flags: {},
       shiftLeft: SHIFT_PER_DAY,
       pendingOrders: [],
@@ -48,7 +48,7 @@ const RESULT_PROSE = {
 
 const AUTO_T: WorkOrderTemplate = {
   id: 'AUTO',
-  minDecay: 0,
+  minStagnation: 0,
   weight: 2,
   kind: 'circuit',
   siteId: 'test-site',
@@ -74,7 +74,7 @@ const CONTENT: ContentBundle = {
           label: '사흘을 내어준다',
           check: { kind: 'auto' },
           startsMultiday: { id: 'errand', days: 3 },
-          onSuccess: { effects: [{ path: 'world.npcs.protagonist.trust', op: 'add', value: 1 }], text: '수락했다' },
+          onSuccess: { effects: [{ path: 'world.npcs.returned.trust', op: 'add', value: 1 }], text: '수락했다' },
         },
         { label: '거절한다', check: { kind: 'auto' }, onSuccess: { effects: [], text: '거절했다' } },
       ],
@@ -119,7 +119,7 @@ describe('방치 장부 — 미시 피드백의 근거 (v3 §2)', () => {
     const { state, log } = reduce(s, { type: 'START_DAY' }, CONTENT);
     const reissued = state.world.pendingOrders.find((o) => o.templateId === 'AUTO2')!;
     expect(reissued.reissueCount).toBe(1);
-    expect(reissued.difficultyBonus).toBe(1 + 4); // 방치 1 + decay 초과분 4
+    expect(reissued.difficultyBonus).toBe(1 + 4); // 방치 1 + stagnation 초과분 4
     expect(log.join(' ')).not.toContain('재발부');
   });
   it('START_DAY 로그는 건수만 말하고 제목을 나열하지 않는다 (UI 층위 §5)', () => {

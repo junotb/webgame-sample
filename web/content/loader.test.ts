@@ -28,7 +28,7 @@ const minimalBundle = {
   orderTemplates: [
     {
       id: 'WO-M1',
-      minDecay: 0,
+      minStagnation: 0,
       weight: 1,
       kind: 'circuit',
       siteId: 'm-site',

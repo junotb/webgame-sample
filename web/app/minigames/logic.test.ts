@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { canPlace, generateBlockPuzzle, gradeBlock, place } from './block-logic';
-import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent, judgeStep, type PatrolBoard } from './knight-logic';
+import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent, judgeStep, type PatrolBoard } from './onestroke-logic';
 import { correctCount, dirsAt, generatePipePuzzle, gradePipe, isSolved } from './pipe-logic';
 import { generateWhackPlan, gradeWhack, WHACK_HOLES } from './whack-logic';
 

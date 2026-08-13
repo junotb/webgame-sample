@@ -19,6 +19,6 @@ describe('gradeOf — 성적 귀속 (확정)', () => {
 
 describe('레지스트리 어휘 — 카드 4종과 1:1', () => {
   it('미니게임 ID는 정확히 4종이다', () => {
-    expect(Object.keys(MINIGAME_NAMES).sort()).toEqual(['block', 'knight', 'pipe', 'whack']);
+    expect(Object.keys(MINIGAME_NAMES).sort()).toEqual(['block', 'onestroke', 'pipe', 'whack']);
   });
 });

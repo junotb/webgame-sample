@@ -52,7 +52,7 @@ describe('L2 참조 패널', () => {
 
   it('도시 상태는 정체 수치가 아니라 밴드 이름을 보인다 (v3 §9)', async () => {
     const state = fieldState();
-    state.world.zones.d5.decay = 7; // 3밴드 = 이상
+    state.world.zones.d5.stagnation = 7; // 3밴드 = 이상
     const { user } = view(state);
 
     await user.click(screen.getByRole('button', { name: '도시 상태' }));

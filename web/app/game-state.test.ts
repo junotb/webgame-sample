@@ -37,9 +37,9 @@ describe("createInitialState", () => {
         multiday: null,
         archive: [],
         phase: "morning",
-        zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
+        zones: { d2: { stagnation: 3 }, d5: { stagnation: 4 }, d7: { stagnation: 5 } },
         menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
-        npcs: { protagonist: { trust: 0 } },
+        npcs: { returned: { trust: 0 } },
         flags: {},
         shiftLeft: 2,
         pendingOrders: [],
@@ -87,8 +87,8 @@ describe("createInitialState", () => {
 
   it("호출마다 독립된 상태 객체를 반환한다", () => {
     const first = createInitialState();
-    first.world.zones.d2.decay = 9;
+    first.world.zones.d2.stagnation = 9;
 
-    expect(createInitialState().world.zones.d2.decay).toBe(3);
+    expect(createInitialState().world.zones.d2.stagnation).toBe(3);
   });
 });

@@ -40,7 +40,7 @@ describe("발주 격자 — 일상 카드 9장, 종류 4종", () => {
     expect(byKind.get("material")).toBe(1);
     expect(byKind.get("incinerate")).toBe(3);
   });
-  it("가중치 — minDecay가 깊을수록 무겁다 (v3 §3)", () => {
+  it("가중치 — minStagnation가 깊을수록 무겁다 (v3 §3)", () => {
     expect(template("WO-T1").weight).toBe(1);
     expect(template("WO-T2").weight).toBe(2);
     expect(template("WO-T3").weight).toBe(3);
@@ -51,10 +51,10 @@ describe("발주 격자 — 일상 카드 9장, 종류 4종", () => {
     expect(template("WO-N4").weight).toBe(1);
     expect(template("WO-N5").weight).toBe(2);
   });
-  it("ENC-001 보장의 전제: minDecay 0인 소각 카드가 존재한다 (첫날부터 배부 가능)", () => {
+  it("ENC-001 보장의 전제: minStagnation 0인 소각 카드가 존재한다 (첫날부터 배부 가능)", () => {
     expect(
       bundle.orderTemplates.some(
-        (t) => t.kind === "incinerate" && t.minDecay === 0,
+        (t) => t.kind === "incinerate" && t.minStagnation === 0,
       ),
     ).toBe(true);
   });
@@ -92,8 +92,8 @@ describe("텍스트 변형 축 분리 (v3 §7) — 한 문서에 두 축을 쓰�
           .map((c) =>
             c.path === "self.memory"
               ? "memory"
-              : c.path.includes(".decay")
-                ? "decay"
+              : c.path.includes(".stagnation")
+                ? "stagnation"
                 : "other",
           ),
       );

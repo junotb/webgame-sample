@@ -24,9 +24,9 @@ function baseState(): GameState {
       multiday: null,
       archive: [],
       phase: 'field',
-      zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
+      zones: { d2: { stagnation: 3 }, d5: { stagnation: 4 }, d7: { stagnation: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
-      npcs: { protagonist: { trust: 0 } },
+      npcs: { returned: { trust: 0 } },
       flags: {},
       shiftLeft: 2,
       pendingOrders: [],
@@ -37,8 +37,8 @@ function baseState(): GameState {
 
 describe('applyEffect — add/set', () => {
   it('add: 기존 값에 가산', () => {
-    const next = applyEffect(baseState(), { path: 'world.zones.d5.decay', op: 'add', value: -3 });
-    expect(next.world.zones.d5.decay).toBe(1);
+    const next = applyEffect(baseState(), { path: 'world.zones.d5.stagnation', op: 'add', value: -3 });
+    expect(next.world.zones.d5.stagnation).toBe(1);
   });
   it('set: 값 대입', () => {
     const next = applyEffect(baseState(), { path: 'world.menace.unrest', op: 'set', value: 2 });
@@ -56,12 +56,12 @@ describe('applyEffect — add/set', () => {
 });
 
 describe('applyEffect — 범위 클램프 (스키마 주석 범위)', () => {
-  it('decay는 0~10', () => {
+  it('stagnation는 0~10', () => {
     expect(
-      applyEffect(baseState(), { path: 'world.zones.d2.decay', op: 'add', value: -99 }).world.zones.d2.decay,
+      applyEffect(baseState(), { path: 'world.zones.d2.stagnation', op: 'add', value: -99 }).world.zones.d2.stagnation,
     ).toBe(0);
     expect(
-      applyEffect(baseState(), { path: 'world.zones.d2.decay', op: 'add', value: 99 }).world.zones.d2.decay,
+      applyEffect(baseState(), { path: 'world.zones.d2.stagnation', op: 'add', value: 99 }).world.zones.d2.stagnation,
     ).toBe(10);
   });
   it('menace는 0~8, stats는 0~100, memory·trust는 0~7', () => {
@@ -69,7 +69,7 @@ describe('applyEffect — 범위 클램프 (스키마 주석 범위)', () => {
     expect(applyEffect(baseState(), { path: 'self.stats.repair', op: 'add', value: 999 }).self.stats.repair).toBe(100);
     expect(applyEffect(baseState(), { path: 'self.memory', op: 'add', value: 99 }).self.memory).toBe(7);
     expect(
-      applyEffect(baseState(), { path: 'world.npcs.protagonist.trust', op: 'add', value: 9 }).world.npcs.protagonist.trust,
+      applyEffect(baseState(), { path: 'world.npcs.returned.trust', op: 'add', value: 9 }).world.npcs.returned.trust,
     ).toBe(7);
   });
 });
@@ -110,11 +110,11 @@ describe('applyEffect — 기억 감소 가드 (비가역 원칙)', () => {
 describe('applyEffects — 순차 적용', () => {
   it('여러 효과를 순서대로 누적 적용', () => {
     const next = applyEffects(baseState(), [
-      { path: 'world.zones.d5.decay', op: 'add', value: -1 },
+      { path: 'world.zones.d5.stagnation', op: 'add', value: -1 },
       { path: 'world.flags.patched_d5', op: 'add', value: 1 },
       { path: 'world.flags.patched_d5', op: 'add', value: 1 },
     ]);
-    expect(next.world.zones.d5.decay).toBe(3);
+    expect(next.world.zones.d5.stagnation).toBe(3);
     expect(next.world.flags.patched_d5).toBe(2);
   });
   it('빈 배열이면 동등한 상태 반환', () => {

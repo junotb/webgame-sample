@@ -13,7 +13,7 @@ function validBundle(): ContentBundle {
     orderTemplates: [
       {
         id: 'WO-X1',
-        minDecay: 0,
+        minStagnation: 0,
         weight: 1,
         kind: 'circuit',
         siteId: 'x-site',
@@ -99,7 +99,7 @@ describe('validateBundle — 식별자·구조', () => {
 describe('validateBundle — 효과 경로 무결성', () => {
   it('알 수 없는 구역 ID를 잡는다', () => {
     const errs = validateBundle(
-      mutate((b) => (b.storylets[0].choices[0].onSuccess.effects[0].path = 'world.zones.d9.decay')),
+      mutate((b) => (b.storylets[0].choices[0].onSuccess.effects[0].path = 'world.zones.d9.stagnation')),
     );
     expect(errs.some((e) => e.includes('d9'))).toBe(true);
   });
@@ -122,7 +122,7 @@ describe('validateBundle — 효과 경로 무결성', () => {
     const errs = validateBundle(
       mutate(
         (b) =>
-          (b.storylets[0].choices[0].onSuccess.effects[0].path = 'world.zones.{zone}.decay'),
+          (b.storylets[0].choices[0].onSuccess.effects[0].path = 'world.zones.{zone}.stagnation'),
       ),
     );
     expect(errs.some((e) => e.includes('{zone}'))).toBe(true);
@@ -149,7 +149,7 @@ describe('validateBundle — 효과 경로 무결성', () => {
               withdraw: { label: '철수', check: { kind: 'auto' }, successText: 'x' },
             },
             outcomes: {
-              burned: { effects: [{ path: 'world.zones.{sector}.decay', op: 'add', value: -1 }], text: 'x' },
+              burned: { effects: [{ path: 'world.zones.{sector}.stagnation', op: 'add', value: -1 }], text: 'x' },
               soothed: { effects: [], text: 'x' },
               withdrawn: { effects: [], text: 'x' },
               expired: { effects: [], text: 'x' },
@@ -191,11 +191,11 @@ describe('validateBundle — 카드 레이어 (v3 §4·§5)', () => {
 
   it('템플릿 본문 변형 조건의 {zone}은 허용, 스토리렛 조건의 {zone}은 거부', () => {
     const ok = validateBundle(
-      mutate((b) => (b.orderTemplates[0].body[0].if = [{ path: 'world.zones.{zone}.decay', gte: 6 }])),
+      mutate((b) => (b.orderTemplates[0].body[0].if = [{ path: 'world.zones.{zone}.stagnation', gte: 6 }])),
     );
     expect(ok).toEqual([]);
     const bad = validateBundle(
-      mutate((b) => (b.storylets[0].requirements = [{ path: 'world.zones.{zone}.decay', gte: 6 }])),
+      mutate((b) => (b.storylets[0].requirements = [{ path: 'world.zones.{zone}.stagnation', gte: 6 }])),
     );
     expect(bad.some((e) => e.includes('{zone}'))).toBe(true);
   });

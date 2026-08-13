@@ -45,13 +45,13 @@ export const BASE_ALTITUDE = 8000;
 export const ALTITUDE_PER_DECAY = 120;
 const MAX_DECAY = 10;
 
-function clampDecay(value: number): number {
+function clampStagnation(value: number): number {
   return Math.max(0, Math.min(MAX_DECAY, value));
 }
 
 /** 고도 = 8000 − 120 × Σ정체 (m) — 하루 요약에 숫자로만 표기 */
-export function altitude(zones: Record<ZoneId, { decay: number }>): number {
-  const total = Object.values(zones).reduce((sum, d) => sum + d.decay, 0);
+export function altitude(zones: Record<ZoneId, { stagnation: number }>): number {
+  const total = Object.values(zones).reduce((sum, d) => sum + d.stagnation, 0);
   return BASE_ALTITUDE - ALTITUDE_PER_DECAY * total;
 }
 
@@ -338,9 +338,9 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       }
       for (const [zoneId, z] of Object.entries(next.world.zones) as [
         ZoneId,
-        { decay: number },
+        { stagnation: number },
       ][]) {
-        z.decay = clampDecay(z.decay + (delta[zoneId] ?? 0) + 1);
+        z.stagnation = clampStagnation(z.stagnation + (delta[zoneId] ?? 0) + 1);
       }
       // 고도는 실패 상태로 쓰지 않는다 (2026-08-06 Juno): 일과 결과의 압박은
       // 주간 평가(조직 인사)가 담당하고, 고도는 에피소드 스케일 장치로 남긴다

@@ -24,9 +24,9 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
       multiday: null,
       archive: [],
       phase: 'morning',
-      zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
+      zones: { d2: { stagnation: 3 }, d5: { stagnation: 4 }, d7: { stagnation: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
-      npcs: { protagonist: { trust: 0 } },
+      npcs: { returned: { trust: 0 } },
       flags: {},
       shiftLeft: SHIFT_PER_DAY,
       pendingOrders: [],
@@ -45,7 +45,7 @@ const RESULT_PROSE = {
 
 const AUTO_T: WorkOrderTemplate = {
   id: 'AUTO',
-  minDecay: 0,
+  minStagnation: 0,
   weight: 2,
   kind: 'circuit',
   siteId: 'test-site',
@@ -139,7 +139,7 @@ describe('카드 처리 흐름 — 미니게임 연쇄와 트리아지', () => {
     const s2 = reduce(s1, { type: 'RESOLVE_MINIGAME', orderIndex: 1, result: 'complete' }, CONTENT).state;
     expect(s2.world.shiftLeft).toBe(0);
     expect(s2.world.phase).toBe('event');
-    expect(s2.world.zones.d5.decay).toBe(4); // 증감은 CLOSE_DAY 가중치 정산의 몫
+    expect(s2.world.zones.d5.stagnation).toBe(4); // 증감은 CLOSE_DAY 가중치 정산의 몫
   });
   it('없는 지시서 인덱스 → throw', () => {
     expect(() => reduce(fieldState(), { type: 'RESOLVE_MINIGAME', orderIndex: 9, result: 'fail' }, CONTENT)).toThrow();
@@ -185,7 +185,7 @@ describe('RESOLVE_MINIGAME — field: 성적 반입 (세션 ② 셸)', () => {
   it('perfect는 정산에서 성공(−w)이며 주간 장부 perfect에 계상된다', () => {
     const s = baseState({ phase: 'closing', pendingOrders: [makeOrder('d5', true, 2, 'perfect')] });
     const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
-    expect(state.world.zones.d5.decay).toBe(3); // 4 − 2 + 1(틱)
+    expect(state.world.zones.d5.stagnation).toBe(3); // 4 − 2 + 1(틱)
     expect(state.world.weekTally).toEqual({ processed: 1, notPassed: 0, perfect: 1 });
   });
   it('이미 처리한 지시서·근무 시간 부족·field 밖 → throw', () => {
@@ -243,25 +243,25 @@ describe('CLOSE_DAY — 가중치 정산 (v3 §3: 처리 −w / 방치 +w / 틱 
   }
   it('처리 성공 −w, 방치 +w, 전 구역 자연 틱 +1', () => {
     const { state } = reduce(closingState(), { type: 'CLOSE_DAY' }, CONTENT);
-    expect(state.world.zones.d2.decay).toBe(2); // 3 − 2(처리) + 1(틱)
-    expect(state.world.zones.d5.decay).toBe(7); // 4 + 2(방치) + 1(틱)
-    expect(state.world.zones.d7.decay).toBe(8); // 5 + 2(방치) + 1(틱)
+    expect(state.world.zones.d2.stagnation).toBe(2); // 3 − 2(처리) + 1(틱)
+    expect(state.world.zones.d5.stagnation).toBe(7); // 4 + 2(방치) + 1(틱)
+    expect(state.world.zones.d7.stagnation).toBe(8); // 5 + 2(방치) + 1(틱)
   });
   it('처리했지만 실패한 지시서는 −도 +도 아니다 (시간만 잃는다)', () => {
     const s = baseState({ phase: 'closing', pendingOrders: [makeOrder('d2', true, 3, 'notPassed')] });
     const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
-    expect(state.world.zones.d2.decay).toBe(4); // 3 + 1(틱)
+    expect(state.world.zones.d2.stagnation).toBe(4); // 3 + 1(틱)
   });
   it('정체는 0~10에서 클램프', () => {
     const s = baseState({
       phase: 'closing',
-      zones: { d2: { decay: 10 }, d5: { decay: 9 }, d7: { decay: 1 } },
+      zones: { d2: { stagnation: 10 }, d5: { stagnation: 9 }, d7: { stagnation: 1 } },
       pendingOrders: [makeOrder('d5', false, 3), makeOrder('d7', true, 3, 'passed')],
     });
     const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
-    expect(state.world.zones.d2.decay).toBe(10);
-    expect(state.world.zones.d5.decay).toBe(10);
-    expect(state.world.zones.d7.decay).toBe(0); // 1 − 3 + 1 → clamp 0
+    expect(state.world.zones.d2.stagnation).toBe(10);
+    expect(state.world.zones.d5.stagnation).toBe(10);
+    expect(state.world.zones.d7.stagnation).toBe(0); // 1 − 3 + 1 → clamp 0
   });
   it('day+1·weekday+1, morning 복귀, shiftLeft 리셋, pendingOrders 비움', () => {
     const { state } = reduce(closingState(), { type: 'CLOSE_DAY' }, CONTENT);
@@ -453,8 +453,8 @@ describe('주간 마감 흐름 — 총평(debrief) → 주말 택2 → 엔딩 (�
 });
 
 describe('헬퍼 — altitude·조건·완곡어 변형', () => {
-  it('altitude = 8000 − 120×Σdecay', () => {
-    expect(altitude({ d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } })).toBe(8000 - 120 * 12);
+  it('altitude = 8000 − 120×Σstagnation', () => {
+    expect(altitude({ d2: { stagnation: 3 }, d5: { stagnation: 4 }, d7: { stagnation: 5 } })).toBe(8000 - 120 * 12);
   });
   it('getValueAtPath: 상태 경로 읽기, 없는 flag는 0', () => {
     const s = baseState();

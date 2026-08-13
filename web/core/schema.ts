@@ -8,7 +8,7 @@
 // 식별자
 // ─────────────────────────────────────────────
 export type ZoneId = "d2" | "d5" | "d7"; // 제2·5·7구역 (가칭)
-export type NpcId = "protagonist"; // Ep1 주인공 ("돌아온 자")
+export type NpcId = "returned"; // "돌아온 자" — 조직의 전령. 플레이어 자신은 NpcId가 아니다
 export type StatId = "repair" | "insight" | "procedure" | "nerve"; // 정비/진단/절차/담력
 /**
  * 기술 5종 (2026-08-13 확정 — design-structure §5).
@@ -27,7 +27,7 @@ export type MenaceId = "fatigue" | "scrutiny" | "unrest"; // 피로/주목/동�
 // 미니게임 (세션 ② 셸)
 // ─────────────────────────────────────────────
 /** 일반 카드 4종과 1:1 — 파이프 퍼즐 / 기사의 여행 / 블록 퍼즐 / 선별 두더지 */
-export type MinigameId = "pipe" | "knight" | "block" | "whack";
+export type MinigameId = "pipe" | "onestroke" | "block" | "whack";
 /** 미니게임 성적 3값 — 완수/부분/실패. 성적 귀속(gradeOf)으로 3등급이 된다 */
 export type MinigameResult = "complete" | "partial" | "fail";
 
@@ -107,7 +107,7 @@ export interface WorldSheet {
    */
   archive: ArchiveEntry[];
   phase: DayPhase;
-  zones: Record<ZoneId, { decay: number }>; // 정체 0~10
+  zones: Record<ZoneId, { stagnation: number }>; // 정체 0~10
   menace: Record<MenaceId, number>; // 0~8
   npcs: Record<NpcId, { trust: number }>; // 신뢰 0~7
   flags: Record<string, number>; // 서사 플래그 (patched_d5 등)
@@ -144,7 +144,7 @@ export type EffectPath =
   | `self.stats.${StatId}`
   | `self.skillXp.${SkillId}` // 등급(self.skills.*)에 직접 쓰는 경로는 없다 — 승격은 적용기의 몫
   | "self.memory"
-  | `world.zones.${ZoneId}.decay`
+  | `world.zones.${ZoneId}.stagnation`
   | `world.menace.${MenaceId}`
   | `world.npcs.${NpcId}.trust`
   | `world.flags.${string}`;
@@ -162,7 +162,7 @@ export interface Effect {
  */
 export type TemplateEffectPath =
   | EffectPath
-  | "world.zones.{zone}.decay"
+  | "world.zones.{zone}.stagnation"
   | `world.flags.${string}{zone}${string}`;
 
 export interface TemplateEffect {
@@ -175,7 +175,7 @@ export interface TemplateEffect {
 // 조건 + 완곡어 텍스트 변형
 // ─────────────────────────────────────────────
 /**
- * 조건 경로. `world.zones.{zone}.decay`는 지시서 템플릿 본문 변형에서만 허용 —
+ * 조건 경로. `world.zones.{zone}.stagnation`는 지시서 템플릿 본문 변형에서만 허용 —
  * 생성기가 카드로 바인딩할 때 구체 경로로 치환된다 (악화 축, v3 §7).
  * 스토리렛에서의 사용은 빌드 검증이 거부한다.
  */
@@ -185,7 +185,7 @@ export interface Condition {
     | EffectPath
     | `self.skills.${SkillId}`
     | "world.calendar.day"
-    | "world.zones.{zone}.decay";
+    | "world.zones.{zone}.stagnation";
   gte?: number;
   lte?: number;
 }
@@ -241,12 +241,12 @@ export interface ZoneMap {
 
 export interface WorkOrderTemplate {
   id: string; // 'WO-T1' ...
-  minDecay: number; // 이 정체 이상 구역에서 생성됨
+  minStagnation: number; // 이 정체 이상 구역에서 생성됨
   weight: number; // 1~3 — CLOSE_DAY 정체 정산 폭 (v3 §3, 빌드 검증 대상)
   kind: CardKind; // 카드 종류 4종 — 미니게임 1:1 (빌드 검증 대상)
   siteId: string; // ZoneSite.id — 배치 구역 도면에서 이 지점에 놓인다
   /**
-   * 서사 전제 (v3 §4 정정) — minDecay 외의 등장 조건.
+   * 서사 전제 (v3 §4 정정) — minStagnation 외의 등장 조건.
    * 도시의 비밀은 저녁 장면이 아니라 **일과 중에 고른 카드**에서 알게 되므로,
    * 진실의 뼈대를 이루는 카드는 플래그·기억·일차로 걸린다.
    * 1회성은 별도 필드 없이 "성공 시 플래그 세팅 + 여기서 그 플래그 배제"로 닫는다.
@@ -283,7 +283,7 @@ export interface WorkOrder {
   zone: ZoneId;
   /** 템플릿에서 복사 — 지도는 이 값만 보고 마커를 놓는다 (템플릿 재조회 없음) */
   siteId: string;
-  /** 미니게임 난이도 보정: 구역 정체의 minDecay 초과분 + 방치 누적 (상승의 축은 정체) */
+  /** 미니게임 난이도 보정: 구역 정체의 minStagnation 초과분 + 방치 누적 (상승의 축은 정체) */
   difficultyBonus: number;
   weight: number; // 템플릿에서 복사 — 정산은 리듀서가 이 값만 본다
   kind: CardKind; // 종류 4종 — 미니게임 1:1

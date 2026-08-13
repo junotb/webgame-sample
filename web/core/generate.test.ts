@@ -7,33 +7,33 @@ const RESULT_PROSE = {
   complete: [{ paragraphs: ['완수 산문'] }],
   partial: [{ paragraphs: ['부분 산문'] }],
   fail: [
-    { if: [{ path: 'world.zones.{zone}.decay' as const, gte: 6 }], paragraphs: ['악화 실패 산문'] },
+    { if: [{ path: 'world.zones.{zone}.stagnation' as const, gte: 6 }], paragraphs: ['악화 실패 산문'] },
     { paragraphs: ['실패 산문'] },
   ],
 };
 
 const T1: WorkOrderTemplate = {
   id: 'T1',
-  minDecay: 0,
+  minStagnation: 0,
   weight: 1,
   kind: 'circuit',
   siteId: 'test-site',
   title: [{ text: '정기 점검' }],
   body: [
-    { if: [{ path: 'world.zones.{zone}.decay', gte: 6 }], paragraphs: ['악화 본문'] },
+    { if: [{ path: 'world.zones.{zone}.stagnation', gte: 6 }], paragraphs: ['악화 본문'] },
     { paragraphs: ['기본 본문'] },
   ],
   resultProse: RESULT_PROSE,
 };
 
-const T2: WorkOrderTemplate = { ...T1, id: 'T2', minDecay: 4, weight: 2, kind: 'patrol', title: [{ text: '압력 시정' }] };
-const T3: WorkOrderTemplate = { ...T1, id: 'T3', minDecay: 5, weight: 3, kind: 'circuit', title: [{ text: '명멸 점검' }] };
-const T4: WorkOrderTemplate = { ...T1, id: 'T4', minDecay: 0, weight: 2, kind: 'material', title: [{ text: '자재 수령' }] };
-const N3: WorkOrderTemplate = { ...T1, id: 'N3', minDecay: 0, weight: 2, kind: 'incinerate', title: [{ text: '정기 소각' }] };
+const T2: WorkOrderTemplate = { ...T1, id: 'T2', minStagnation: 4, weight: 2, kind: 'patrol', title: [{ text: '압력 시정' }] };
+const T3: WorkOrderTemplate = { ...T1, id: 'T3', minStagnation: 5, weight: 3, kind: 'circuit', title: [{ text: '명멸 점검' }] };
+const T4: WorkOrderTemplate = { ...T1, id: 'T4', minStagnation: 0, weight: 2, kind: 'material', title: [{ text: '자재 수령' }] };
+const N3: WorkOrderTemplate = { ...T1, id: 'N3', minStagnation: 0, weight: 2, kind: 'incinerate', title: [{ text: '정기 소각' }] };
 
 const TEMPLATES = [T1, T2, T3, T4, N3];
 
-function worldAt(decay: number, cardNeglect: Record<string, number> = {}, extra?: { memory?: number; flags?: Record<string, number>; day?: number }): GameState {
+function worldAt(stagnation: number, cardNeglect: Record<string, number> = {}, extra?: { memory?: number; flags?: Record<string, number>; day?: number }): GameState {
   return {
     account: { ownedEpisodes: ['ep1'] },
     self: {
@@ -54,9 +54,9 @@ function worldAt(decay: number, cardNeglect: Record<string, number> = {}, extra?
       multiday: null,
       archive: [],
       phase: 'morning',
-      zones: { d2: { decay: 3 }, d5: { decay }, d7: { decay: 5 } },
+      zones: { d2: { stagnation: 3 }, d5: { stagnation }, d7: { stagnation: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
-      npcs: { protagonist: { trust: 0 } },
+      npcs: { returned: { trust: 0 } },
       flags: extra?.flags ?? {},
       shiftLeft: 2,
       pendingOrders: [],
@@ -66,7 +66,7 @@ function worldAt(decay: number, cardNeglect: Record<string, number> = {}, extra?
 }
 
 describe('instantiateCard — 완전 구체화', () => {
-  it('difficultyBonus = (decay − minDecay 초과분) + 방치 누적', () => {
+  it('difficultyBonus = (stagnation − minStagnation 초과분) + 방치 누적', () => {
     expect(instantiateCard(T1, 'd7', 5, 0).difficultyBonus).toBe(5);
     expect(instantiateCard(T1, 'd7', 5, 2).difficultyBonus).toBe(7);
     expect(instantiateCard(T3, 'd7', 5, 0).difficultyBonus).toBe(0);
@@ -80,16 +80,16 @@ describe('instantiateCard — 완전 구체화', () => {
   });
   it('본문 변형 조건의 {zone}이 구체 경로로 바인딩된다 (악화 축)', () => {
     const card = instantiateCard(T1, 'd5', 4, 0);
-    expect(card.body[0].if).toEqual([{ path: 'world.zones.d5.decay', gte: 6 }]);
+    expect(card.body[0].if).toEqual([{ path: 'world.zones.d5.stagnation', gte: 6 }]);
   });
   it('결과 산문의 변형 조건도 구역으로 바인딩된다 (악화 축)', () => {
     const card = instantiateCard(T1, 'd5', 4, 0);
-    expect(card.resultProse.fail[0].if).toEqual([{ path: 'world.zones.d5.decay', gte: 6 }]);
+    expect(card.resultProse.fail[0].if).toEqual([{ path: 'world.zones.d5.stagnation', gte: 6 }]);
   });
   it('원본 템플릿은 불변', () => {
     instantiateCard(T1, 'd5', 5, 3);
-    expect(T1.body[0].if?.[0].path).toBe('world.zones.{zone}.decay');
-    expect(T1.resultProse.fail[0].if?.[0].path).toBe('world.zones.{zone}.decay');
+    expect(T1.body[0].if?.[0].path).toBe('world.zones.{zone}.stagnation');
+    expect(T1.resultProse.fail[0].if?.[0].path).toBe('world.zones.{zone}.stagnation');
   });
 });
 
@@ -99,7 +99,7 @@ describe('generateCards — 배부 3장 무작위 추첨 (고정 배치표 폐�
     expect(cards).toHaveLength(CARDS_PER_DAY);
     expect(cards.every((c) => c.zone === 'd5')).toBe(true);
   });
-  it('minDecay ≤ decay인 템플릿만 온다 (decay 4 → T3 제외 풀)', () => {
+  it('minStagnation ≤ stagnation인 템플릿만 온다 (stagnation 4 → T3 제외 풀)', () => {
     for (let seed = 0; seed < 20; seed += 1) {
       const ids = generateCards(worldAt(4), TEMPLATES, mulberry32(seed)).map((c) => c.templateId);
       expect(ids).not.toContain('T3');

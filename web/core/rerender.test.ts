@@ -44,9 +44,9 @@ function makeState(overrides?: {
       multiday: null,
       archive: [],
       phase: "morning",
-      zones: { d2: { decay: 3 }, d5: { decay: 4 }, d7: { decay: 5 } },
+      zones: { d2: { stagnation: 3 }, d5: { stagnation: 4 }, d7: { stagnation: 5 } },
       menace: { fatigue: 0, scrutiny: 0, unrest: 0 },
-      npcs: { protagonist: { trust: 0 } },
+      npcs: { returned: { trust: 0 } },
       flags: {},
       shiftLeft: 2,
       pendingOrders: [],
@@ -84,7 +84,7 @@ const CONTENT: ContentBundle = {
   orderTemplates: [
     {
       id: "WO-R1",
-      minDecay: 0,
+      minStagnation: 0,
       weight: 1,
       kind: "circuit",
       siteId: "s1",
@@ -205,7 +205,7 @@ describe("지명은 변형 축을 타지 않는다 — 앵커", () => {
     orderTemplates: [
       {
         id: "WO-ANCHOR",
-        minDecay: 0,
+        minStagnation: 0,
         weight: 1,
         kind: "patrol",
         siteId: "s1",
@@ -218,7 +218,7 @@ describe("지명은 변형 축을 타지 않는다 — 앵커", () => {
         ],
         body: [
           {
-            if: [{ path: "world.zones.d5.decay", gte: 6 }],
+            if: [{ path: "world.zones.d5.stagnation", gte: 6 }],
             paragraphs: [`${ANCHOR}로 물이 쏟아졌다. 소리가 달라져 있었다.`],
           },
           { paragraphs: [`${ANCHOR}로 물이 쏟아졌다. 늘 그렇듯 회색이었다.`] },
@@ -249,7 +249,7 @@ describe("지명은 변형 축을 타지 않는다 — 앵커", () => {
   it("정체 밴드가 움직여도 지명은 그대로다 — 악화는 묘사만 바꾼다", () => {
     const low = makeState();
     const high = makeState();
-    high.world.zones.d5.decay = 9;
+    high.world.zones.d5.stagnation = 9;
     const a = renderArchiveEntry(entry, low, ANCHORED)!;
     const b = renderArchiveEntry(entry, high, ANCHORED)!;
     expect(a.paragraphs).not.toEqual(b.paragraphs); // 변형은 실제로 갈렸다

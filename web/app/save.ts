@@ -38,7 +38,7 @@ const SAVE_KEY = 'phase0';
  *    (감류학=듣기 / 영창술=말하기 / 각인학=쓰기 + 화염술 · 빙결술, design-structure §5).
  *    구 세이브는 두 키가 없어 등급 파생·패널 렌더에서 깨진다 — 새 게임으로.
  */
-export const SAVE_SCHEMA = 13;
+export const SAVE_SCHEMA = 14;
 
 interface SaveEnvelope {
   schema: number;

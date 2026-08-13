@@ -4,7 +4,7 @@ import type { TemplateEffect } from './schema';
 
 describe('bindEffectPath — {zone} 치환', () => {
   it('구역 정체 경로를 구체 ID로 치환', () => {
-    expect(bindEffectPath('world.zones.{zone}.decay', 'd5')).toBe('world.zones.d5.decay');
+    expect(bindEffectPath('world.zones.{zone}.stagnation', 'd5')).toBe('world.zones.d5.stagnation');
   });
   it('플래그 경로 안의 치환자도 치환', () => {
     expect(bindEffectPath('world.flags.patched_{zone}', 'd7')).toBe('world.flags.patched_d7');
@@ -24,16 +24,16 @@ describe('bindEffectPath — {zone} 치환', () => {
 describe('bindEffects — TemplateEffect[] → Effect[]', () => {
   it('경로만 치환하고 op/value는 보존, 원본은 불변', () => {
     const template: TemplateEffect[] = [
-      { path: 'world.zones.{zone}.decay', op: 'add', value: -3 },
+      { path: 'world.zones.{zone}.stagnation', op: 'add', value: -3 },
       { path: 'world.flags.patched_{zone}', op: 'add', value: 1 },
       { path: 'world.menace.unrest', op: 'set', value: 2 },
     ];
     const bound = bindEffects(template, 'd5');
     expect(bound).toEqual([
-      { path: 'world.zones.d5.decay', op: 'add', value: -3 },
+      { path: 'world.zones.d5.stagnation', op: 'add', value: -3 },
       { path: 'world.flags.patched_d5', op: 'add', value: 1 },
       { path: 'world.menace.unrest', op: 'set', value: 2 },
     ]);
-    expect(template[0].path).toBe('world.zones.{zone}.decay');
+    expect(template[0].path).toBe('world.zones.{zone}.stagnation');
   });
 });

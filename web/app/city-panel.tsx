@@ -20,7 +20,7 @@ export function CityPanel({ state }: { state: GameState }) {
         <span>도시 상태</span>
         <span className="ledger-code">FORM 0-A</span>
       </div>
-      {/* 노후도는 밴드만 보인다 (v3 §9의 유일한 비공개 항목) */}
+      {/* 정체는 밴드만 보인다 (v3 §9의 유일한 비공개 항목) */}
       <dl className="ledger-grid" aria-label="구역 상태">
         {(Object.entries(state.world.zones) as [ZoneId, { decay: number }][]).map(([zone, value]) => (
           <div key={zone}>

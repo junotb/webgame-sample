@@ -24,7 +24,7 @@ export function gradeOf(result: MinigameResult): WeeklyRating {
 
 /**
  * 미니게임 세션 입력 — 앱 층 구현이 받는 전부.
- * difficulty는 카드의 difficultyBonus에서 온다 (상승의 축은 속도가 아니라 노후도).
+ * difficulty는 카드의 difficultyBonus에서 온다 (상승의 축은 속도가 아니라 정체).
  * seed는 배치 재현용 — 코어 PRNG(world.seed)와 분리된 값이다 (성적은 판정이 아니므로).
  */
 export interface MinigameSession {

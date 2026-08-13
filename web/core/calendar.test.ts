@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { BAND_NAMES, bandOf, RATING_LABELS, summarizeWeek, weekOf, WORKDAYS_PER_WEEK } from './calendar';
 
-describe('bandOf — 노후도 0~10 → 4밴드 (v3 §3 표)', () => {
+describe('bandOf — 정체 0~10 → 4밴드 (v3 §3 표)', () => {
   it('경계값: 0·2 → 1밴드(정상)', () => {
     expect(bandOf(0)).toBe(1);
     expect(bandOf(2)).toBe(1);

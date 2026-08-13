@@ -84,7 +84,7 @@ describe("결과 반영 산문 — 성적 3변형, 현장·보고 문단 분리"
 
 describe("텍스트 변형 축 분리 (v3 §7) — 한 문서에 두 축을 쓰지 않는다", () => {
   it.each(bundle.orderTemplates.map((t) => t.id))(
-    "%s: 본문 조건이 기억 축과 노후도 축을 섞지 않는다",
+    "%s: 본문 조건이 기억 축과 정체 축을 섞지 않는다",
     (id) => {
       const axes = new Set(
         template(id)

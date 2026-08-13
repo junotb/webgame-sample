@@ -36,7 +36,7 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
   };
 }
 
-// 노후도 증감은 콘텐츠 효과가 아니라 CLOSE_DAY 가중치 정산의 몫 (v3 §3).
+// 정체 증감은 콘텐츠 효과가 아니라 CLOSE_DAY 가중치 정산의 몫 (v3 §3).
 const RESULT_PROSE = {
   complete: [{ paragraphs: ['완수 산문'] }],
   partial: [{ paragraphs: ['부분 산문'] }],
@@ -252,7 +252,7 @@ describe('CLOSE_DAY — 가중치 정산 (v3 §3: 처리 −w / 방치 +w / 틱 
     const { state } = reduce(s, { type: 'CLOSE_DAY' }, CONTENT);
     expect(state.world.zones.d2.decay).toBe(4); // 3 + 1(틱)
   });
-  it('노후도는 0~10에서 클램프', () => {
+  it('정체는 0~10에서 클램프', () => {
     const s = baseState({
       phase: 'closing',
       zones: { d2: { decay: 10 }, d5: { decay: 9 }, d7: { decay: 1 } },

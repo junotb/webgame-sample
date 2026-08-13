@@ -38,7 +38,7 @@ export {
 export const SHIFT_PER_DAY = 2;
 /** 미니게임 카드 처리의 근무 슬롯 비용 — 카드 리뉴얼 후 옵션별 timeCost를 대체한다 */
 export const MINIGAME_TIME_COST = 1;
-/** 다일 이벤트 점유 중의 근무 슬롯 (v3 §5) — 처리 1장/방치 3장, 노후도 급등의 근원 */
+/** 다일 이벤트 점유 중의 근무 슬롯 (v3 §5) — 처리 1장/방치 3장, 정체 급등의 근원 */
 export const MULTIDAY_SHIFT = 1;
 export const MENACE_CAP = 8;
 export const BASE_ALTITUDE = 8000;
@@ -49,7 +49,7 @@ function clampDecay(value: number): number {
   return Math.max(0, Math.min(MAX_DECAY, value));
 }
 
-/** 고도 = 8000 − 120 × Σ노후도 (m) — 하루 요약에 숫자로만 표기 */
+/** 고도 = 8000 − 120 × Σ정체 (m) — 하루 요약에 숫자로만 표기 */
 export function altitude(zones: Record<ZoneId, { decay: number }>): number {
   const total = Object.values(zones).reduce((sum, d) => sum + d.decay, 0);
   return BASE_ALTITUDE - ALTITUDE_PER_DECAY * total;
@@ -324,13 +324,13 @@ export const reduce: Reducer = (state, action, content): StepResult => {
           next.world.cardNeglect[order.templateId] =
             (next.world.cardNeglect[order.templateId] ?? 0) + 1;
         } else {
-          // 주간 합산 장부 — 처리한 장수와 성적을 센다. 방치는 노후도로만 값을 치른다
+          // 주간 합산 장부 — 처리한 장수와 성적을 센다. 방치는 정체로만 값을 치른다
           next.world.weekTally.processed += 1;
           if (order.outcome === "perfect") next.world.weekTally.perfect += 1;
           if (order.outcome === "notPassed") {
             next.world.weekTally.notPassed += 1;
           } else {
-            // 노후도 정산: notPassed 외(perfect·passed)는 처리 성공 −w (성적별 차등은 미결)
+            // 정체 정산: notPassed 외(perfect·passed)는 처리 성공 −w (성적별 차등은 미결)
             delta[order.zone] = (delta[order.zone] ?? 0) - order.weight;
             delete next.world.cardNeglect[order.templateId];
           }

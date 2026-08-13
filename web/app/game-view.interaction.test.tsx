@@ -50,7 +50,7 @@ describe('L2 참조 패널', () => {
     expect(screen.queryByRole('region', { name: '도시 상태' })).toBeNull();
   });
 
-  it('도시 상태는 노후도 수치가 아니라 밴드 이름을 보인다 (v3 §9)', async () => {
+  it('도시 상태는 정체 수치가 아니라 밴드 이름을 보인다 (v3 §9)', async () => {
     const state = fieldState();
     state.world.zones.d5.decay = 7; // 3밴드 = 이상
     const { user } = view(state);
@@ -60,7 +60,7 @@ describe('L2 참조 패널', () => {
 
     expect(zones.textContent).toContain('서편 거주구역');
     expect(zones.textContent).toContain('이상');
-    // 노후도 수치가 어떤 형태로도 새지 않는다 — dd에는 밴드 이름만 온다
+    // 정체 수치가 어떤 형태로도 새지 않는다 — dd에는 밴드 이름만 온다
     for (const dd of zones.querySelectorAll('dd')) {
       expect(dd.textContent).toMatch(/^(정상|삐걱임|이상|한계)$/);
     }

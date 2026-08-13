@@ -3,7 +3,7 @@ import { bindEffectPath, bindEffects } from './bind';
 import type { TemplateEffect } from './schema';
 
 describe('bindEffectPath — {zone} 치환', () => {
-  it('구역 노후도 경로를 구체 ID로 치환', () => {
+  it('구역 정체 경로를 구체 ID로 치환', () => {
     expect(bindEffectPath('world.zones.{zone}.decay', 'd5')).toBe('world.zones.d5.decay');
   });
   it('플래그 경로 안의 치환자도 치환', () => {

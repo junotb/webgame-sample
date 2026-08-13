@@ -29,7 +29,7 @@ export function createInitialState(seed = DEFAULT_SEED): GameState {
     },
     world: {
       calendar: { day: 1, weekday: 1 },
-      assignment: { zone: "d5" }, // 1주차는 한 구역 고정 (v3 §9) — 시작 노후도 4 (v3 §3 강제값)
+      assignment: { zone: "d5" }, // 1주차는 한 구역 고정 (v3 §9) — 시작 정체 4 (v3 §3 강제값)
       weekRatings: {},
       weekTally: { processed: 0, notPassed: 0, perfect: 0 },
       ending: null,

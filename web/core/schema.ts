@@ -107,7 +107,7 @@ export interface WorldSheet {
    */
   archive: ArchiveEntry[];
   phase: DayPhase;
-  zones: Record<ZoneId, { decay: number }>; // 노후도 0~10
+  zones: Record<ZoneId, { decay: number }>; // 정체 0~10
   menace: Record<MenaceId, number>; // 0~8
   npcs: Record<NpcId, { trust: number }>; // 신뢰 0~7
   flags: Record<string, number>; // 서사 플래그 (patched_d5 등)
@@ -241,8 +241,8 @@ export interface ZoneMap {
 
 export interface WorkOrderTemplate {
   id: string; // 'WO-T1' ...
-  minDecay: number; // 이 노후도 이상 구역에서 생성됨
-  weight: number; // 1~3 — CLOSE_DAY 노후도 정산 폭 (v3 §3, 빌드 검증 대상)
+  minDecay: number; // 이 정체 이상 구역에서 생성됨
+  weight: number; // 1~3 — CLOSE_DAY 정체 정산 폭 (v3 §3, 빌드 검증 대상)
   kind: CardKind; // 카드 종류 4종 — 미니게임 1:1 (빌드 검증 대상)
   siteId: string; // ZoneSite.id — 배치 구역 도면에서 이 지점에 놓인다
   /**
@@ -269,7 +269,7 @@ export interface WorkOrderTemplate {
   body: ProseVariant[]; // 완곡어 시스템 적용 지점 — 문단 배열 (ui-screen-spec §4)
   /**
    * 결과 반영 산문 — 미니게임 성적 3변형 (필수, 빌드 검증 대상).
-   * 각 변형 = 현장 묘사(노후도 축) 문단 + 보고 문구(기억 축) 문단, 문단 분리.
+   * 각 변형 = 현장 묘사(정체 축) 문단 + 보고 문구(기억 축) 문단, 문단 분리.
    */
   resultProse: Record<MinigameResult, ProseVariant[]>;
 }
@@ -283,7 +283,7 @@ export interface WorkOrder {
   zone: ZoneId;
   /** 템플릿에서 복사 — 지도는 이 값만 보고 마커를 놓는다 (템플릿 재조회 없음) */
   siteId: string;
-  /** 미니게임 난이도 보정: 구역 노후도의 minDecay 초과분 + 방치 누적 (상승의 축은 노후도) */
+  /** 미니게임 난이도 보정: 구역 정체의 minDecay 초과분 + 방치 누적 (상승의 축은 정체) */
   difficultyBonus: number;
   weight: number; // 템플릿에서 복사 — 정산은 리듀서가 이 값만 본다
   kind: CardKind; // 종류 4종 — 미니게임 1:1
@@ -296,7 +296,7 @@ export interface WorkOrder {
   /**
    * 처리 성적 (3등급 확정) — 미니게임 결과의 귀속: 완수→perfect / 부분→passed / 실패→notPassed.
    * CLOSE_DAY 정산 근거: notPassed 외 −weight / notPassed 0 / 방치(미기록) +weight
-   * (성적별 가중치 차등은 미결 — CLAUDE.md 노후도 절).
+   * (성적별 가중치 차등은 미결 — CLAUDE.md 정체 절).
    */
   outcome?: WeeklyRating;
   /** 결과 반영 산문 — 성적 3변형 (구역 바인딩 완료). 산문은 반드시 미니게임 뒤 */
@@ -358,7 +358,7 @@ export interface EncounterDef {
       failureText?: string;
     }
   >;
-  /** outcome 효과는 기존 자원만 (피로·동요·기억·플래그·노후도). {zone} 허용 */
+  /** outcome 효과는 기존 자원만 (피로·동요·기억·플래그·정체). {zone} 허용 */
   outcomes?: Partial<
     Record<EncounterOutcome, { effects: TemplateEffect[]; text: string }>
   >;

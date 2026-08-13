@@ -61,7 +61,7 @@ export function MinigameOverlay({ order, state, session, onResolve, onClose, dis
         />
       ) : (
         <>
-          {/* 현장 묘사(노후도 축) 문단과 보고 문구(기억 축) 문단이 분리된 채 내려온다 */}
+          {/* 현장 묘사(정체 축) 문단과 보고 문구(기억 축) 문단이 분리된 채 내려온다 */}
           <PagedCopy state={state} body={order.resultProse[result]}>
             <div className="choices">
               <button disabled={disabled} onClick={onClose}>

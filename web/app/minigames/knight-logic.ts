@@ -80,7 +80,7 @@ function serpentine(size: number): Array<[number, number]> {
 }
 
 export function generatePatrolBoard(seed: number, difficulty: number): PatrolBoard {
-  // 난이도(노후도)는 판을 키운다 — 같은 순찰인데 구역이 더 넓고 꼬여 있다
+  // 난이도(정체)는 판을 키운다 — 같은 순찰인데 구역이 더 넓고 꼬여 있다
   const size = difficulty >= 4 ? 5 : 4;
   const rng = mulberry32(seed);
   let path: Array<[number, number]> | null = null;

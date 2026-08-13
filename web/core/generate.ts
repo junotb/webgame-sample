@@ -19,7 +19,7 @@ import type { GameState, WorkOrder, WorkOrderTemplate, ZoneId } from './schema';
 export const CARDS_PER_DAY = 3;
 
 /**
- * difficultyBonus = (노후도의 minDecay 초과분) + (방치 누적) —
+ * difficultyBonus = (정체의 minDecay 초과분) + (방치 누적) —
  * 넘긴 카드는 악화된 채 돌아온다. 미니게임 난이도의 유일한 입력이다.
  */
 export function instantiateCard(
@@ -75,7 +75,7 @@ export function generateCards(
     (t) => t.minDecay <= decay && (!t.requirements || evalConditions(state, t.requirements)),
   );
   if (eligible.length === 0) {
-    throw new Error(`적격 템플릿 없음: 구역 ${zone} (노후도 ${decay})`);
+    throw new Error(`적격 템플릿 없음: 구역 ${zone} (정체 ${decay})`);
   }
 
   const picked: WorkOrderTemplate[] = [];

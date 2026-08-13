@@ -12,13 +12,17 @@
 | 물음 | 열 문서 |
 | --- | --- |
 | 세계·시스템의 정의, 왜 이런 규칙인가, 엔딩·비밀·명명 | `docs/design-structure.md` |
-| 1주차에 무엇을 쓰는가, 산문 규격, 카드·장면 목록, 분량 상한 | `docs/content-grid-week1.md` |
+| 산문을 어떻게 쓰는가 (규격·가드레일·지명 표기) | `docs/design-structure.md` §12 |
+| 1주차 범위, 분량 상한 | `docs/design-structure.md` §11 |
+| 카드·장면의 실제 목록 | `web/content/content.ep1-slice.json` (정본) |
 | 남은 미결, 이후 과제 | `docs/design-structure.md` §9 |
-| 위 둘 어디에도 없음 | **미결이다. 추측해서 채우지 말고 물어볼 것** |
+| 위 어디에도 없음 | **미결이다. 추측해서 채우지 말고 물어볼 것** |
 
-과거 사양 문서는 폐기·삭제되었다 — `implementation-plan.md`도 2026-08-13 폐기됐고,
-살아 있던 내용은 design-structure §9와 content-grid-week1로 흡수됐다.
-코드 주석·커밋 메시지가 옛 문서를 인용하더라도 이 세 파일이 전부다.
+과거 사양 문서는 폐기·삭제되었다. `implementation-plan.md`(판정 게이트 폐기)와
+`content-grid-week1.md`(1주차 콘텐츠 작성 완료)도 2026-08-13 함께 폐기됐고,
+살아 있던 내용은 모두 design-structure(§9·§11·§12)로 흡수됐다.
+코드 주석·커밋 메시지가 옛 문서를 인용하더라도 **이 파일과 `docs/design-structure.md`**
+두 개가 전부다.
 
 ---
 

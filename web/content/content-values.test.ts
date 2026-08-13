@@ -1,7 +1,7 @@
 /**
  * 실제 콘텐츠(1주차 발주분)와 설계 수치의 정합 검사.
  * 카드 리뉴얼 이후: 일상 카드 9장 · 종류 4종 · 결과 산문 3변형이 발주 규격이다
- * (docs/content-grid-week1.md §2·§4).
+ * (docs/design-structure.md §11·§12 / 정본은 content.ep1-slice.json).
  */
 import { describe, expect, it } from "vitest";
 import type { CardKind, WorkOrderTemplate } from "../core/schema";
@@ -15,7 +15,7 @@ function template(id: string): WorkOrderTemplate {
   return t;
 }
 
-describe("발주 격자 — 일상 카드 9장, 종류 4종 (content-grid §2-1)", () => {
+describe("발주 격자 — 일상 카드 9장, 종류 4종", () => {
   it("9장 전부 존재한다", () => {
     expect(bundle.orderTemplates.map((t) => t.id).sort()).toEqual(
       [
@@ -60,7 +60,7 @@ describe("발주 격자 — 일상 카드 9장, 종류 4종 (content-grid §2-1)
   });
 });
 
-describe("결과 반영 산문 — 성적 3변형, 현장·보고 문단 분리 (content-grid §4-A)", () => {
+describe("결과 반영 산문 — 성적 3변형, 현장·보고 문단 분리", () => {
   it.each(bundle.orderTemplates.map((t) => t.id))(
     "%s: 각 변형이 현장 묘사 + 보고 문구 2문단 이상",
     (id) => {

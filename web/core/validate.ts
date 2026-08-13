@@ -9,7 +9,7 @@ import type { Check, Condition, ContentBundle, ProseVariant, TemplateEffect, Tex
 const ZONE_IDS = ['d2', 'd5', 'd7'];
 const NPC_IDS = ['protagonist'];
 const STAT_IDS = ['repair', 'insight', 'procedure', 'nerve'];
-const SKILL_IDS = ['inscription', 'flowsense', 'frost'];
+const SKILL_IDS = ['flowsense', 'incantation', 'inscription', 'flame', 'frost'];
 const MENACE_IDS = ['fatigue', 'scrutiny', 'unrest'];
 /** 카드 종류 4종 — 미니게임 1:1 (카드 리뉴얼 확정). 구 표면 분류 5종은 폐기 */
 const CARD_KINDS = ['circuit', 'patrol', 'material', 'incinerate'];

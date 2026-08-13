@@ -34,8 +34,11 @@ const SAVE_KEY = 'phase0';
  *    구 세이브는 frost 키가 없어 효과 적용·렌더에서 깨진다 — 새 게임으로.
  *    렌더 문장 미저장 제약 재확인: 통지서는 {kind:'notice', day, week}만 저장하고
  *    본문은 weekRatings[week] 등급으로 재렌더링한다.
+ * 13: 기술 5종 확정 — SkillId에 incantation(영창술)·flame(화염술) 추가
+ *    (감류학=듣기 / 영창술=말하기 / 각인학=쓰기 + 화염술 · 빙결술, design-structure §5).
+ *    구 세이브는 두 키가 없어 등급 파생·패널 렌더에서 깨진다 — 새 게임으로.
  */
-export const SAVE_SCHEMA = 12;
+export const SAVE_SCHEMA = 13;
 
 interface SaveEnvelope {
   schema: number;

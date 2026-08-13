@@ -38,8 +38,8 @@ function worldAt(decay: number, cardNeglect: Record<string, number> = {}, extra?
     account: { ownedEpisodes: ['ep1'] },
     self: {
       stats: { repair: 40, insight: 35, procedure: 30, nerve: 25 },
-      skills: { inscription: 1, flowsense: 1, frost: 0 },
-      skillXp: { inscription: 0, flowsense: 0, frost: 0 },
+      skills: { flowsense: 1, incantation: 1, inscription: 1, flame: 1, frost: 0 },
+      skillXp: { flowsense: 0, incantation: 0, inscription: 0, flame: 0, frost: 0 },
       memory: extra?.memory ?? 0,
       rank: 0,
     },

@@ -11,10 +11,16 @@ export type ZoneId = "d2" | "d5" | "d7"; // 제2·5·7구역 (가칭)
 export type NpcId = "protagonist"; // Ep1 주인공 ("돌아온 자")
 export type StatId = "repair" | "insight" | "procedure" | "nerve"; // 정비/진단/절차/담력
 /**
- * 각인학/감류학 + 빙결술 (2026-08-11 확정 — 어머니의 유산 경로).
- * frost는 시작 등급 0 (미습득): 주말 마법서 학습(skillXp)이 첫 승격을 만든다.
+ * 기술 5종 (2026-08-13 확정 — design-structure §5).
+ *
+ * 마력을 다루는 **언어 3종**과 그 위에 서는 **술법 2종**으로 나뉜다:
+ * 감류학(듣기) · 영창술(말하기) · 각인학(쓰기) / 화염술 · 빙결술.
+ * 언어 3종은 시설국 노동의 기본 소양이라 신입도 등급 1에서 시작한다.
+ *
+ * frost만 시작 등급 0 (미습득): 주말 마법서 학습(skillXp)이 첫 승격을 만든다.
  */
-export type SkillId = "inscription" | "flowsense" | "frost";
+export type SkillId =
+  "flowsense" | "incantation" | "inscription" | "flame" | "frost";
 export type MenaceId = "fatigue" | "scrutiny" | "unrest"; // 피로/주목/동요
 
 // ─────────────────────────────────────────────
@@ -121,13 +127,7 @@ export interface GameState {
  * 'weekend' = 주말 2일 택2 활동. 'ended' = 엔딩 확정 후 종착 상태 — 어떤 액션도 받지 않는다.
  */
 export type DayPhase =
-  | "morning"
-  | "field"
-  | "event"
-  | "closing"
-  | "debrief"
-  | "weekend"
-  | "ended";
+  "morning" | "field" | "event" | "closing" | "debrief" | "weekend" | "ended";
 
 // ─────────────────────────────────────────────
 // 판정
@@ -333,11 +333,7 @@ export interface StoryletChoice {
 export type EncounterActionId = "observe" | "soothe" | "burn" | "withdraw";
 /** 'briefed' = 설명형 조우의 유일한 결말 — 읽고 확인했다 */
 export type EncounterOutcome =
-  | "burned"
-  | "soothed"
-  | "withdrawn"
-  | "expired"
-  | "briefed";
+  "burned" | "soothed" | "withdrawn" | "expired" | "briefed";
 
 export interface EncounterDef {
   id: string; // 'ENC-001' ...

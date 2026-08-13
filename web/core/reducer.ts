@@ -142,7 +142,7 @@ function advanceSeed(rng: () => number): number {
 
 /**
  * 근무 종료 후 갈 곳 — 조건 맞는 저녁 장면(관계 이벤트)이 있을 때만 event를 연다.
- * 빈 저녁은 화면을 세우지 않고 곧장 정산이다 ("일과 뒤" 무조건 경유는 폐기 — 2026-08-11).
+ * 빈 저녁은 화면을 세우지 않고 곧장 정산이다 ("일과 뒤" 무조건 경유는 폐기).
  */
 function afterFieldPhase(
   state: GameState,
@@ -342,7 +342,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       ][]) {
         z.stagnation = clampStagnation(z.stagnation + (delta[zoneId] ?? 0) + 1);
       }
-      // 고도는 실패 상태로 쓰지 않는다 (2026-08-06 Juno): 일과 결과의 압박은
+      // 고도는 실패 상태로 쓰지 않는다 (Juno): 일과 결과의 압박은
       // 주간 평가(조직 인사)가 담당하고, 고도는 에피소드 스케일 장치로 남긴다
       const { day, weekday } = next.world.calendar;
       const log = [`Day ${day} 종료.`];
@@ -354,7 +354,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       }
       if (weekday === WORKDAYS_PER_WEEK) {
         // 금요일: 주간 등급 = 경계 합산식 (미니게임 성적 기반 — 구 밴드 파생 방식은 폐기).
-        // 흐름 확정(2026-08-11): 일과 종료 → 총평 장면(debrief) → 주말 2일 → 엔딩.
+        // 흐름 확정: 일과 종료 → 총평 장면(debrief) → 주말 2일 → 엔딩.
         // 등급·통지서는 여기서 확정되고, 엔딩 확정은 주말 뒤(CHOOSE_WEEKEND)로 미뤄진다.
         const rating = summarizeWeek(next.world.weekTally);
         const week = weekOf(day);
@@ -366,7 +366,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
           "평가 통지서가 서류함에 등록되었다.",
         );
         next.world.pendingOrders = [];
-        // 해고(주 Not Passed)는 총평 장면 없이 곧장 엔딩 — 화면 깊이를 늘리지 않는다 (2026-08-11)
+        // 해고(주 Not Passed)는 총평 장면 없이 곧장 엔딩 — 화면 깊이를 늘리지 않는다
         if (week >= FINAL_WEEK && rating === "notPassed") {
           next.world.ending = "fired";
           next.world.phase = "ended";

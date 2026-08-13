@@ -93,7 +93,7 @@ describe('instantiateCard — 완전 구체화', () => {
   });
 });
 
-describe('generateCards — 배부 3장 무작위 추첨 (고정 배치표 폐기, 2026-08-11)', () => {
+describe('generateCards — 배부 3장 무작위 추첨 (고정 배치표 폐기)', () => {
   it('배치 구역에서만 3장 추첨된다', () => {
     const cards = generateCards(worldAt(5), TEMPLATES, mulberry32(1));
     expect(cards).toHaveLength(CARDS_PER_DAY);
@@ -126,7 +126,7 @@ describe('generateCards — 배부 3장 무작위 추첨 (고정 배치표 폐�
     );
     expect(misses.some(Boolean)).toBe(true);
   });
-  it('하루 3장은 종류가 겹치지 않는다 (2026-08-11 확정)', () => {
+  it('하루 3장은 종류가 겹치지 않는다', () => {
     for (let seed = 0; seed < 30; seed += 1) {
       const kinds = generateCards(worldAt(5), TEMPLATES, mulberry32(seed)).map((c) => c.kind);
       expect(new Set(kinds).size).toBe(kinds.length);

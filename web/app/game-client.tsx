@@ -78,7 +78,7 @@ export function GameClient({ content }: GameClientProps) {
   const persist = useCallback((nextState: GameState) => {
     const version = ++saveVersion.current;
     setSaveStatus('saving');
-    // 엔딩 도달 = 세이브 폐기 — 끝난 기록은 이어할 수 없다 (2026-08-11 확정)
+    // 엔딩 도달 = 세이브 폐기 — 끝난 기록은 이어할 수 없다
     const write = nextState.world.phase === 'ended' ? () => clearGame() : () => saveGame(nextState);
     const queued = saveQueue.current.catch(() => undefined).then(write);
     saveQueue.current = queued;
@@ -158,7 +158,7 @@ export function GameClient({ content }: GameClientProps) {
     if (order.kind === 'incinerate' && !enc001Done) {
       const def = content.encounters.find((e) => e.id === 'ENC-001');
       if (def?.briefing) {
-        // ENC-001은 설명형 (2026-08-11 확정): 첫 대면을 읽고, 확인하면 두더지 잡기다
+        // ENC-001은 설명형: 첫 대면을 읽고, 확인하면 두더지 잡기다
         setBriefing({ def, orderIndex, zone: order.zone });
         return;
       }

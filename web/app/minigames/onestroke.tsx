@@ -39,7 +39,7 @@ export function OnestrokeGame({ session, onFinish }: MinigameProps) {
     if (visited.has(k) || !isAdjacent(head, [r, c])) return;
     const next = [...trail, [r, c] as [number, number]];
     setTrail(next);
-    // 즉시 판정 (2026-08-11 확정) — 잘못된 경로는 그 자리에서 끝난다:
+    // 즉시 판정 — 잘못된 경로는 그 자리에서 끝난다:
     // 끝 타일인데 남은 칸이 있거나(earlyEnd), 끝 타일이 아닌 막다른 길(deadEnd)이면 실패
     const verdict = judgeStep(board, next);
     if (verdict === 'complete') finish(next.length, true);

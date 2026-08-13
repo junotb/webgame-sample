@@ -270,7 +270,7 @@ describe('CLOSE_DAY — 가중치 정산 (v3 §3: 처리 −w / 방치 +w / 틱 
     expect(state.world.shiftLeft).toBe(SHIFT_PER_DAY);
     expect(state.world.pendingOrders).toEqual([]);
   });
-  it('하루 요약에 고도를 표기하지 않는다 (고도는 실패 상태가 아니다 — 2026-08-06 확정)', () => {
+  it('하루 요약에 고도를 표기하지 않는다 (고도는 실패 상태가 아니다)', () => {
     const { log } = reduce(closingState(), { type: 'CLOSE_DAY' }, CONTENT);
     expect(log.join(' ')).toContain('Day 1 종료');
     expect(log.join(' ')).not.toContain('고도');
@@ -280,7 +280,7 @@ describe('CLOSE_DAY — 가중치 정산 (v3 §3: 처리 −w / 방치 +w / 틱 
   });
 });
 
-describe('CLOSE_DAY — 금요일 주간 평가 (경계 합산식, 2026-08-11 확정)', () => {
+describe('CLOSE_DAY — 금요일 주간 평가 (경계 합산식)', () => {
   function fridayState(tally: GameState['world']['weekTally'], orders: GameState['world']['pendingOrders'] = []): GameState {
     return baseState({
       calendar: { day: 5, weekday: 5 },
@@ -318,7 +318,7 @@ describe('CLOSE_DAY — 금요일 주간 평가 (경계 합산식, 2026-08-11 �
   });
 });
 
-describe('저녁 우회 — 조건 맞는 장면이 없으면 event를 세우지 않는다 (2026-08-11)', () => {
+describe('저녁 우회 — 조건 맞는 장면이 없으면 event를 세우지 않는다', () => {
   const noEvening = { ...CONTENT, storylets: [] };
   it('마지막 카드 처리 후 곧장 정산으로 간다', () => {
     const s = baseState({ phase: 'field', shiftLeft: 1, pendingOrders: [makeOrder('d5', false, 1)] });
@@ -335,7 +335,7 @@ describe('저녁 우회 — 조건 맞는 장면이 없으면 event를 세우지
   });
 });
 
-describe('주간 마감 흐름 — 총평(debrief) → 주말 택2 → 엔딩 (확정 2026-08-11)', () => {
+describe('주간 마감 흐름 — 총평(debrief) → 주말 택2 → 엔딩 (확정)', () => {
   function finalFriday(tally: GameState['world']['weekTally'], orders: GameState['world']['pendingOrders'] = []): GameState {
     return baseState({
       calendar: { day: 5, weekday: 5 },

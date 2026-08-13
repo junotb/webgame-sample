@@ -28,7 +28,7 @@ describe('bandOf — 정체 0~10 → 4밴드 (v3 §3 표)', () => {
   });
 });
 
-describe('summarizeWeek — 경계 합산식 (2026-08-11 확정)', () => {
+describe('summarizeWeek — 경계 합산식', () => {
   it('Not Passed가 처리의 절반 이상 → notPassed (해고 경계)', () => {
     expect(summarizeWeek({ processed: 2, notPassed: 1, perfect: 0 })).toBe('notPassed');
     expect(summarizeWeek({ processed: 4, notPassed: 2, perfect: 2 })).toBe('notPassed');

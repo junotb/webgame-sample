@@ -11,7 +11,7 @@ export const WORKDAYS_PER_WEEK = 5;
 export const DAYS_PER_WEEK = 7;
 
 /**
- * 종결 주차 (2026-08-11 확정) — 이 주의 금요일 정산에서 엔딩으로 분기한다.
+ * 종결 주차 — 이 주의 금요일 정산에서 엔딩으로 분기한다.
  * 4주 사이클 확장 시 이 값만 올리면 그 전 주는 기존 주말 롤오버를 탄다.
  */
 export const FINAL_WEEK = 1;
@@ -33,7 +33,7 @@ export const BAND_NAMES: Record<Band, string> = {
 };
 
 /**
- * 경계 합산식 (2026-08-11 확정) — 주간 등급이자 엔딩 경계.
+ * 경계 합산식 — 주간 등급이자 엔딩 경계.
  * Not Passed가 처리의 절반 이상 → 주 Not Passed (= 해고 경계) /
  * 전 장 Perfect → 주 Perfect / 그 외 → 주 Passed.
  * 한 장도 처리하지 않은 주는 0 ≥ 0으로 Not Passed — 방치만 한 주가 유임이 되지 않는다.

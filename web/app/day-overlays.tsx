@@ -114,7 +114,7 @@ export function ClosingOverlay({ state, log, disabled, onAction }: OverlayProps 
 }
 
 /**
- * 주간 총평 장면 — 금요일 일과 종료 직후, 상사가 말로 전한다 (주간 마감 흐름 확정 2026-08-11).
+ * 주간 총평 장면 — 금요일 일과 종료 직후, 상사가 말로 전한다 (주간 마감 흐름 확정).
  * 통지서(문서)는 CLOSE_DAY에서 이미 발행·등록되었다. 여기는 장면이다 — 문서 스킨을 쓰지 않는다.
  */
 export function DebriefOverlay({ state, content, disabled, onAction }: OverlayProps & { content: ContentBundle }) {
@@ -177,7 +177,7 @@ export function WeekendOverlay({ state, content, log, disabled, onAction }: Over
 }
 
 /**
- * 엔딩 — 유임/해고 맺음 산문 → 종료 (2026-08-11 확정, 주말 뒤에 닫힌다).
+ * 엔딩 — 유임/해고 맺음 산문 → 종료 (주말 뒤에 닫힌다).
  * 재열람에 등록하지 않는다 (서류함 밖). 되돌아갈 버튼도 없다 — 종착 상태다.
  */
 export function EndingOverlay({ state, content }: { state: GameState; content: ContentBundle }) {

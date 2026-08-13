@@ -66,7 +66,7 @@ describe('파이프 퍼즐', () => {
   });
 });
 
-describe('순찰 경로 (한붓 — 2026-08-11 재설계)', () => {
+describe('순찰 경로 (한붓 재설계)', () => {
   it('정답 경로가 모든 칸을 정확히 한 번씩, 인접 이동으로 지난다 — 항상 해가 있는 판', () => {
     for (let seed = 0; seed < 20; seed += 1) {
       const b = generatePatrolBoard(seed, seed % 6);
@@ -86,7 +86,7 @@ describe('순찰 경로 (한붓 — 2026-08-11 재설계)', () => {
     expect(generatePatrolBoard(1, 0).size).toBe(4);
     expect(generatePatrolBoard(1, 4).size).toBe(5);
   });
-  it('즉시 판정: 잘못된 경로는 그 자리에서 끝난다 (2026-08-11 확정)', () => {
+  it('즉시 판정: 잘못된 경로는 그 자리에서 끝난다', () => {
     // 판정은 size·end만 본다 — 정답 경로 자체는 무관
     const board: PatrolBoard = {
       size: 3,

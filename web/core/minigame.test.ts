@@ -1,6 +1,6 @@
 /**
  * 미니게임 셸 계약 (세션 ②) — 성적 귀속은 확정 규칙이며 여기서 고정한다.
- * 완수→Perfect / 부분→Passed / 실패→Not Passed (2026-08-11).
+ * 완수→Perfect / 부분→Passed / 실패→Not Passed.
  */
 import { describe, expect, it } from 'vitest';
 import { gradeOf, MINIGAME_NAMES } from './minigame';

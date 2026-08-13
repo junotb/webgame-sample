@@ -111,7 +111,7 @@ describe("텍스트 변형 축 분리 (v3 §7) — 한 문서에 두 축을 쓰�
   });
 });
 
-describe("조우 — ENC-001 (설명형 선행 조우, 2026-08-11 확정)", () => {
+describe("조우 — ENC-001 (설명형 선행 조우)", () => {
   const enc = () => bundle.encounters.find((e) => e.id === "ENC-001")!;
   it("설명형이다 — 행동·턴 없이 briefing만 있다 (읽고 확인하면 두더지 잡기)", () => {
     expect(enc().briefing).toBeDefined();
@@ -125,7 +125,7 @@ describe("조우 — ENC-001 (설명형 선행 조우, 2026-08-11 확정)", () =
       value: 1,
     });
   });
-  it("공포는 동요다 — briefing이 동요를 1 올린다 (별도 수치 없음, 2026-08-13 확정)", () => {
+  it("공포는 동요다 — briefing이 동요를 1 올린다 (별도 수치 없음)", () => {
     expect(enc().briefing!.effects).toContainEqual({
       path: "world.menace.unrest",
       op: "add",

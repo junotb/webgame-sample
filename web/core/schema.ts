@@ -21,12 +21,15 @@ export type StatId = "repair" | "insight" | "procedure" | "nerve"; // 정비/진
  */
 export type SkillId =
   "flowsense" | "incantation" | "inscription" | "flame" | "frost";
-export type MenaceId = "fatigue" | "scrutiny" | "unrest"; // 피로/주목/동요
+/**
+ * 소모 수치 — 피로/주목/동요. `menace`는 QBN 장르 용어이며 "위협"으로 옮기지 않는다.
+ */
+export type MenaceId = "fatigue" | "scrutiny" | "unrest";
 
 // ─────────────────────────────────────────────
 // 미니게임 (세션 ② 셸)
 // ─────────────────────────────────────────────
-/** 일반 카드 4종과 1:1 — 파이프 퍼즐 / 기사의 여행 / 블록 퍼즐 / 선별 두더지 */
+/** 일반 카드 4종과 1:1 — 파이프 퍼즐 / 한붓 순찰 / 블록 퍼즐 / 선별 두더지 */
 export type MinigameId = "pipe" | "onestroke" | "block" | "whack";
 /** 미니게임 성적 3값 — 완수/부분/실패. 성적 귀속(gradeOf)으로 3등급이 된다 */
 export type MinigameResult = "complete" | "partial" | "fail";

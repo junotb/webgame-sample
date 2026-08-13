@@ -56,7 +56,7 @@ export interface CharacterSheet {
  */
 export type WeeklyRating = "perfect" | "passed" | "notPassed";
 
-/** 엔딩 (implementation-plan §6-0) — Not Passed가 처리 장수의 절반 이상이면 해고, 그 외 유임 */
+/** 엔딩 (design-structure §4) — Not Passed가 처리 장수의 절반 이상이면 해고, 그 외 유임 */
 export type EndingId = "retained" | "fired";
 
 /**
@@ -416,7 +416,7 @@ export type Action =
   | { type: "SKIP_EVENT" }
   /**
    * 조우 종료 결과 반입 (v3 §6) — 조우 리듀서가 만든 완성된 효과만 받는다.
-   * 조우는 카드 성적·근무 슬롯에 관여하지 않는다 (확정 — implementation-plan §6-5):
+   * 조우는 카드 성적·근무 슬롯에 관여하지 않는다 (확정 — design-structure §2-6):
    * 선행 조우(ENC-001)가 끝나면 미니게임이 이어지고, 성적은 RESOLVE_MINIGAME이 맡는다.
    */
   | {

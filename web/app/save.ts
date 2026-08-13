@@ -21,7 +21,7 @@ const SAVE_KEY = 'phase0';
  *    pendingOrders가 세이브에 들어가므로 구 세이브의 body.text가 selectProse에서
  *    빈 본문이 된다 — 스키마를 올려 새 게임으로 보낸다.
  *    v3 §8 제약 재확인: 문단 배열은 조건+원문 목록이지 렌더된 문장이 아니다.
- * 8: WorldSheet.weekTally·ending 추가 (FINAL_WEEK 엔딩 합산 — implementation-plan §6-0).
+ * 8: WorldSheet.weekTally·ending 추가 (FINAL_WEEK 엔딩 합산 — design-structure §4).
  *    렌더 문장 미저장 제약 재확인: 저장되는 것은 집계 수치와 엔딩 ID뿐이다.
  * 9: 평가 3등급 축소 — WeeklyRating 4종 → 3종(perfect/passed/notPassed),
  *    weekTally에 perfect 추가 (경계 합산식). 구 세이브의 weekRatings 값이 무효.

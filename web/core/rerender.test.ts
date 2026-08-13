@@ -194,7 +194,7 @@ describe("renderArchiveEntry — 면담·신고·통지", () => {
 });
 
 /**
- * 지명 앵커 (design-structure §1-5 / implementation-plan §5, 2026-08-13).
+ * 지명 앵커 (design-structure §1-5, 2026-08-13).
  * 지명·고유명사는 `기억`·`노후도` 어느 축으로도 변형되지 않는다.
  * 재렌더 경로가 변형을 고르는 곳이므로 여기서 고정한다.
  */

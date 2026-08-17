@@ -1,124 +1,205 @@
 "use client";
 
-/** 선별 두더지 잡기 (불순물 소각) — 태울 것만 태운다. 오인 소각은 기록만 남는다 */
+/**
+ * 선별 두더지 잡기 (불순물 소각) — 원형 9포트, 태울 것만 태운다.
+ * 목표·점수는 표기하지 않는다: 판에 보이는 수치는 남은 시간뿐이고,
+ * 통과는 완료 문구 한 줄로만 알린다 (system-rules "소각 미니게임").
+ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MinigameProps } from "../minigame-shell";
-import { generateWhackPlan, gradeWhack, WHACK_HOLES } from "./whack-logic";
+import {
+  generateWhackPlan,
+  gradeWhack,
+  WHACK_HOLES,
+  WHACK_TARGET,
+} from "./whack-logic";
+import DrippingGoo from "../../assets/icons/game-icons.net/lorc/dripping-goo.svg";
+import AcidBlob from "../../assets/icons/game-icons.net/lorc/acid-blob.svg";
+import CrystalCluster from "../../assets/icons/game-icons.net/lorc/crystal-cluster.svg";
+import CrystalShine from "../../assets/icons/game-icons.net/lorc/crystal-shine.svg";
+
+const RESIDUE_ICONS = [DrippingGoo, AcidBlob];
+const KEEPER_ICONS = [CrystalCluster, CrystalShine];
+
+const BOARD = 300;
+const RADIUS = 118;
+const PORT = 64;
+
+// 색 구분이 난이도의 모호함 축 — 두 색이 중간톤으로 다가간다
+const RUST: [number, number, number] = [140, 62, 47];
+const GREEN: [number, number, number] = [51, 75, 66];
+function mix(
+  a: [number, number, number],
+  b: [number, number, number],
+  t: number,
+): string {
+  const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+}
+
+const NOTICE_MS = 1400;
 
 export function WhackGame({ session, onFinish }: MinigameProps) {
   const plan = useMemo(
     () => generateWhackPlan(session.seed, session.difficulty),
     [session],
   );
-  const totalResidue = useMemo(
-    () => plan.spawns.filter((s) => s.kind === "residue").length,
-    [plan],
-  );
   const [elapsed, setElapsed] = useState(0);
   const [handled, setHandled] = useState<Set<number>>(() => new Set());
+  const [notice, setNotice] = useState(false);
   const burnedRef = useRef(0);
-  const mistakesRef = useRef(0);
+  const wrongRef = useRef(0);
   const finishedRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 통과는 문구를 보여준 뒤 반입, 실패는 곧장 반입 —
+  // 실패의 결과는 현장이 아니라 다른 장소의 보고로 도착한다
+  const endRound = () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    if (timerRef.current) clearInterval(timerRef.current);
+    const result = gradeWhack(burnedRef.current, wrongRef.current);
+    if (result === "fail") {
+      onFinish(result);
+      return;
+    }
+    setNotice(true);
+    setTimeout(() => onFinish(result), NOTICE_MS);
+  };
 
   useEffect(() => {
     const startedAt = Date.now();
-    const timer = setInterval(() => {
+    timerRef.current = setInterval(() => {
       const now = Date.now() - startedAt;
       setElapsed(now);
-      if (now >= plan.duration && !finishedRef.current) {
-        finishedRef.current = true;
-        clearInterval(timer);
-        onFinish(gradeWhack(burnedRef.current, totalResidue));
-      }
+      if (now >= plan.duration) endRound();
     }, 50);
-    return () => clearInterval(timer);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, totalResidue]);
+  }, [plan]);
 
-  // 구멍별 현재 노출 개체 — 나중 스폰이 이긴다 (같은 구멍 중첩은 덮어쓰기)
+  // 포트별 현재 노출 개체 — 계획이 포트 겹침을 만들지 않으므로 하나뿐
   const active = new Map<
     number,
-    { index: number; kind: "residue" | "keeper" }
+    { index: number; kind: "residue" | "keeper"; variant: 0 | 1 }
   >();
   plan.spawns.forEach((s, index) => {
     if (handled.has(index)) return;
     if (elapsed >= s.at && elapsed < s.at + s.life)
-      active.set(s.hole, { index, kind: s.kind });
+      active.set(s.hole, { index, kind: s.kind, variant: s.variant });
   });
 
-  // 모호함 — 난이도가 오를수록 두 형상의 색이 가까워진다
-  const keeperAlpha = 0.2 + plan.ambiguity * 0.5;
+  const residueColor = mix(RUST, GREEN, plan.ambiguity * 0.45);
+  const keeperColor = mix(GREEN, RUST, plan.ambiguity * 0.45);
+  const secondsLeft = Math.max(0, Math.ceil((plan.duration - elapsed) / 1000));
 
   return (
     <div className="minigame" data-minigame="whack">
       <header className="minigame-head">
-        <span>
-          불순물 소각 — 태울 것만 태우십시오 ({burnedRef.current}/{totalResidue}
-          )
-        </span>
-        <span className="minigame-clock">
-          {Math.max(0, Math.ceil((plan.duration - elapsed) / 1000))}
-        </span>
+        <span>불순물 소각 — 태울 것만 태우십시오</span>
       </header>
       <div
         className="minigame-board"
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 56px)",
-          gap: 6,
-          justifyContent: "center",
+          position: "relative",
+          width: BOARD,
+          height: BOARD,
+          margin: "0 auto",
+          flexShrink: 0,
         }}
       >
-        {Array.from({ length: WHACK_HOLES }, (_, hole) => {
-          const mole = active.get(hole);
-          return (
-            <button
-              key={hole}
-              aria-label={`소각구 ${hole + 1}`}
-              disabled={!mole}
+        {/* 회로 관로 — 포트를 잇는 고리 */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: BOARD / 2 - RADIUS,
+            top: BOARD / 2 - RADIUS,
+            width: RADIUS * 2,
+            height: RADIUS * 2,
+            borderRadius: "50%",
+            border: "5px solid rgba(74, 65, 48, 0.14)",
+          }}
+        />
+        {notice ? (
+          <p
+            className="minigame-note"
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "grid",
+              placeItems: "center",
+              margin: 0,
+              fontSize: "0.95rem",
+            }}
+          >
+            마력 회로가 안정된 것 같다.
+          </p>
+        ) : (
+          <>
+            <span
+              className="minigame-clock"
               style={{
-                width: 56,
-                height: 56,
-                borderRadius: "50%",
-                background: "rgba(127,127,127,.15)",
-                padding: 0,
-              }}
-              onClick={() => {
-                if (!mole) return;
-                setHandled((prev) => new Set(prev).add(mole.index));
-                if (mole.kind === "residue") burnedRef.current += 1;
-                else mistakesRef.current += 1;
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
               }}
             >
-              {mole ? (
-                <svg
-                  viewBox="0 0 24 24"
-                  width="40"
-                  height="40"
-                  aria-hidden="true"
+              {secondsLeft}
+            </span>
+            {Array.from({ length: WHACK_HOLES }, (_, hole) => {
+              const angle = -Math.PI / 2 + (hole * 2 * Math.PI) / WHACK_HOLES;
+              const mole = active.get(hole);
+              const Icon = mole
+                ? (mole.kind === "residue" ? RESIDUE_ICONS : KEEPER_ICONS)[
+                    mole.variant
+                  ]
+                : null;
+              return (
+                <button
+                  key={hole}
+                  aria-label={`소각구 ${hole + 1}`}
+                  disabled={!mole}
+                  style={{
+                    position: "absolute",
+                    left: BOARD / 2 + Math.cos(angle) * RADIUS - PORT / 2,
+                    top: BOARD / 2 + Math.sin(angle) * RADIUS - PORT / 2,
+                    width: PORT,
+                    height: PORT,
+                    borderRadius: "50%",
+                    background: "rgba(127,127,127,.15)",
+                    padding: 0,
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                  onClick={() => {
+                    if (!mole || finishedRef.current) return;
+                    setHandled((prev) => new Set(prev).add(mole.index));
+                    if (mole.kind === "residue") burnedRef.current += 1;
+                    else wrongRef.current += 1;
+                    if (burnedRef.current - wrongRef.current >= WHACK_TARGET)
+                      endRound();
+                  }}
                 >
-                  {mole.kind === "residue" ? (
-                    // 태울 것 — 일그러진 덩어리
-                    <path
-                      d="M12 3.5c2.8 1.5 5.4 3 6.3 6 .9 3-.4 6.6-3 8.4-2.6 1.8-6.3 1.6-8.6-.4C4.4 15.5 3.9 12 5.2 9.3 6.5 6.6 9.2 5 12 3.5z"
-                      fill="currentColor"
-                      opacity="0.85"
+                  {Icon ? (
+                    <Icon
+                      aria-hidden="true"
+                      width={44}
+                      height={44}
+                      style={{
+                        color:
+                          mole!.kind === "residue" ? residueColor : keeperColor,
+                      }}
                     />
-                  ) : (
-                    // 두어야 할 것 — 고른 원. 난이도가 오르면 점점 비슷해진다
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="8"
-                      fill="currentColor"
-                      opacity={keeperAlpha}
-                    />
-                  )}
-                </svg>
-              ) : null}
-            </button>
-          );
-        })}
+                  ) : null}
+                </button>
+              );
+            })}
+          </>
+        )}
       </div>
     </div>
   );

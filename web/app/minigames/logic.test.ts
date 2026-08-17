@@ -6,7 +6,15 @@ import { describe, expect, it } from 'vitest';
 import { canPlace, generateBlockPuzzle, gradeBlock, place } from './block-logic';
 import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent, judgeStep, type PatrolBoard } from './onestroke-logic';
 import { correctCount, dirsAt, generatePipePuzzle, gradePipe, isSolved } from './pipe-logic';
-import { generateWhackPlan, gradeWhack, WHACK_HOLES } from './whack-logic';
+import {
+  generateWhackPlan,
+  gradeWhack,
+  WHACK_HOLES,
+  WHACK_LIFE_MS,
+  WHACK_MAX_CONCURRENT,
+  WHACK_RESIDUE_SHARE,
+  WHACK_TARGET,
+} from './whack-logic';
 
 describe('파이프 퍼즐', () => {
   it('경로는 왼쪽 가장자리에서 오른쪽 가장자리까지 인접 셀로 이어진다', () => {
@@ -139,25 +147,51 @@ describe('블록 퍼즐', () => {
 });
 
 describe('선별 두더지', () => {
-  it('스폰 계획: 시간 순, 구멍 범위, 태울 것이 다수', () => {
+  it('스폰 계획: 시간 순, 포트 범위, 유지시간 고정', () => {
     const plan = generateWhackPlan(5, 2);
-    expect(plan.spawns.length).toBeGreaterThan(10);
+    expect(plan.spawns.length).toBeGreaterThan(20);
     for (let i = 1; i < plan.spawns.length; i += 1) {
       expect(plan.spawns[i].at).toBeGreaterThan(plan.spawns[i - 1].at);
     }
     expect(plan.spawns.every((s) => s.hole >= 0 && s.hole < WHACK_HOLES)).toBe(true);
-    const residue = plan.spawns.filter((s) => s.kind === 'residue').length;
-    expect(residue).toBeGreaterThan(plan.spawns.length / 2);
+    expect(plan.spawns.every((s) => s.life === WHACK_LIFE_MS)).toBe(true);
   });
-  it('난이도가 오르면 템포가 빨라지고 모호함이 커진다', () => {
+  it('동시 노출은 최대 5, 노출이 겹치는 스폰은 포트를 공유하지 않는다', () => {
+    for (const seed of [1, 5, 9, 42]) {
+      const plan = generateWhackPlan(seed, 3);
+      plan.spawns.forEach((s, i) => {
+        // 동시 수는 순간 기준 — 개수가 변하는 순간은 스폰 시각뿐이다
+        const atSpawn = plan.spawns.filter(
+          (o) => o.at <= s.at && s.at < o.at + o.life,
+        );
+        expect(atSpawn.length).toBeLessThanOrEqual(WHACK_MAX_CONCURRENT);
+        // 포트 공유 금지는 쌍별 — 노출이 겹치는 두 스폰은 다른 포트
+        for (const o of plan.spawns.slice(i + 1)) {
+          if (o.at < s.at + s.life && s.at < o.at + o.life) {
+            expect(o.hole).not.toBe(s.hole);
+          }
+        }
+      });
+    }
+  });
+  it('불순물은 고정 몫 — 시드와 무관하게 공급이 목표를 웃돈다', () => {
+    for (const seed of [1, 2, 3, 7, 11, 99]) {
+      const plan = generateWhackPlan(seed, 2);
+      const residue = plan.spawns.filter((s) => s.kind === 'residue').length;
+      expect(residue).toBe(Math.round(plan.spawns.length * WHACK_RESIDUE_SHARE));
+      expect(residue).toBeGreaterThan(WHACK_TARGET);
+    }
+  });
+  it('난이도는 모호함만 올린다 — 스폰 일정은 그대로', () => {
     const easy = generateWhackPlan(5, 0);
     const hard = generateWhackPlan(5, 6);
-    expect(hard.spawns.length).toBeGreaterThan(easy.spawns.length);
     expect(hard.ambiguity).toBeGreaterThan(easy.ambiguity);
+    expect(hard.spawns).toEqual(easy.spawns);
   });
-  it('성적은 소각률로만: 90% 완수 / 50% 부분. 오인 소각은 성적에 없다', () => {
-    expect(gradeWhack(9, 10)).toBe('complete');
-    expect(gradeWhack(5, 10)).toBe('partial');
-    expect(gradeWhack(4, 10)).toBe('fail');
+  it('판정 = 점수 달성: 20점 도달이 통과, 오인 유무가 완수/부분', () => {
+    expect(gradeWhack(WHACK_TARGET, 0)).toBe('complete');
+    expect(gradeWhack(WHACK_TARGET + 1, 1)).toBe('partial');
+    expect(gradeWhack(WHACK_TARGET, 1)).toBe('fail'); // 점수 19 — 오인이 깎는다
+    expect(gradeWhack(WHACK_TARGET - 1, 0)).toBe('fail');
   });
 });

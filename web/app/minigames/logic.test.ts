@@ -3,7 +3,7 @@
  * 렌더링·타이머는 셸 테스트의 몫, 여기는 시드 재현성과 규칙만 본다.
  */
 import { describe, expect, it } from 'vitest';
-import { canPlace, generateBlockPuzzle, gradeBlock, place } from './block-logic';
+import { canPlace, generateBlockPuzzle, gradeBlock, place, rotatePiece } from './block-logic';
 import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent, judgeStep, type PatrolBoard } from './onestroke-logic';
 import { correctCount, dirsAt, generatePipePuzzle, gradePipe, isSolved } from './pipe-logic';
 import {
@@ -138,6 +138,21 @@ describe('블록 퍼즐', () => {
     const filled = place(empty, piece, [0, 0]);
     expect(filled[0][0] && filled[0][1] && filled[1][0]).toBe(true);
     expect(canPlace(filled, piece, [0, 0])).toBe(false); // 겹침
+  });
+  it('회전: 시계방향 90°, 정규화 유지, 4회면 제자리', () => {
+    const piece = { id: 0, cells: [[0, 0], [0, 1], [0, 2], [1, 0]] as Array<[number, number]> }; // J자
+    const once = rotatePiece(piece);
+    expect(new Set(once.cells.map(([r, c]) => `${r},${c}`))).toEqual(
+      new Set(['0,1', '1,1', '2,1', '0,0']),
+    );
+    // 정규화: 최소 행·열 = 0
+    expect(Math.min(...once.cells.map(([r]) => r))).toBe(0);
+    expect(Math.min(...once.cells.map(([, c]) => c))).toBe(0);
+    // 4회 회전 = 원형
+    const four = rotatePiece(rotatePiece(rotatePiece(once)));
+    expect(new Set(four.cells.map(([r, c]) => `${r},${c}`))).toEqual(
+      new Set(piece.cells.map(([r, c]) => `${r},${c}`)),
+    );
   });
   it('성적 경계: 전부/절반 칸', () => {
     expect(gradeBlock(16, 16)).toBe('complete');

@@ -82,6 +82,15 @@ export function generateBlockPuzzle(seed: number, difficulty: number): BlockPuzz
   return { size, pieces };
 }
 
+/**
+ * 시계방향 90° 회전 (정규화 유지). 잘라낸 방향 그대로 앉힐 필요는 없다 —
+ * 원래 방향의 해가 항상 남아 있으므로 회전을 허용해도 완전 적재는 늘 가능하다.
+ */
+export function rotatePiece(piece: BlockPiece): BlockPiece {
+  const maxR = Math.max(...piece.cells.map(([r]) => r));
+  return { id: piece.id, cells: piece.cells.map(([r, c]): [number, number] => [c, maxR - r]) };
+}
+
 export function canPlace(
   occupied: boolean[][],
   piece: BlockPiece,

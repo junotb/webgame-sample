@@ -680,6 +680,7 @@ button {
 }
 
 .minigame {
+  position: relative; /* 우하단 조작 버튼(.minigame-controls)의 기준 */
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -721,6 +722,62 @@ button {
   color: #807866;
   font-size: 0.72rem;
   letter-spacing: 0.04em;
+}
+
+/* 조작 버튼 겸 안내 — 우하단 고정. 원형 버튼, 상단 라인에 걸친 네모 라벨 */
+.minigame-controls {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 14px;
+}
+
+.minigame-controls button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  color: var(--ink);
+  border: 1px solid #aaa087; /* 종이 위 상호작용 테두리 — .choices button과 같은 어휘 */
+  border-radius: 50%;
+  background: var(--paper-bright);
+  cursor: pointer;
+}
+
+/* 라벨이 원의 테두리 선을 끊고 앉는다 — 버튼과 같은 배경이라 겹친 반은 녹아든다 */
+.minigame-controls .control-label {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 1px 6px;
+  color: var(--muted);
+  border: 1px solid #aaa087;
+  background: var(--paper-bright);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* 두 아이콘 모두 같은 정사각 상자 — 글리프가 아니라 SVG라 크기가 정확히 같다 */
+.minigame-controls .control-glyph {
+  width: 20px;
+  height: 20px;
+}
+
+/* 단축키 표기 — 키보드가 있을 정밀 포인터 환경에서만. 터치 화면에는 소음이다 */
+.minigame-kbd-inline {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .minigame-kbd-inline {
+    display: inline;
+  }
 }
 
 /* 정산의 최근 기록도 한 줄 — 서사는 백로그(§3)의 몫, 여기는 수치의 자리다 */

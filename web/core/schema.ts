@@ -390,6 +390,12 @@ export interface WeekendActivityDef {
 export interface ContentBundle {
   bundleId: string; // 'ep1-slice'
   version: string;
+  /**
+   * 프롤로그 — 새 게임 진입 산문 (system-rules §프롤로그).
+   * 고정 산문: 어느 변형 축도 타지 않으므로 무조건 변형 하나만 (검증기가 검사).
+   * 재열람 미등록·저장 무관 — 이어하기는 이 그릇을 열지 않는다.
+   */
+  prologue: ProseVariant[];
   orderTemplates: WorkOrderTemplate[];
   storylets: Storylet[];
   encounters: EncounterDef[];

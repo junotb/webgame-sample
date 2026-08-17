@@ -306,6 +306,17 @@ export function validateBundle(bundle: ContentBundle): string[] {
 
   checkZoneMaps(bundle, errors);
 
+  // 프롤로그 — 새 게임 흐름이 이 그릇을 무조건 연다 (system-rules §프롤로그).
+  // 고정 산문 계약: 변형 축 금지이므로 무조건 변형 하나만 허용한다
+  if (!bundle.prologue) {
+    errors.push('prologue 누락 — 새 게임 진입 산문은 필수');
+  } else {
+    checkProse(bundle.prologue, 'prologue', errors);
+    if (bundle.prologue.length !== 1 || (bundle.prologue[0]?.if?.length ?? 0) > 0) {
+      errors.push('prologue: 변형 금지 — 프롤로그는 어느 축도 타지 않는 고정 산문이다 (무조건 변형 하나만)');
+    }
+  }
+
   // 주간 총평·통지서 — 3등급 전부 필수 (금요일 흐름이 이 그릇을 무조건 연다)
   const RATINGS = ['perfect', 'passed', 'notPassed'] as const;
   for (const [name, record] of [['weeklyDebrief', bundle.weeklyDebrief], ['weeklyNotice', bundle.weeklyNotice]] as const) {

@@ -104,13 +104,23 @@ export function GameClient({ content }: GameClientProps) {
     setStarted(true);
   }, [saved]);
 
+  /** 프롤로그 — 새 게임만 거친다 (system-rules §프롤로그). 완료는 저장되지 않는 로컬 상태다 */
+  const [prologueOpen, setPrologueOpen] = useState(false);
+
   const onNewGame = useCallback(() => {
     const fresh = createInitialState();
     stateRef.current = fresh;
     setState(fresh);
     setLog([]);
     setStarted(true);
-    persist(fresh); // 기존 세이브를 즉시 덮는다 — 타이틀에서 이미 확인을 받았다
+    // 첫 저장(=덮어쓰기)은 프롤로그 종료 시점이다 — 여기서 저장하면
+    // 도중 이탈 후 이어하기가 프롤로그를 건너뛰는 뒷길이 된다
+    setPrologueOpen(true);
+  }, []);
+
+  const onPrologueDone = useCallback(() => {
+    setPrologueOpen(false);
+    persist(stateRef.current); // 타이틀에서 확인받은 덮어쓰기가 이때 일어난다
   }, [persist]);
 
   const [encounter, setEncounter] = useState<EncounterSession | null>(null);
@@ -254,7 +264,20 @@ export function GameClient({ content }: GameClientProps) {
         onStartWork={onStartWork}
         disabled={!ready}
         overlay={
-          briefing ? (
+          prologueOpen ? (
+            <OverlayShell
+              frame={['집', '배치 전날']}
+              title="장례 뒤"
+              state={state}
+              body={content.prologue}
+              ariaLabel="프롤로그"
+              className="prologue-document"
+            >
+              <button className="primary-action" disabled={!ready} onClick={onPrologueDone}>
+                불을 끄고 눕는다
+              </button>
+            </OverlayShell>
+          ) : briefing ? (
             <OverlayShell
               frame={['소각장 인계대', '업무 개시 전']}
               title={briefing.def.title}

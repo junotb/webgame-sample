@@ -7,8 +7,10 @@ import type { ContentBundle } from './schema';
 
 export const WEEKLY_CONTENT: Pick<
   ContentBundle,
-  'weeklyDebrief' | 'weeklyNotice' | 'weekendActivities' | 'endings'
+  'prologue' | 'weeklyDebrief' | 'weeklyNotice' | 'weekendActivities' | 'endings'
 > = {
+  // 프롤로그도 필수 그릇이라 여기 얹는다 — 고정 산문(무조건 변형 하나)
+  prologue: [{ paragraphs: ['장례는 끝났다.', '내일부터 일해야 산다.'] }],
   weeklyDebrief: {
     perfect: [{ paragraphs: ['총평: 전원 규정치 안쪽.'] }],
     passed: [{ paragraphs: ['총평: 통상적인 주.'] }],

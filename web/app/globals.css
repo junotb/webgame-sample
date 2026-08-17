@@ -637,6 +637,7 @@ button {
 .event-document,
 .closing-document,
 .encounter-document,
+.prologue-document,
 .debrief-scene,
 .ending-scene,
 .minigame-overlay {
@@ -652,6 +653,7 @@ button {
 .event-document,
 .closing-document,
 .encounter-document,
+.prologue-document,
 .debrief-scene,
 .ending-scene,
 .minigame-overlay {

@@ -322,3 +322,21 @@ describe('validateBundle — 구역 도면 (UI 층위 사양 §7)', () => {
     expect(validateBundle(mutate((b) => (b.zoneMaps[0].sites[0].label = ''))).join(' ')).toContain('label');
   });
 });
+
+describe('validateBundle — 프롤로그 (system-rules §프롤로그)', () => {
+  it('prologue가 없으면 거부한다 — 새 게임 흐름이 이 그릇을 무조건 연다', () => {
+    expect(validateBundle(mutate((b) => delete b.prologue)).join(' ')).toContain('prologue 누락');
+  });
+
+  it('변형이 둘 이상이면 거부한다 — 고정 산문은 무조건 변형 하나뿐이다', () => {
+    const errs = validateBundle(mutate((b) => b.prologue.push({ paragraphs: ['둘째 변형'] })));
+    expect(errs.join(' ')).toContain('변형 금지');
+  });
+
+  it('조건 변형을 거부한다 — 프롤로그는 어느 축도 타지 않는다', () => {
+    const errs = validateBundle(
+      mutate((b) => (b.prologue = [{ if: [{ path: 'self.memory', gte: 1 }], paragraphs: ['조건 산문'] }])),
+    );
+    expect(errs.join(' ')).toContain('변형 금지');
+  });
+});

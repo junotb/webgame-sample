@@ -44,6 +44,7 @@ export function createInitialState(seed = DEFAULT_SEED): GameState {
       flags: {},
       shiftLeft: SHIFT_PER_DAY,
       pendingOrders: [],
+      activeOrder: null,
       seed,
     },
   };

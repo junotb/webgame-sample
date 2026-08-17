@@ -60,6 +60,7 @@ function worldAt(stagnation: number, cardNeglect: Record<string, number> = {}, e
       flags: extra?.flags ?? {},
       shiftLeft: 2,
       pendingOrders: [],
+      activeOrder: null,
       seed: 42,
     },
   };

@@ -30,6 +30,7 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
       flags: {},
       shiftLeft: SHIFT_PER_DAY,
       pendingOrders: [],
+      activeOrder: null,
       seed: 42,
       ...overrides,
     },

@@ -30,6 +30,7 @@ function baseState(overrides?: Partial<GameState['world']>): GameState {
       flags: {},
       shiftLeft: SHIFT_PER_DAY,
       pendingOrders: [],
+      activeOrder: null,
       seed: 42,
       ...overrides,
     },
@@ -194,6 +195,28 @@ describe('RESOLVE_MINIGAME — field: 성적 반입 (세션 ② 셸)', () => {
     tired.world.shiftLeft = 0;
     expect(() => reduce(tired, { type: 'RESOLVE_MINIGAME', orderIndex: 0, result: 'fail' }, CONTENT)).toThrow(/근무 시간/);
     expect(() => reduce(baseState(), { type: 'RESOLVE_MINIGAME', orderIndex: 0, result: 'fail' }, CONTENT)).toThrow(/field/);
+  });
+});
+
+describe('BEGIN_MINIGAME — 개시 마커 (이탈은 실패다, system-rules §카드)', () => {
+  function fieldState(orders = [makeOrder('d5', false, 2)]): GameState {
+    return baseState({ phase: 'field', pendingOrders: orders });
+  }
+  it('마커만 남긴다 — 성적·시간·카드에는 손대지 않는다', () => {
+    const { state, log } = reduce(fieldState(), { type: 'BEGIN_MINIGAME', orderIndex: 0 }, CONTENT);
+    expect(state.world.activeOrder).toBe(0);
+    expect(log).toEqual([]);
+    expect(state.world.pendingOrders[0].resolved).toBe(false);
+    expect(state.world.shiftLeft).toBe(fieldState().world.shiftLeft);
+  });
+  it('RESOLVE_MINIGAME이 마커를 해제한다', () => {
+    const begun = reduce(fieldState(), { type: 'BEGIN_MINIGAME', orderIndex: 0 }, CONTENT).state;
+    const { state } = reduce(begun, { type: 'RESOLVE_MINIGAME', orderIndex: 0, result: 'partial' }, CONTENT);
+    expect(state.world.activeOrder).toBeNull();
+  });
+  it('이미 처리한 지시서·field 밖 → throw', () => {
+    expect(() => reduce(fieldState([makeOrder('d5', true, 2, 'passed')]), { type: 'BEGIN_MINIGAME', orderIndex: 0 }, CONTENT)).toThrow(/이미 처리/);
+    expect(() => reduce(baseState(), { type: 'BEGIN_MINIGAME', orderIndex: 0 }, CONTENT)).toThrow(/field/);
   });
 });
 

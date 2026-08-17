@@ -98,11 +98,32 @@ export function GameClient({ content }: GameClientProps) {
 
   const onContinue = useCallback(() => {
     if (!saved) return;
-    stateRef.current = saved;
-    setState(saved);
-    setLog([`Day ${saved.world.calendar.day} 저장 기록을 복원했습니다.`]);
+    let restored = saved;
+    const logs = [`Day ${saved.world.calendar.day} 저장 기록을 복원했습니다.`];
+    // 미니게임 개시 마커가 남아 있다 = 진행 중 이탈했다 — 그 카드는 실패다
+    // (system-rules §카드). 같은 seed로 다시 여는 재도전 뒷길을 막는다.
+    if (saved.world.activeOrder !== null) {
+      try {
+        const failed = reduce(
+          saved,
+          { type: 'RESOLVE_MINIGAME', orderIndex: saved.world.activeOrder, result: 'fail' },
+          content,
+        );
+        restored = failed.state;
+        logs.push('맡은 채 떠난 작업은 실패로 기록되었다.', ...failed.log);
+        if (failed.notices?.length) setNotices((queue) => [...queue, ...failed.notices!]);
+      } catch {
+        // 반입 불가한 마커(손상 세이브)는 걷어내고 복원만 한다
+        restored = structuredClone(saved);
+        restored.world.activeOrder = null;
+      }
+      persist(restored);
+    }
+    stateRef.current = restored;
+    setState(restored);
+    setLog(logs);
     setStarted(true);
-  }, [saved]);
+  }, [saved, content, persist]);
 
   /** 프롤로그 — 새 게임만 거친다 (system-rules §프롤로그). 완료는 저장되지 않는 로컬 상태다 */
   const [prologueOpen, setPrologueOpen] = useState(false);
@@ -146,6 +167,17 @@ export function GameClient({ content }: GameClientProps) {
   const openMinigame = useCallback((orderIndex: number) => {
     const order = stateRef.current.world.pendingOrders[orderIndex];
     if (!order) return;
+    // 개시 마커를 먼저 저장한다 — 여기서부터 이탈은 실패다 (system-rules §카드).
+    // onAction을 거치지 않는 이유: 빈 로그로 직전 서술(조우 체인)을 덮지 않기 위해
+    try {
+      const begun = reduce(stateRef.current, { type: 'BEGIN_MINIGAME', orderIndex }, content);
+      stateRef.current = begun.state;
+      setState(begun.state);
+      persist(begun.state);
+    } catch (error) {
+      setLog([error instanceof Error ? error.message : '작업을 개시할 수 없습니다.']);
+      return;
+    }
     setMinigame({
       orderIndex,
       order,
@@ -155,7 +187,7 @@ export function GameClient({ content }: GameClientProps) {
         seed: stateRef.current.world.seed,
       },
     });
-  }, []);
+  }, [content, persist]);
 
   /** 설명형 선행 조우 — 읽고 확인하면 미니게임이 이어진다 (턴·판정 없음) */
   const [briefing, setBriefing] = useState<{ def: EncounterDef; orderIndex: number; zone: ZoneId } | null>(null);

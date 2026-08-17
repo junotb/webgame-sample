@@ -116,6 +116,12 @@ export interface WorldSheet {
   flags: Record<string, number>; // 서사 플래그 (patched_d5 등)
   shiftLeft: number; // 근무 시간 잔여 (슬라이스의 트리아지 장치)
   pendingOrders: WorkOrder[]; // 오늘 생성된 지시서
+  /**
+   * 진행 중 미니게임의 카드 자리 (system-rules §카드 — 이탈은 실패다).
+   * 시작 시점에 저장되고, 이어하기가 이 카드를 실패로 반입하며 해제한다.
+   * 미니게임 진행 자체는 저장하지 않는다 — 저장되는 것은 "시작했다"는 사실뿐
+   */
+  activeOrder: number | null;
   seed: number; // PRNG 상태 (재현성)
 }
 
@@ -436,6 +442,11 @@ export type Action =
       effects: Effect[];
       text: string;
     }
+  /**
+   * 미니게임 개시 — activeOrder 마커만 남긴다 (system-rules §카드 — 이탈은 실패다).
+   * 성적·시간 소모는 건드리지 않는다. RESOLVE_MINIGAME이 마커를 해제한다.
+   */
+  | { type: "BEGIN_MINIGAME"; orderIndex: number }
   /**
    * 미니게임 종료 반입 (세션 ②) — 성적이 카드의 3등급이 된다 (판정 없음, PRNG 불사용).
    * 미니게임 구현은 앱 층. 코어는 결과 하나만 받는다.

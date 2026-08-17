@@ -211,6 +211,19 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       return { state: next, log, notices: cappedMenaces(state, next) };
     }
 
+    case "BEGIN_MINIGAME": {
+      assertPhase(state, "field", "BEGIN_MINIGAME");
+      const order = state.world.pendingOrders[action.orderIndex];
+      if (!order) throw new Error(`지시서 없음: index ${action.orderIndex}`);
+      if (order.resolved)
+        throw new Error(
+          `이미 처리한 지시서: ${order.templateId} (${order.zone})`,
+        );
+      const next = structuredClone(state);
+      next.world.activeOrder = action.orderIndex;
+      return { state: next, log: [] };
+    }
+
     case "RESOLVE_MINIGAME": {
       assertPhase(state, "field", "RESOLVE_MINIGAME");
       const order = state.world.pendingOrders[action.orderIndex];
@@ -226,6 +239,7 @@ export const reduce: Reducer = (state, action, content): StepResult => {
       }
       const next = structuredClone(state);
       const grade = gradeOf(action.result);
+      next.world.activeOrder = null; // 개시 마커 해제 — 끝난 게임은 이탈 대상이 아니다
       next.world.pendingOrders[action.orderIndex].resolved = true;
       next.world.pendingOrders[action.orderIndex].outcome = grade;
       next.world.shiftLeft -= MINIGAME_TIME_COST;

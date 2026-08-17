@@ -30,6 +30,7 @@ function baseState(): GameState {
       flags: {},
       shiftLeft: 2,
       pendingOrders: [],
+      activeOrder: null,
       seed: 42,
     },
   };

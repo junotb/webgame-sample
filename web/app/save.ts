@@ -37,8 +37,10 @@ const SAVE_KEY = 'phase0';
  * 13: 기술 5종 확정 — SkillId에 incantation(영창술)·flame(화염술) 추가
  *    (감류학=듣기 / 영창술=말하기 / 각인학=쓰기 + 화염술 · 빙결술, design-structure §2).
  *    구 세이브는 두 키가 없어 등급 파생·패널 렌더에서 깨진다 — 새 게임으로.
+ * 15: WorldSheet.activeOrder 추가 — 미니게임 개시 마커 (이탈은 실패다, system-rules §카드).
+ *    렌더 문장 미저장 제약 재확인: 저장되는 것은 카드 자리 번호 하나뿐이다.
  */
-export const SAVE_SCHEMA = 14;
+export const SAVE_SCHEMA = 15;
 
 interface SaveEnvelope {
   schema: number;

@@ -54,6 +54,7 @@
 | 밴드는 저장되지 않고 항상 파생된다 | `core/calendar.test.ts` |
 | 프롤로그 완료는 저장되지 않는다 — 첫 저장은 프롤로그 종료 시점, 이어하기는 거치지 않는다 | `app/prologue.test.tsx` |
 | 백로그는 드러난 문단까지만 보여준다 — 미리 읽기 없음, 열림 중 진행 차단 | `app/paged-copy.test.tsx` |
+| 미니게임 개시는 저장되고, 이탈한 카드는 이어하기가 실패로 반입한다 | `app/resume-fail.test.tsx` |
 | 본문 진행은 덧붙임(NVL 누적)이 아니라 문단 단위 전환이다 | `app/paged-copy.test.tsx` |
 
 ## 규칙 추가·수정 시

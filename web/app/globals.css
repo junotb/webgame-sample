@@ -637,21 +637,28 @@ button {
 .event-document,
 .closing-document,
 .encounter-document,
+.debrief-scene,
+.ending-scene,
 .minigame-overlay {
   width: min(760px, 100%);
   margin: 0 auto;
   padding: clamp(28px, 6vw, 64px);
 }
 
-/* 오버레이 문서는 화면 안에 수납 — 본문(분절)이 남은 높이를 받는다 (스크롤 금지) */
+/* 오버레이 문서 = 고정 크기 종이. 내용이 아니라 종이가 크기를 정한다 —
+   문단 전환마다 상자가 출렁이면 문서 프레임·진행 버튼이 함께 움직인다.
+   기준 뷰포트(가로모드)에서는 100%로 차고, 세로로 긴 창에서만 560px에 걸린다.
+   내부 변동은 분절(paged-body flex:1)이 흡수한다 */
 .event-document,
 .closing-document,
 .encounter-document,
+.debrief-scene,
+.ending-scene,
 .minigame-overlay {
   display: flex;
   flex-direction: column;
+  height: min(100%, 560px);
   min-height: 0;
-  max-height: 100%;
   overflow: hidden;
 }
 
@@ -777,9 +784,9 @@ button {
   cursor: pointer;
 }
 
-/* 종이 한 장 = 부모 문서가 내준 높이. 넘치면 장이 넘어간다 (PagedCopy가 실측).
-   분절 진행 중에는 장 넘김이 먼저 발동하므로 스크롤이 보일 일이 없고,
-   revealAll(처리 완료 재열람)처럼 장 넘김이 없는 경우만 스크롤이 잡는다 */
+/* 종이 한 장 = 부모 문서가 내준 높이. 진행 중에는 문단 하나만 놓이므로
+   넘칠 일이 없고(한 문단 = 한 화면 재단, design §12),
+   revealAll(처리 완료 재열람)·백로그처럼 전문이 쌓이는 경우만 스크롤이 잡는다 */
 .paged-body {
   flex: 1 1 auto;
   /* 본문 최소 두 줄은 보장한다 — 선택지·머리가 종이를 다 먹고 글이 사라지는 것 방지 */
@@ -787,10 +794,67 @@ button {
   overflow-y: auto;
 }
 
+/* 문단 전환 연출 — 전환이 끊김이 아니라 넘김으로 읽히게. 재열람(revealAll)은 제외 */
+.paged-copy.is-flow .paged-body > p {
+  animation: paged-turn 0.24s ease-out;
+}
+
+@keyframes paged-turn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paged-copy.is-flow .paged-body > p {
+    animation: none;
+  }
+}
+
 /* 선택지·표식은 종이 하단에 앉는다 — 본문이 짧아도 자리가 흔들리지 않는다 */
 .paged-copy > .choices,
 .paged-copy > .paged-more {
   flex: none;
+}
+
+/* ── 백로그 (system-rules §화면) — 문서 단위, 드러난 문단까지만 ── */
+.paged-tools {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+}
+
+.paged-log-open {
+  padding: 0 0 6px;
+  border: 0;
+  background: transparent;
+  color: #8b8270;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+/* 열람 중에는 스크롤이 잡는다 — 스크롤 금지의 유일한 합법 예외 */
+.paged-body.is-log-body {
+  overflow-y: auto;
+  cursor: pointer;
+}
+
+.paged-log-close {
+  cursor: pointer;
+  display: block;
+  flex: none;
+  margin: 10px auto 0;
+  padding: 8px 24px;
+  border: 0;
+  background: transparent;
+  color: var(--rust);
+  font-size: 0.72rem;
 }
 
 /* VN의 계속 표식 — 문서 위의 도장·직인과 같은 결로, 색만 낮춘다 */
@@ -1031,13 +1095,14 @@ button:disabled {
   font-size: 0.84rem;
 }
 
-/* 열람 문서 — 슬롯 높이 안에서 해결한다: 머리·제목은 고정, 본문(분절)이 남은 높이를 받는다.
+/* 열람 문서 — 슬롯 높이를 가득 채우는 고정 종이: 머리·제목은 고정,
+   본문(분절)이 남은 높이를 받는다. 문단 전환마다 상자가 출렁이지 않는다.
    overflow hidden — 어떤 경우에도 이웃 행 위로 그려지지 않는다 */
 .order-open {
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-height: 0;
-  max-height: 100%;
   overflow: hidden;
   padding: 23px 23px 26px;
 }

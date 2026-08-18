@@ -10,7 +10,7 @@ import type { MinigameProps } from '../minigame-shell';
 import { useCountdown } from './countdown';
 import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent, judgeStep } from './onestroke-logic';
 // 판 위의 말·장애물이다 — 아이콘 어휘(카드 4종 1:1) 밖 (system-rules "아이콘")
-import DoorWatcher from '../../assets/icons/game-icons.net/delapouite/door-watcher.svg';
+import WalkingScout from '../../assets/icons/game-icons.net/delapouite/walking-scout.svg';
 import Barricade from '../../assets/icons/game-icons.net/delapouite/barricade.svg';
 
 const TOTAL_MS = 30000;
@@ -108,7 +108,7 @@ export function OnestrokeGame({ session, onFinish }: MinigameProps) {
               onClick={() => step(r, c)}
             >
               {isHead ? (
-                <DoorWatcher aria-hidden="true" width={36} height={36} style={{ verticalAlign: 'middle' }} />
+                <WalkingScout aria-hidden="true" width={36} height={36} style={{ verticalAlign: 'middle' }} />
               ) : isStart ? (
                 '시'
               ) : isEnd ? (

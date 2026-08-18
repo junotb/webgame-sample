@@ -75,49 +75,62 @@ describe('파이프 퍼즐', () => {
 });
 
 describe('순찰 경로 (한붓 재설계)', () => {
-  it('정답 경로가 모든 칸을 정확히 한 번씩, 인접 이동으로 지난다 — 항상 해가 있는 판', () => {
+  it('정답 경로가 통행 칸을 정확히 한 번씩, 인접 이동으로 지난다 — 항상 해가 있는 판', () => {
     for (let seed = 0; seed < 20; seed += 1) {
       const b = generatePatrolBoard(seed, seed % 6);
-      expect(b.path).toHaveLength(b.size * b.size);
-      expect(new Set(b.path.map((c) => cellKey(...c))).size).toBe(b.size * b.size);
+      // 통행 칸 + 장애물 = 판 전체, 경로는 장애물을 밟지 않는다
+      expect(b.path.length + b.obstacles.size).toBe(b.rows * b.cols);
+      expect(new Set(b.path.map((c) => cellKey(...c))).size).toBe(b.path.length);
+      for (const [r, c] of b.path) expect(b.obstacles.has(cellKey(r, c))).toBe(false);
       for (let i = 1; i < b.path.length; i += 1) {
         expect(isAdjacent(b.path[i - 1], b.path[i])).toBe(true);
       }
       expect(b.start).toEqual(b.path[0]);
       expect(b.end).toEqual(b.path[b.path.length - 1]);
+      // 시작·끝 맨해튼 거리 ≥ 판의 짧은 변 (system-rules "순찰 미니게임")
+      const dist = Math.abs(b.start[0] - b.end[0]) + Math.abs(b.start[1] - b.end[1]);
+      expect(dist).toBeGreaterThanOrEqual(Math.min(b.rows, b.cols));
     }
   });
   it('같은 시드는 같은 판 (재현성)', () => {
-    expect(generatePatrolBoard(7, 3)).toEqual(generatePatrolBoard(7, 3));
+    const a = generatePatrolBoard(7, 3);
+    const b = generatePatrolBoard(7, 3);
+    expect(a.path).toEqual(b.path);
+    expect([...a.obstacles].sort()).toEqual([...b.obstacles].sort());
   });
-  it('난이도 4부터 판이 5×5로 커진다', () => {
-    expect(generatePatrolBoard(1, 0).size).toBe(4);
-    expect(generatePatrolBoard(1, 4).size).toBe(5);
+  it('난이도 4부터 판이 커진다 — 직사각 + 장애물', () => {
+    const low = generatePatrolBoard(1, 0);
+    expect([low.rows, low.cols, low.obstacles.size]).toEqual([4, 5, 3]);
+    const high = generatePatrolBoard(1, 4);
+    expect([high.rows, high.cols, high.obstacles.size]).toEqual([5, 6, 5]);
   });
-  it('즉시 판정: 잘못된 경로는 그 자리에서 끝난다', () => {
-    // 판정은 size·end만 본다 — 정답 경로 자체는 무관
+  it('즉시 판정: 끝 도달은 그 자리에서 끝나고, 막다른 길은 실패다', () => {
+    // 3×3, [1,1]이 장애물 — 통행 8칸. 판정은 rows·cols·obstacles·end·path.length만 본다
+    const ring: Array<[number, number]> = [
+      [0, 0], [0, 1], [0, 2], [1, 2], [2, 2], [2, 1], [2, 0], [1, 0],
+    ];
     const board: PatrolBoard = {
-      size: 3,
-      path: [],
+      rows: 3,
+      cols: 3,
+      path: ring,
+      obstacles: new Set([cellKey(1, 1)]),
       start: [0, 0],
-      end: [2, 2],
+      end: [1, 0],
     };
     // 계속: 갈 곳이 남아 있다
     expect(judgeStep(board, [[0, 0], [0, 1]])).toBe('walking');
-    // 이른 도착: 끝 타일인데 남은 칸이 있다
-    expect(judgeStep(board, [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2]])).toBe('earlyEnd');
-    // 막다른 길: 갈 곳이 없는데 끝 타일이 아니다
-    expect(judgeStep(board, [[1, 0], [1, 1], [0, 1], [0, 0]])).toBe('deadEnd');
-    // 완주: 끝 타일 + 전 칸
-    expect(
-      judgeStep(board, [[0, 0], [0, 1], [0, 2], [1, 2], [1, 1], [1, 0], [2, 0], [2, 1], [2, 2]]),
-    ).toBe('complete');
+    // 이른 도착: 끝 타일인데 미답사가 남았다 (→ 부분으로 종료)
+    expect(judgeStep(board, [[0, 0], [1, 0]])).toBe('earlyEnd');
+    // 막다른 길: 장애물·밟은 칸에 막혀 갈 곳이 없는데 끝 타일이 아니다
+    expect(judgeStep(board, [[1, 0], [0, 0], [0, 1], [0, 2], [1, 2], [2, 2], [2, 1], [2, 0]])).toBe('deadEnd');
+    // 완주: 끝 타일 + 통행 칸 전부
+    expect(judgeStep(board, ring)).toBe('complete');
   });
-  it('성적: 끝 도달+전 칸 완수 / 절반 이상 부분 / 미만 실패', () => {
-    expect(gradePatrol(16, 16, true)).toBe('complete');
-    expect(gradePatrol(16, 16, false)).toBe('partial'); // 다 밟아도 끝 지점이 아니면 완수가 아니다
-    expect(gradePatrol(8, 16, false)).toBe('partial');
-    expect(gradePatrol(7, 16, false)).toBe('fail');
+  it('성적: 끝 도달+전 칸 완수 / 끝 도달만 부분 / 끝 미도달 실패', () => {
+    expect(gradePatrol(17, 17, true)).toBe('complete');
+    expect(gradePatrol(9, 17, true)).toBe('partial');
+    expect(gradePatrol(16, 17, false)).toBe('fail'); // 아무리 밟아도 끝에 못 닿으면 실패
+    expect(gradePatrol(2, 17, true)).toBe('partial'); // 부분의 하한은 없다 — 도달이 곧 부분
   });
 });
 

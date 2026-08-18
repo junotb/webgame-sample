@@ -37,6 +37,25 @@ export function PipeGame({ session, onFinish }: MinigameProps) {
   }, [rotations]);
 
   const pathAt = new Map(puzzle.cells.map((c, i) => [`${c.row}:${c.col}`, i]));
+  const startRow = puzzle.cells[0].row;
+  const endRow = puzzle.cells[puzzle.cells.length - 1].row;
+
+  // 행렬 바깥 마커 — 급원(왼쪽, 채운 원)과 종점(오른쪽, 빈 원). 판의 회전 대상이 아니다
+  const edgeMarker = (kind: 'source' | 'sink') => (
+    <svg viewBox="0 0 12 24" width="12" height="40" fill="none" stroke="currentColor" strokeWidth="3.4" aria-hidden>
+      {kind === 'source' ? (
+        <>
+          <circle cx="4" cy="12" r="3" fill="currentColor" stroke="none" />
+          <path d="M4 12H12" />
+        </>
+      ) : (
+        <>
+          <path d="M0 12H8" />
+          <circle cx="8" cy="12" r="3" />
+        </>
+      )}
+    </svg>
+  );
 
   return (
     <div className="minigame" data-minigame="pipe">
@@ -46,11 +65,26 @@ export function PipeGame({ session, onFinish }: MinigameProps) {
       </header>
       <div
         className="minigame-board"
-        style={{ display: 'grid', gridTemplateColumns: `repeat(${puzzle.size}, 44px)`, gap: 2, justifyContent: 'center' }}
+        style={{ display: 'grid', gridTemplateColumns: `14px repeat(${puzzle.size}, 44px) 14px`, gap: 2, justifyContent: 'center', alignItems: 'center' }}
       >
-        {Array.from({ length: puzzle.size * puzzle.size }, (_, i) => {
-          const row = Math.floor(i / puzzle.size);
-          const col = i % puzzle.size;
+        {Array.from({ length: puzzle.size * (puzzle.size + 2) }, (_, i) => {
+          const row = Math.floor(i / (puzzle.size + 2));
+          const gridCol = i % (puzzle.size + 2);
+          if (gridCol === 0) {
+            return (
+              <span key={i} aria-label={row === startRow ? '급원' : undefined} style={{ width: 14, height: 44, display: 'flex', alignItems: 'center' }}>
+                {row === startRow ? edgeMarker('source') : null}
+              </span>
+            );
+          }
+          if (gridCol === puzzle.size + 1) {
+            return (
+              <span key={i} aria-label={row === endRow ? '종점' : undefined} style={{ width: 14, height: 44, display: 'flex', alignItems: 'center' }}>
+                {row === endRow ? edgeMarker('sink') : null}
+              </span>
+            );
+          }
+          const col = gridCol - 1;
           const cellIndex = pathAt.get(`${row}:${col}`);
           if (cellIndex === undefined) {
             return <span key={i} style={{ width: 44, height: 44, background: 'rgba(127,127,127,.12)' }} />;

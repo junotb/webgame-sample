@@ -59,6 +59,14 @@ describe('파이프 퍼즐', () => {
     expect(generatePipePuzzle(1, 0).size).toBe(4);
     expect(generatePipePuzzle(1, 4).size).toBe(5);
   });
+  it('장애물은 경로 밖 빈 칸에만 — 4×4에 2개, 5×5에 4개 (system-rules "점검 미니게임")', () => {
+    for (let seed = 0; seed < 20; seed += 1) {
+      const p = generatePipePuzzle(seed, seed % 6);
+      expect(p.obstacles.size).toBe(p.size === 5 ? 4 : 2);
+      const onPath = new Set(p.cells.map((c) => `${c.row}:${c.col}`));
+      for (const o of p.obstacles) expect(onPath.has(o)).toBe(false);
+    }
+  });
   it('성적 경계: 전부/절반/미만', () => {
     expect(gradePipe(6, 6)).toBe('complete');
     expect(gradePipe(3, 6)).toBe('partial');
@@ -69,7 +77,7 @@ describe('파이프 퍼즐', () => {
     const straight = p.cells.find((c) => c.type === 'straight');
     if (straight) {
       const flipped = { ...straight, rotation: straight.correct + 2 };
-      expect(correctCount({ size: p.size, cells: [flipped] })).toBe(1);
+      expect(correctCount({ size: p.size, cells: [flipped], obstacles: new Set() })).toBe(1);
     }
   });
 });

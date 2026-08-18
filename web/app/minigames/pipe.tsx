@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MinigameProps } from '../minigame-shell';
 import { useCountdown } from './countdown';
 import { correctCount, dirsAt, generatePipePuzzle, gradePipe, isSolved, type PipePuzzle } from './pipe-logic';
+import StoneBlock from '../../assets/icons/game-icons.net/lorc/stone-block.svg';
 
 const TOTAL_MS = 30000;
 
@@ -21,6 +22,7 @@ export function PipeGame({ session, onFinish }: MinigameProps) {
   const puzzle: PipePuzzle = {
     size: base.size,
     cells: base.cells.map((c, i) => ({ ...c, rotation: rotations[i] })),
+    obstacles: base.obstacles,
   };
 
   const finish = (result: ReturnType<typeof gradePipe>) => {
@@ -87,7 +89,19 @@ export function PipeGame({ session, onFinish }: MinigameProps) {
           const col = gridCol - 1;
           const cellIndex = pathAt.get(`${row}:${col}`);
           if (cellIndex === undefined) {
-            return <span key={i} style={{ width: 44, height: 44, background: 'rgba(127,127,127,.12)' }} />;
+            const blocked = puzzle.obstacles.has(`${row}:${col}`);
+            return (
+              <span
+                key={i}
+                style={{
+                  width: 44, height: 44,
+                  background: blocked ? 'rgba(127,127,127,.3)' : 'rgba(127,127,127,.12)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: blocked ? 0.75 : 1,
+                }}
+              >
+                {blocked ? <StoneBlock width={26} height={26} aria-hidden /> : null}
+              </span>
+            );
           }
           const cell = puzzle.cells[cellIndex];
           const [a, b] = dirsAt(cell.type, cell.rotation);

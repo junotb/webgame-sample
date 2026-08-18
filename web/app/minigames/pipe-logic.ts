@@ -20,6 +20,8 @@ export interface PipeCell {
 export interface PipePuzzle {
   size: number;
   cells: PipeCell[];
+  /** 경로 밖 폐색 칸 ("row:col") — 회전·통과 불가. 경로 생성이 먼저라 해를 막을 수 없다 */
+  obstacles: Set<string>;
 }
 
 /** 회전 0 기준 연결 방향 — straight: L↔R, elbow: U↔R. 회전은 시계방향 90°씩 */
@@ -88,7 +90,20 @@ export function generatePipePuzzle(seed: number, difficulty: number): PipePuzzle
     return { row: cell.row, col: cell.col, type, correct, rotation: Math.floor(rng() * 4) };
   });
 
-  return { size, cells };
+  // 장애물 — 경로 밖 빈 칸의 시드 셔플에서 앞 N칸 (4×4에 2, 5×5에 4)
+  const empty: string[] = [];
+  for (let r = 0; r < size; r += 1) {
+    for (let c = 0; c < size; c += 1) {
+      if (!visited.has(key(r, c))) empty.push(key(r, c));
+    }
+  }
+  for (let i = empty.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [empty[i], empty[j]] = [empty[j], empty[i]];
+  }
+  const obstacles = new Set(empty.slice(0, size === 5 ? 4 : 2));
+
+  return { size, cells, obstacles };
 }
 
 export function isCellCorrect(cell: PipeCell): boolean {

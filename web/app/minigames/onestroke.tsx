@@ -9,6 +9,9 @@ import { useMemo, useRef, useState } from 'react';
 import type { MinigameProps } from '../minigame-shell';
 import { useCountdown } from './countdown';
 import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent, judgeStep } from './onestroke-logic';
+// 판 위의 말·장애물이다 — 아이콘 어휘(카드 4종 1:1) 밖 (system-rules "아이콘")
+import DoorWatcher from '../../assets/icons/game-icons.net/delapouite/door-watcher.svg';
+import Barricade from '../../assets/icons/game-icons.net/delapouite/barricade.svg';
 
 const TOTAL_MS = 30000;
 
@@ -69,11 +72,14 @@ export function OnestrokeGame({ session, onFinish }: MinigameProps) {
                 style={{
                   width: 44,
                   height: 44,
-                  display: 'inline-block',
-                  background:
-                    'repeating-linear-gradient(45deg, rgba(127,127,127,.5) 0 6px, rgba(127,127,127,.2) 6px 12px)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(127,127,127,.14)',
                 }}
-              />
+              >
+                <Barricade aria-hidden="true" width={36} height={36} style={{ color: 'rgba(127,127,127,.75)' }} />
+              </span>
             );
           }
           const isHead = head[0] === r && head[1] === c;
@@ -90,18 +96,26 @@ export function OnestrokeGame({ session, onFinish }: MinigameProps) {
               style={{
                 width: 44,
                 height: 44,
-                background: isHead
-                  ? 'currentColor'
-                  : isVisited
-                    ? 'rgba(127,127,127,.45)'
-                    : canStep
-                      ? 'rgba(127,127,127,.28)'
-                      : 'rgba(127,127,127,.14)',
+                background: isVisited
+                  ? isHead
+                    ? 'rgba(127,127,127,.55)'
+                    : 'rgba(127,127,127,.45)'
+                  : canStep
+                    ? 'rgba(127,127,127,.28)'
+                    : 'rgba(127,127,127,.14)',
                 outline: canStep ? '1.5px solid currentColor' : 'none',
               }}
               onClick={() => step(r, c)}
             >
-              {isStart && !isHead ? '시' : isEnd ? '끝' : ''}
+              {isHead ? (
+                <DoorWatcher aria-hidden="true" width={36} height={36} style={{ verticalAlign: 'middle' }} />
+              ) : isStart ? (
+                '시'
+              ) : isEnd ? (
+                '끝'
+              ) : (
+                ''
+              )}
             </button>
           );
         })}

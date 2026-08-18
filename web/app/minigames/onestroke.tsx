@@ -10,10 +10,18 @@ import type { MinigameProps } from '../minigame-shell';
 import { useCountdown } from './countdown';
 import { cellKey, generatePatrolBoard, gradePatrol, isAdjacent, judgeStep } from './onestroke-logic';
 // 판 위의 말·장애물이다 — 아이콘 어휘(카드 4종 1:1) 밖 (system-rules "아이콘")
-import WalkingScout from '../../assets/icons/game-icons.net/delapouite/walking-scout.svg';
+import Walk from '../../assets/icons/game-icons.net/delapouite/walk.svg';
 import Barricade from '../../assets/icons/game-icons.net/delapouite/barricade.svg';
 
 const TOTAL_MS = 30000;
+
+// 소각 미니게임과 같은 계열 — 녹청(구역 바닥) / 녹슨 적갈(지나온 자취·경고)
+const GROUND = 'rgba(51, 75, 66, .28)';
+const GROUND_DIM = 'rgba(51, 75, 66, .14)';
+const TRAIL = 'rgba(140, 62, 47, .42)';
+const HEAD_BG = 'rgba(140, 62, 47, .65)';
+const INK = 'rgb(232, 226, 218)';
+const RUST = 'rgb(140, 62, 47)';
 
 export function OnestrokeGame({ session, onFinish }: MinigameProps) {
   const board = useMemo(() => generatePatrolBoard(session.seed, session.difficulty), [session]);
@@ -75,10 +83,10 @@ export function OnestrokeGame({ session, onFinish }: MinigameProps) {
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: 'rgba(127,127,127,.14)',
+                  background: GROUND_DIM,
                 }}
               >
-                <Barricade aria-hidden="true" width={36} height={36} style={{ color: 'rgba(127,127,127,.75)' }} />
+                <Barricade aria-hidden="true" width={36} height={36} style={{ color: RUST }} />
               </span>
             );
           }
@@ -96,19 +104,13 @@ export function OnestrokeGame({ session, onFinish }: MinigameProps) {
               style={{
                 width: 44,
                 height: 44,
-                background: isVisited
-                  ? isHead
-                    ? 'rgba(127,127,127,.55)'
-                    : 'rgba(127,127,127,.45)'
-                  : canStep
-                    ? 'rgba(127,127,127,.28)'
-                    : 'rgba(127,127,127,.14)',
-                outline: canStep ? '1.5px solid currentColor' : 'none',
+                // 클릭 가능 칸은 별도 표시하지 않는다 — 통행 칸은 모두 같은 바닥색
+                background: isHead ? HEAD_BG : isVisited ? TRAIL : GROUND,
               }}
               onClick={() => step(r, c)}
             >
               {isHead ? (
-                <WalkingScout aria-hidden="true" width={36} height={36} style={{ verticalAlign: 'middle' }} />
+                <Walk aria-hidden="true" width={36} height={36} style={{ verticalAlign: 'middle', color: INK }} />
               ) : isStart ? (
                 '시'
               ) : isEnd ? (

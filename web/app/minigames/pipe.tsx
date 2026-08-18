@@ -6,6 +6,8 @@ import type { MinigameProps } from '../minigame-shell';
 import { useCountdown } from './countdown';
 import { correctCount, dirsAt, generatePipePuzzle, gradePipe, isSolved, type PipePuzzle } from './pipe-logic';
 import StoneBlock from '../../assets/icons/game-icons.net/lorc/stone-block.svg';
+import Valve from '../../assets/icons/game-icons.net/delapouite/valve.svg';
+import EnergyTank from '../../assets/icons/game-icons.net/delapouite/energy-tank.svg';
 
 const TOTAL_MS = 30000;
 
@@ -42,21 +44,14 @@ export function PipeGame({ session, onFinish }: MinigameProps) {
   const startRow = puzzle.cells[0].row;
   const endRow = puzzle.cells[puzzle.cells.length - 1].row;
 
-  // 행렬 바깥 마커 — 급원(왼쪽, 채운 원)과 종점(오른쪽, 빈 원). 판의 회전 대상이 아니다
+  // 행렬 바깥 마커 — 급원(밸브)과 종점(수용조). 판의 일부가 아니며 회전 대상이 아니다
   const edgeMarker = (kind: 'source' | 'sink') => (
-    <svg viewBox="0 0 12 24" width="12" height="40" fill="none" stroke="currentColor" strokeWidth="3.4" aria-hidden>
-      {kind === 'source' ? (
-        <>
-          <circle cx="4" cy="12" r="3" fill="currentColor" stroke="none" />
-          <path d="M4 12H12" />
-        </>
-      ) : (
-        <>
-          <path d="M0 12H8" />
-          <circle cx="8" cy="12" r="3" />
-        </>
-      )}
-    </svg>
+    <span aria-hidden style={{ display: 'flex', alignItems: 'center', flexDirection: kind === 'source' ? 'row' : 'row-reverse' }}>
+      {kind === 'source' ? <Valve width={22} height={22} /> : <EnergyTank width={22} height={22} />}
+      <svg viewBox="0 0 6 24" width="6" height="40" fill="none" stroke="currentColor" strokeWidth="3.4">
+        <path d="M0 12H6" />
+      </svg>
+    </span>
   );
 
   return (
@@ -67,21 +62,21 @@ export function PipeGame({ session, onFinish }: MinigameProps) {
       </header>
       <div
         className="minigame-board"
-        style={{ display: 'grid', gridTemplateColumns: `14px repeat(${puzzle.size}, 44px) 14px`, gap: 2, justifyContent: 'center', alignItems: 'center' }}
+        style={{ display: 'grid', gridTemplateColumns: `28px repeat(${puzzle.size}, 44px) 28px`, gap: 2, justifyContent: 'center', alignItems: 'center' }}
       >
         {Array.from({ length: puzzle.size * (puzzle.size + 2) }, (_, i) => {
           const row = Math.floor(i / (puzzle.size + 2));
           const gridCol = i % (puzzle.size + 2);
           if (gridCol === 0) {
             return (
-              <span key={i} aria-label={row === startRow ? '급원' : undefined} style={{ width: 14, height: 44, display: 'flex', alignItems: 'center' }}>
+              <span key={i} aria-label={row === startRow ? '급원' : undefined} style={{ width: 28, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                 {row === startRow ? edgeMarker('source') : null}
               </span>
             );
           }
           if (gridCol === puzzle.size + 1) {
             return (
-              <span key={i} aria-label={row === endRow ? '종점' : undefined} style={{ width: 14, height: 44, display: 'flex', alignItems: 'center' }}>
+              <span key={i} aria-label={row === endRow ? '종점' : undefined} style={{ width: 28, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
                 {row === endRow ? edgeMarker('sink') : null}
               </span>
             );

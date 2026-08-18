@@ -104,8 +104,10 @@ export function OnestrokeGame({ session, onFinish }: MinigameProps) {
               style={{
                 width: 44,
                 height: 44,
-                // 클릭 가능 칸은 별도 표시하지 않는다 — 통행 칸은 모두 같은 바닥색
+                // 클릭 가능 칸은 별도 표시하지 않는다 — 통행 칸은 모두 같은 바닥색.
+                // 전역 button:disabled의 흐림(opacity .48)도 대비로 가능 칸을 드러내므로 무효화
                 background: isHead ? HEAD_BG : isVisited ? TRAIL : GROUND,
+                opacity: 1,
               }}
               onClick={() => step(r, c)}
             >

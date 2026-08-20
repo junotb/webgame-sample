@@ -15,6 +15,16 @@ export const WHACK_TARGET = 20;
 /** 불순물 고정 몫 — 매 스폰 독립 확률이 아니라 전체의 비율. 공급 보장의 근거 */
 export const WHACK_RESIDUE_SHARE = 0.7;
 
+/** 관로 형태 — 시드로 고른다. 배치는 난이도 축이 아니다 (system-rules "소각 미니게임") */
+export const WHACK_LAYOUTS = ["coil", "zigzag", "horseshoe"] as const;
+export type WhackLayoutId = (typeof WHACK_LAYOUTS)[number];
+
+/** 스폰 계획과 같은 시드에서 파생하되 난수열은 공유하지 않는다 — 계획 재현성 보존 */
+export function pickWhackLayout(seed: number): WhackLayoutId {
+  const rng = mulberry32((seed ^ 0x51ab_c9d3) >>> 0);
+  return WHACK_LAYOUTS[Math.floor(rng() * WHACK_LAYOUTS.length)];
+}
+
 export interface WhackSpawn {
   at: number; // 등장 시각 (ms)
   life: number; // 노출 시간 (ms) — 전 스폰 동일

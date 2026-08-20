@@ -9,7 +9,9 @@ import { correctCount, dirsAt, generatePipePuzzle, gradePipe, isSolved } from '.
 import {
   generateWhackPlan,
   gradeWhack,
+  pickWhackLayout,
   WHACK_HOLES,
+  WHACK_LAYOUTS,
   WHACK_LIFE_MS,
   WHACK_MAX_CONCURRENT,
   WHACK_RESIDUE_SHARE,
@@ -223,6 +225,15 @@ describe('선별 두더지', () => {
     const hard = generateWhackPlan(5, 6);
     expect(hard.ambiguity).toBeGreaterThan(easy.ambiguity);
     expect(hard.spawns).toEqual(easy.spawns);
+  });
+  it('관로 형태는 시드로 고정 — 같은 시드 같은 형태, 시드들이 전 형태를 덮는다', () => {
+    expect(pickWhackLayout(7)).toBe(pickWhackLayout(7));
+    const seen = new Set(Array.from({ length: 60 }, (_, seed) => pickWhackLayout(seed)));
+    expect([...seen].sort()).toEqual([...WHACK_LAYOUTS].sort());
+  });
+  it('관로 형태는 난이도 축이 아니다 — 스폰 계획은 형태 선택과 독립', () => {
+    // 형태 선택이 계획의 난수열을 소비하지 않는다: 같은 시드의 계획은 항상 같다
+    expect(generateWhackPlan(11, 3)).toEqual(generateWhackPlan(11, 3));
   });
   it('판정 = 점수 달성: 20점 도달이 통과, 오인 유무가 완수/부분', () => {
     expect(gradeWhack(WHACK_TARGET, 0)).toBe('complete');

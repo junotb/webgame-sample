@@ -26,6 +26,11 @@ const TOUCH_LIFT = 44;
 /** 이 거리(px)를 넘게 움직여야 드래그 — 못 미치면 탭 = 회전 */
 const DRAG_THRESHOLD = 6;
 
+/** 자재 4종 — 순수 장식(판정 무관). 조각 id로 배정하니 같은 카드 재도전은 같은 재질 */
+type Material = 'wood' | 'metal' | 'stone' | 'crystal';
+const MATERIALS: Material[] = ['wood', 'metal', 'stone', 'crystal'];
+const matOf = (piece: BlockPiece): Material => MATERIALS[piece.id % MATERIALS.length];
+
 interface DragState {
   /** 조각에서 잡은 칸 (조각 상대 좌표) — 이 칸이 포인터 아래에 온다 */
   grab: [number, number];
@@ -54,6 +59,10 @@ export function BlockGame({ session, onFinish }: MinigameProps) {
   const puzzle = useMemo(() => generateBlockPuzzle(session.seed, session.difficulty), [session]);
   const [occupied, setOccupied] = useState<boolean[][]>(() =>
     Array.from({ length: puzzle.size }, () => Array(puzzle.size).fill(false)),
+  );
+  // occupied와 나란히 가는 장식 그리드 — 로직(canPlace·place)은 boolean만 본다
+  const [mats, setMats] = useState<(Material | null)[][]>(() =>
+    Array.from({ length: puzzle.size }, () => Array(puzzle.size).fill(null)),
   );
   const [pieceIndex, setPieceIndex] = useState(0);
   const [rotation, setRotation] = useState(0);
@@ -117,8 +126,14 @@ export function BlockGame({ session, onFinish }: MinigameProps) {
 
   const remaining = useCountdown(TOTAL_MS, () => finish(placedCells));
 
-  const advance = (nextOccupied: boolean[][], nextPlaced: number) => {
-    setOccupied(nextOccupied);
+  const advance = (placedPiece: BlockPiece, anchor: [number, number]) => {
+    const nextPlaced = placedCells + placedPiece.cells.length;
+    setOccupied(place(occupied, placedPiece, anchor));
+    setMats((prev) => {
+      const next = prev.map((row) => [...row]);
+      for (const [dr, dc] of placedPiece.cells) next[anchor[0] + dr][anchor[1] + dc] = matOf(placedPiece);
+      return next;
+    });
     setPlacedCells(nextPlaced);
     if (pieceIndex + 1 >= puzzle.pieces.length) {
       finish(nextPlaced);
@@ -163,7 +178,7 @@ export function BlockGame({ session, onFinish }: MinigameProps) {
     if (drag && !drag.moved) {
       rotate(); // 제자리 탭 = 회전
     } else if (drag && dragValid && dragAnchor && piece) {
-      advance(place(occupied, piece, dragAnchor), placedCells + piece.cells.length);
+      advance(piece, dragAnchor);
     }
     setDrag(null);
   };
@@ -186,22 +201,18 @@ export function BlockGame({ session, onFinish }: MinigameProps) {
               const c = i % puzzle.size;
               const ok = piece ? canPlace(occupied, piece, [r, c]) : false;
               const covered = dragCovers(r, c);
-              const background = occupied[r][c]
-                ? 'rgba(127,127,127,.55)'
-                : covered
-                  ? dragValid
-                    ? 'rgba(127,127,127,.4)'
-                    : 'rgba(122,49,38,.3)'
-                  : 'rgba(127,127,127,.14)';
+              const mat = mats[r][c];
               return (
                 <button
                   key={i}
                   aria-label={`적재 ${r + 1}행 ${c + 1}열`}
                   disabled={!ok}
+                  className={mat ? `mat-cell mat-${mat}` : 'slot-cell'}
                   style={{
                     width: CELL,
                     height: CELL,
-                    background,
+                    // 드래그 스냅 하이라이트만 인라인 — 평시엔 슬롯/자재 클래스가 말한다
+                    background: covered ? (dragValid ? 'rgba(127,127,127,.4)' : 'rgba(122,49,38,.3)') : undefined,
                     // 전역 button:disabled 흐림(0.48)을 무효화 — 유효/무효 칸이 평시에 구분되어
                     // 보이면 안 된다. 어디 놓이는지는 드래그 중 스냅 하이라이트만 말한다
                     opacity: 1,
@@ -211,7 +222,7 @@ export function BlockGame({ session, onFinish }: MinigameProps) {
                   }}
                   onClick={() => {
                     if (!piece) return;
-                    advance(place(occupied, piece, [r, c]), placedCells + piece.cells.length);
+                    advance(piece, [r, c]);
                   }}
                 />
               );
@@ -232,13 +243,13 @@ export function BlockGame({ session, onFinish }: MinigameProps) {
               {piece.cells.map(([dr, dc]) => (
                 <span
                   key={`${dr}-${dc}`}
+                  className={`mat-cell mat-${matOf(piece)}`}
                   style={{
                     position: 'absolute',
                     left: dc * PITCH,
                     top: dr * PITCH,
                     width: CELL,
                     height: CELL,
-                    background: 'currentColor',
                   }}
                 />
               ))}
@@ -267,7 +278,11 @@ export function BlockGame({ session, onFinish }: MinigameProps) {
               const c = i % 4;
               const filled = piece?.cells.some(([pr, pc]) => pr === r && pc === c) ?? false;
               return (
-                <span key={i} style={{ width: 18, height: 18, background: filled ? 'currentColor' : 'transparent' }} />
+                <span
+                  key={i}
+                  className={filled && piece ? `mat-pv mat-${matOf(piece)}` : undefined}
+                  style={{ width: 18, height: 18 }}
+                />
               );
             })}
           </div>

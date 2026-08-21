@@ -718,6 +718,80 @@ button {
   cursor: default;
 }
 
+/* ── 자재 옮기기 — 수레 판과 자재 칸 ──
+   슬롯 홈과 자재 블록은 같은 40px 칸·2px 간격을 공유한다 (block.tsx의 CELL·PITCH).
+   자재 질감은 전부 그라디언트 — 베벨은 inset이라 바깥 치수를 먹지 않는다.
+   결·얼룩은 칸에 고정 — 조각을 돌려도 질감 계산이 달라지지 않는다 */
+[data-minigame='block'] .minigame-board {
+  padding: 8px;
+  background: #d8c4a4;
+  border: 1px solid #aaa087;
+  border-radius: 8px;
+}
+
+[data-minigame='block'] .slot-cell {
+  background: #e6ddc6;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 3px rgba(95, 91, 79, 0.22); /* 파인 홈 */
+}
+
+.mat-cell {
+  border-radius: 3px;
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.25),
+    inset -3px -3px 0 rgba(0, 0, 0, 0.3);
+}
+
+.mat-cell.mat-wood {
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(0, 0, 0, 0.08) 0 2px, transparent 2px 7px,
+      rgba(0, 0, 0, 0.12) 7px 8px, transparent 8px 14px),
+    linear-gradient(180deg, #a9793f, #8a5f2e);
+}
+
+.mat-cell.mat-metal {
+  background:
+    linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.35) 45%, transparent 52%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #9aa4ad, #6b7680);
+}
+
+.mat-cell.mat-stone {
+  background:
+    radial-gradient(at 30% 25%, rgba(255, 255, 255, 0.12), transparent 45%),
+    radial-gradient(at 70% 70%, rgba(0, 0, 0, 0.14), transparent 40%),
+    linear-gradient(180deg, #84867f, #6e706a);
+}
+
+.mat-cell.mat-crystal {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, transparent 30%),
+    linear-gradient(180deg, #5cc8c0, #2e8a86);
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.25),
+    inset -3px -3px 0 rgba(0, 0, 0, 0.3),
+    inset 0 0 8px rgba(140, 255, 245, 0.45); /* 내부 발광 */
+}
+
+/* 미리보기 18px 칸 — 결·얼룩은 그 크기에서 노이즈라 기본색 + 광택만 남긴다 */
+.mat-pv {
+  border-radius: 2px;
+  box-shadow:
+    inset 1.5px 1.5px 0 rgba(255, 255, 255, 0.25),
+    inset -1.5px -1.5px 0 rgba(0, 0, 0, 0.3);
+}
+
+.mat-pv.mat-wood { background: linear-gradient(180deg, #a9793f, #8a5f2e); }
+.mat-pv.mat-metal { background: linear-gradient(180deg, #9aa4ad, #6b7680); }
+.mat-pv.mat-stone { background: linear-gradient(180deg, #84867f, #6e706a); }
+
+.mat-pv.mat-crystal {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, transparent 35%),
+    linear-gradient(180deg, #5cc8c0, #2e8a86);
+}
+
 .minigame-note {
   color: #807866;
   font-size: 0.72rem;
